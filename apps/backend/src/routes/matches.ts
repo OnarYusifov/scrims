@@ -1394,7 +1394,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             name: 'Player Pool',
             side: 'ATTACKER', // Doesn't matter for pool
           },
-        });
+        }) as any;
       }
 
       // Add user to player pool (not assigned to Alpha/Bravo yet)
@@ -1470,7 +1470,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             name: 'Team Alpha',
             side: 'ATTACKER',
           },
-        });
+        }) as any;
       }
 
       if (!bravoTeam) {
@@ -1480,7 +1480,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             name: 'Team Bravo',
             side: 'DEFENDER',
           },
-        });
+        }) as any;
       }
 
       if (!playerPool) {
@@ -1490,7 +1490,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             name: 'Player Pool',
             side: 'ATTACKER',
           },
-        });
+        }) as any;
       }
 
       // Clear ONLY Team Alpha and Team Bravo assignments (keep Player Pool intact)
