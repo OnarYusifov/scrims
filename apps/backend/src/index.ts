@@ -132,6 +132,19 @@ async function buildServer(): Promise<FastifyInstance> {
 
 async function start() {
   try {
+    // Run database migrations before starting server
+    try {
+      const { execSync } = require('child_process');
+      console.log('Running database migrations...');
+      execSync('npx prisma migrate deploy --schema=/app/prisma/schema.prisma', {
+        stdio: 'inherit',
+      });
+      console.log('✓ Database migrations completed');
+    } catch (migrationError) {
+      console.error('Migration error (continuing anyway):', migrationError);
+      // Continue even if migrations fail (might already be up to date)
+    }
+
     const server = await buildServer();
     // Use PORT env var or default to 4001 for backend
     const port = parseInt(process.env.PORT || '4001', 10);

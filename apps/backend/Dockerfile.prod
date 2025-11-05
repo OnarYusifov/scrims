@@ -33,7 +33,7 @@ RUN npm install --workspace=@trayb/backend --production=true
 COPY --from=builder /app/apps/backend/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy Prisma schema and generate client
+# Copy Prisma schema, migrations, and generate client
 COPY --from=builder /app/apps/backend/prisma ./prisma
 RUN npx prisma generate
 
