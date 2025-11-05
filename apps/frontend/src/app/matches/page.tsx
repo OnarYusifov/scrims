@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const STATUS_COLORS: Record<MatchStatus, string> = {
   DRAFT: "border-terminal-muted text-terminal-muted",
+  CAPTAIN_VOTING: "border-yellow-500 text-yellow-500",
   MAP_PICK_BAN: "border-cyber-500 text-cyber-500",
   TEAM_SELECTION: "border-matrix-500 text-matrix-500",
   IN_PROGRESS: "border-green-500 text-green-500",
@@ -39,6 +40,7 @@ const STATUS_COLORS: Record<MatchStatus, string> = {
 
 const STATUS_LABELS: Record<MatchStatus, string> = {
   DRAFT: "DRAFT",
+  CAPTAIN_VOTING: "CAPTAIN VOTING",
   MAP_PICK_BAN: "PICK/BAN",
   TEAM_SELECTION: "TEAM SELECT",
   IN_PROGRESS: "IN PROGRESS",
