@@ -13,6 +13,9 @@ RUN npm install --workspace=@trayb/frontend --production=false
 # Copy source code
 COPY . .
 
+# Ensure public directory exists
+RUN mkdir -p /app/apps/frontend/public
+
 # Set environment to production
 ENV NODE_ENV=production
 
@@ -20,7 +23,7 @@ ENV NODE_ENV=production
 RUN npm run build --workspace=@trayb/frontend
 
 # Production stage
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -29,7 +32,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/apps/frontend/package*.json ./apps/frontend/
 RUN npm install --workspace=@trayb/frontend --production=true
 
-# Copy built application and public files
+# Copy built application and static files
 COPY --from=builder /app/apps/frontend/.next/standalone ./
 COPY --from=builder /app/apps/frontend/.next/static ./apps/frontend/.next/static
 COPY --from=builder /app/apps/frontend/public ./apps/frontend/public
