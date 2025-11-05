@@ -82,7 +82,7 @@ async function buildServer(): Promise<FastifyInstance> {
       redis: redis,
     });
   } catch (error) {
-    fastify.log.warn('Rate limiting disabled due to Redis error:', error);
+    fastify.log.warn({ err: error }, 'Rate limiting disabled due to Redis error');
     // Continue without rate limiting if Redis fails
   }
 
