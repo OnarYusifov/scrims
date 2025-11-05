@@ -335,6 +335,7 @@ enum AuditAction {
   STATS_ENTERED
   STATS_UPDATED
   STATS_DELETED
+  MATCH_STATS_SUBMITTED
   
   // Vote actions
   VOTE_CAST

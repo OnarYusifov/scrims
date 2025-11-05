@@ -553,7 +553,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             side: 'ATTACKER',
             captainId: captain1Id,
           },
-        });
+        }) as any;
       } else {
         await prisma.team.update({
           where: { id: team1.id },
@@ -569,7 +569,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             side: 'DEFENDER',
             captainId: captain2Id,
           },
-        });
+        }) as any;
       } else {
         await prisma.team.update({
           where: { id: team2.id },
@@ -820,7 +820,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
               side: 'ATTACKER',
               captainId: captain1Id,
             },
-          });
+          }) as any;
         } else {
           await prisma.team.update({
             where: { id: team1.id },
@@ -836,7 +836,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
               side: 'DEFENDER',
               captainId: captain2Id,
             },
-          });
+          }) as any;
         } else {
           await prisma.team.update({
             where: { id: team2.id },
@@ -960,7 +960,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
               name: 'Team Alpha',
               side: 'ATTACKER',
             },
-          });
+          }) as any;
         }
         if (!team2) {
           team2 = await prisma.team.create({
@@ -969,7 +969,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
               name: 'Team Bravo',
               side: 'DEFENDER',
             },
-          });
+          }) as any;
         }
       }
 
@@ -2116,7 +2116,7 @@ async function selectCaptains(
         side: 'ATTACKER',
         captainId: captain1.id,
       },
-    });
+    }) as any;
   } else {
     await prisma.team.update({
       where: { id: team1.id },
@@ -2132,7 +2132,7 @@ async function selectCaptains(
         side: 'DEFENDER',
         captainId: captain2.id,
       },
-    });
+    }) as any;
   } else {
     await prisma.team.update({
       where: { id: team2.id },
