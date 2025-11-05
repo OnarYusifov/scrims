@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { setToken } from "@/lib/auth"
 import { motion } from "framer-motion"
 import { Loader2 } from "lucide-react"
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -47,6 +47,18 @@ export default function AuthCallbackPage() {
         </p>
       </motion.div>
     </div>
+  )
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="container relative flex min-h-[calc(100vh-4rem)] items-center justify-center">
+        <Loader2 className="h-12 w-12 text-matrix-500 animate-spin" />
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   )
 }
 
