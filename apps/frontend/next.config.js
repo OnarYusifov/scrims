@@ -5,7 +5,7 @@ const nextConfig = {
   // Transpile packages from the monorepo
   transpilePackages: [],
 
-  // Hardcode port to 3000 (prevents auto-switching to 3001)
+  // Development indicators
   devIndicators: {
     buildActivity: true,
     buildActivityPosition: 'bottom-right',
