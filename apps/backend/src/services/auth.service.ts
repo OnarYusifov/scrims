@@ -1,9 +1,13 @@
 import { PrismaClient } from '@prisma/client';
-import DiscordOAuth2 from 'discord-oauth2';
+import { Discord } from 'arctic';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
-const oauth = new DiscordOAuth2();
+const discord = new Discord(
+  process.env.DISCORD_CLIENT_ID!,
+  process.env.DISCORD_CLIENT_SECRET!,
+  process.env.DISCORD_REDIRECT_URI!
+);
 
 interface DiscordUser {
   id: string;
@@ -33,17 +37,15 @@ export class AuthService {
    */
   async handleDiscordCallback(code: string): Promise<{ user: any; isNewUser: boolean }> {
     // Exchange code for access token
-    const tokenResponse = await oauth.tokenRequest({
-      clientId: process.env.DISCORD_CLIENT_ID!,
-      clientSecret: process.env.DISCORD_CLIENT_SECRET!,
-      code,
-      scope: ['identify', 'email'],
-      grantType: 'authorization_code',
-      redirectUri: process.env.DISCORD_CALLBACK_URL!,
-    });
+    const tokens = await discord.validateAuthorizationCode(code);
 
-    // Get user info
-    const discordUser: DiscordUser = await oauth.getUser(tokenResponse.access_token);
+    // Get user info from Discord API
+    const response = await fetch('https://discord.com/api/users/@me', {
+      headers: {
+        Authorization: `Bearer ${tokens.accessToken}`,
+      },
+    });
+    const discordUser: DiscordUser = await response.json();
 
     // Check whitelist
     if (!this.isWhitelisted(discordUser.id)) {
