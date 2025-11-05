@@ -50,5 +50,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:4000/ || exit 1
 
 # Start the application
-# Next.js standalone places server.js in the root of standalone output
+# Next.js standalone places server.js inside apps/frontend directory
+WORKDIR /app/apps/frontend
 CMD ["node", "server.js"]
