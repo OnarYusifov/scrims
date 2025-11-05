@@ -22,7 +22,7 @@
 - **Build Context:** Always use `/` (root of repository) for both apps
 - **Dockerfile Paths:** `apps/backend/Dockerfile.prod` and `apps/frontend/Dockerfile.prod`
 - **Service Names:** Use `trayb-postgres` and `trayb-redis` in connection strings
-- **Ports:** Backend `3001`, Frontend `3000`
+- **Ports:** Backend `4001`, Frontend `4000`
 
 ---
 
