@@ -1,0 +1,25 @@
+FROM node:18.20.2-alpine3.18
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables to skip SWC download
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Copy only package files first for better caching
+COPY package*.json ./
+
+# Install dependencies with legacy peer deeps to avoid peer dependency issues
+RUN npm install --legacy-peer-deps
+
+# Copy application code
+COPY . .
+
+# Set up SWC for Alpine Linux
+RUN npm install -D @next/swc-linux-x64-musl
+
+# Expose the application port
+EXPOSE 3000
+
+# Start the development server
+CMD ["npm", "run", "dev", "--", "-p", "3000", "-H", "0.0.0.0"]

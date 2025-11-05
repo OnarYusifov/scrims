@@ -1,0 +1,224 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 2%;
+    --foreground: 120 100% 30%;
+
+    --card: 210 40% 4%;
+    --card-foreground: 120 100% 30%;
+
+    --popover: 210 40% 4%;
+    --popover-foreground: 120 100% 30%;
+
+    --primary: 142 76% 36%;
+    --primary-foreground: 144 61% 98%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 144 61% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 120 20% 50%;
+
+    --accent: 189 94% 43%;
+    --accent-foreground: 144 61% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 144 61% 98%;
+
+    --border: 120 20% 15%;
+    --input: 120 20% 15%;
+    --ring: 142 76% 36%;
+
+    --radius: 0.375rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-terminal-bg text-matrix-500 font-mono;
+    font-feature-settings: "liga" 1, "calt" 1;
+    position: relative;
+  }
+  
+  /* Ensure all interactive elements are clickable */
+  button, a, input, select, textarea, [role="button"], [tabindex] {
+    position: relative;
+    z-index: 1;
+  }
+  
+  /* Ensure main content is above background effects */
+  main, [role="main"] {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0e0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #22c55e;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #16a34a;
+}
+
+/* Terminal panel style */
+.terminal-panel {
+  @apply bg-terminal-panel border-2 border-terminal-border rounded-md shadow-terminal;
+  position: relative;
+}
+
+.terminal-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(45deg, #22c55e, #06b6d4);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.terminal-panel:hover::before {
+  opacity: 0.5;
+}
+
+.terminal-panel:focus-within::before {
+  opacity: 1;
+}
+
+/* Neon text glow - reduced */
+.neon-text {
+  text-shadow: 0 0 3px currentColor, 0 0 6px currentColor;
+}
+
+/* Terminal cursor */
+.terminal-cursor::after {
+  content: '█';
+  animation: terminal-blink 1s step-end infinite;
+  color: #22c55e;
+}
+
+/* Matrix rain container */
+.matrix-rain-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1 !important;
+  opacity: 0.05;
+  pointer-events: none !important;
+}
+
+/* Glitch effect */
+@keyframes glitch {
+  0% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+  }
+  60% {
+    transform: translate(2px, 2px);
+  }
+  80% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(0);
+  }
+}
+
+.glitch {
+  animation: glitch 0.3s ease-in-out;
+}
+
+/* Selection color */
+::selection {
+  background-color: #22c55e;
+  color: #0a0e0a;
+}
+
+::-moz-selection {
+  background-color: #22c55e;
+  color: #0a0e0a;
+}
+
+/* Loading dots */
+@keyframes loading-dots {
+  0%, 20% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.loading-dot {
+  animation: loading-dots 1.4s infinite;
+}
+
+.loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Scan line effect */
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+.scan-line {
+  position: fixed;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(transparent, #22c55e, transparent);
+  animation: scan 8s linear infinite;
+  pointer-events: none !important;
+  z-index: -1 !important;
+  opacity: 0.1;
+}
+
+/* Toast notifications - ensure they appear on top */
+[data-radix-toast-viewport] {
+  z-index: 99999 !important;
+}
+
+[data-radix-toast-root] {
+  z-index: 100000 !important;
+}
+

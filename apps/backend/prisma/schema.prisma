@@ -1,0 +1,393 @@
+// Prisma schema for TRAYB Customs
+// This schema includes all models for user management, matches, stats, Elo tracking, and admin functionality
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - Discord OAuth-based authentication
+model User {
+  id        String   @id @default(uuid())
+  discordId String   @unique
+  username  String
+  discriminator String?
+  avatar    String?
+  email     String?
+  
+  // Role-based access control
+  role      UserRole @default(USER)
+  isWhitelisted Boolean @default(false)
+  isBanned  Boolean  @default(false)
+  
+  // Elo and ranking
+  elo       Int      @default(800)
+  peakElo   Int      @default(800)
+  matchesPlayed Int   @default(0)
+  isCalibrating Boolean @default(true) // First 10 matches use K=48
+  
+  // Stats
+  totalKills Int @default(0)
+  totalDeaths Int @default(0)
+  totalAssists Int @default(0)
+  totalACS Int @default(0)
+  totalADR Int @default(0)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLogin DateTime?
+  
+  // Relations
+  playerStats   PlayerMatchStats[]
+  eloHistory    EloHistory[]
+  votesGiven    MatchVote[]
+  captainedTeams Team[] @relation("CaptainTeams")
+  teamMembers   TeamMember[]
+  auditLogs     AuditLog[]
+  
+  @@index([discordId])
+  @@index([elo])
+  @@index([role])
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+  ROOT
+}
+
+// Match model - represents a 5v5 custom match
+model Match {
+  id          String   @id @default(uuid())
+  
+  // Match configuration
+  seriesType  SeriesType @default(BO1) // BO1, BO3, BO5
+  status      MatchStatus @default(DRAFT)
+  
+  // Match metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  // Winner
+  winnerTeamId String?
+  winnerTeam  Team? @relation("WinnerTeam", fields: [winnerTeamId], references: [id])
+  
+  // Relations
+  teams       Team[]
+  maps        MapSelection[]
+  playerStats PlayerMatchStats[]
+  votes       MatchVote[]
+  eloChanges  EloHistory[]
+  auditLogs   AuditLog[]
+  
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum SeriesType {
+  BO1
+  BO3
+  BO5
+}
+
+enum MatchStatus {
+  DRAFT           // Being created, players joining
+  CAPTAIN_VOTING  // Voting for captains (before team allocation)
+  TEAM_SELECTION  // Allocating teams (random/elo/captain draft)
+  MAP_PICK_BAN    // In pick/ban phase
+  IN_PROGRESS     // Match in progress
+  VOTING          // Post-match voting
+  COMPLETED       // Finished and finalized
+  CANCELLED       // Cancelled/abandoned
+}
+
+// Team model - represents one team in a match
+model Team {
+  id        String   @id @default(uuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  
+  name      String   // e.g., "Team Alpha", "Team Bravo"
+  side      TeamSide @default(ATTACKER) // Which side they started on
+  
+  // Captain info
+  captainId String?
+  captain   User?    @relation("CaptainTeams", fields: [captainId], references: [id])
+  
+  // Score
+  roundsWon Int      @default(0)
+  mapsWon   Int      @default(0)
+  
+  // Relations
+  members      TeamMember[]
+  playerStats  PlayerMatchStats[]
+  wonMatches   Match[] @relation("WinnerTeam")
+  
+  @@index([matchId])
+}
+
+enum TeamSide {
+  ATTACKER
+  DEFENDER
+}
+
+// TeamMember - junction table for team members
+model TeamMember {
+  id       String @id @default(uuid())
+  teamId   String
+  team     Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  
+  joinedAt DateTime @default(now())
+  
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+// MapSelection - tracks map pick/ban process
+model MapSelection {
+  id        String   @id @default(uuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  
+  mapName   String   // e.g., "Ascent", "Bind", etc.
+  action    MapAction // PICK, BAN, DECIDER
+  order     Int      // Order in pick/ban sequence
+  teamId    String?  // Which team picked/banned
+  
+  // If map was played
+  wasPlayed Boolean  @default(false)
+  winnerTeamId String?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([matchId])
+}
+
+enum MapAction {
+  PICK
+  BAN
+  DECIDER
+}
+
+// PlayerMatchStats - detailed stats for a player in a match
+model PlayerMatchStats {
+  id       String @id @default(uuid())
+  matchId  String
+  match    Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  teamId   String
+  team     Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  // Core stats
+  kills    Int
+  deaths   Int
+  assists  Int
+  acs      Int    // Average Combat Score
+  adr      Int    // Average Damage per Round
+  
+  // Advanced stats
+  headshotPercent Float  @default(0)
+  firstKills      Int    @default(0)
+  firstDeaths     Int    @default(0)
+  kast            Float  @default(0) // Kill/Assist/Survive/Trade %
+  clutches        Int    @default(0)
+  multiKills      Int    @default(0) // 3K, 4K, 5K combined
+  
+  // Calculated metrics
+  kd              Float  @default(0) // Kill/Death ratio
+  plusMinus       Int    @default(0) // Kills - Deaths
+  
+  // Weighted Performance Rating
+  wpr             Float  @default(0) // Calculated using WeightProfile
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([matchId, userId])
+  @@index([matchId])
+  @@index([userId])
+  @@index([wpr])
+}
+
+// EloHistory - tracks Elo changes over time
+model EloHistory {
+  id       String   @id @default(uuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  matchId  String
+  match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  
+  oldElo   Int
+  newElo   Int
+  change   Int      // Can be positive or negative
+  kFactor  Int      // K-factor used for this calculation
+  
+  // Match context
+  won      Boolean
+  seriesType SeriesType
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([matchId])
+  @@index([createdAt])
+}
+
+// WeightProfile - configurable weights for WPR calculation
+model WeightProfile {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(false) // Only one profile can be active
+  
+  // Weights for different stats (should sum to 1.0)
+  killWeight        Float @default(0.25)
+  deathWeight       Float @default(0.15)
+  assistWeight      Float @default(0.10)
+  acsWeight         Float @default(0.20)
+  adrWeight         Float @default(0.10)
+  kastWeight        Float @default(0.10)
+  firstKillWeight   Float @default(0.05)
+  clutchWeight      Float @default(0.05)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([isActive])
+}
+
+// MatchVote - voting system for match results
+model MatchVote {
+  id        String   @id @default(uuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  // Vote can be for specific team or null for tie
+  votedForTeamId String?
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([matchId, userId])
+  @@index([matchId])
+}
+
+// AuditLog - comprehensive logging of all important actions
+model AuditLog {
+  id        String   @id @default(uuid())
+  
+  // Who performed the action
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  
+  // What action
+  action    AuditAction
+  entity    String   // e.g., "Match", "User", "PlayerMatchStats"
+  entityId  String   // ID of the affected entity
+  
+  // Details
+  details   Json?    // Flexible JSON field for additional context
+  ipAddress String?
+  
+  // When
+  createdAt DateTime @default(now())
+  
+  // Optional match reference for match-related audits
+  matchId   String?
+  match     Match?   @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+enum AuditAction {
+  // User actions
+  USER_CREATED
+  USER_UPDATED
+  USER_BANNED
+  USER_UNBANNED
+  USER_ROLE_CHANGED
+  USER_LOGIN
+  
+  // Match actions
+  MATCH_CREATED
+  MATCH_STARTED
+  MATCH_COMPLETED
+  MATCH_CANCELLED
+  MATCH_DELETED
+  
+  // Stats actions
+  STATS_ENTERED
+  STATS_UPDATED
+  STATS_DELETED
+  
+  // Vote actions
+  VOTE_CAST
+  VOTE_CHANGED
+  
+  // Elo actions
+  ELO_CALCULATED
+  ELO_RECALCULATED
+  ELO_MANUAL_ADJUSTMENT
+  
+  // Admin actions
+  WEIGHT_PROFILE_CREATED
+  WEIGHT_PROFILE_UPDATED
+  WEIGHT_PROFILE_ACTIVATED
+  ADMIN_OVERRIDE
+  
+  // System actions
+  SYSTEM_INIT
+  DATABASE_SEED
+}
+
+// Admin model - for root admin accounts (non-Discord)
+model Admin {
+  id       String @id @default(uuid())
+  username String @unique
+  password String // Hashed
+  
+  role     AdminRole @default(ADMIN)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLogin DateTime?
+  
+  @@index([username])
+}
+
+enum AdminRole {
+  ADMIN
+  ROOT
+}
+
+// MapPool - configurable map pool
+model MapPool {
+  id      String  @id @default(uuid())
+  name    String  @unique // e.g., "Ascent", "Bind"
+  isActive Boolean @default(true)
+  order   Int     @default(0)
+  
+  imageUrl String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([isActive])
+  @@index([order])
+}
