@@ -26,8 +26,8 @@ import {
   finalizeTeams,
   captainPickPlayer,
   resetTeams,
-  Match,
 } from "@/lib/api"
+import { Match } from "@/types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 type AllocationMethod = "random" | "elo" | "captain"
