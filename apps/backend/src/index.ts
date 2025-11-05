@@ -13,7 +13,20 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const prisma = new PrismaClient();
-export const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+export const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  // Connection timeout settings to prevent long delays
+  connectTimeout: 5000,
+  commandTimeout: 3000,
+  retryStrategy: (times) => {
+    // Don't retry too many times
+    if (times > 3) {
+      return null; // Stop retrying
+    }
+    return Math.min(times * 200, 1000); // Exponential backoff, max 1s
+  },
+  maxRetriesPerRequest: 1,
+  enableOfflineQueue: false, // Don't queue commands if disconnected
+});
 
 async function buildServer(): Promise<FastifyInstance> {
   const fastify = Fastify({
@@ -61,12 +74,17 @@ async function buildServer(): Promise<FastifyInstance> {
     contentSecurityPolicy: process.env.NODE_ENV === 'production',
   });
 
-  // Register rate limiting
-  await fastify.register(rateLimit, {
-    max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
-    timeWindow: process.env.RATE_LIMIT_WINDOW || '1 minute',
-    redis: redis,
-  });
+  // Register rate limiting (will skip if Redis fails)
+  try {
+    await fastify.register(rateLimit, {
+      max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
+      timeWindow: process.env.RATE_LIMIT_WINDOW || '1 minute',
+      redis: redis,
+    });
+  } catch (error) {
+    fastify.log.warn('Rate limiting disabled due to Redis error:', error);
+    // Continue without rate limiting if Redis fails
+  }
 
   // Health check endpoint
   fastify.get('/health', async () => {
@@ -132,19 +150,6 @@ async function buildServer(): Promise<FastifyInstance> {
 
 async function start() {
   try {
-    // Run database migrations before starting server
-    try {
-      const { execSync } = require('child_process');
-      console.log('Running database migrations...');
-      execSync('npx prisma migrate deploy --schema=/app/prisma/schema.prisma', {
-        stdio: 'inherit',
-      });
-      console.log('✓ Database migrations completed');
-    } catch (migrationError) {
-      console.error('Migration error (continuing anyway):', migrationError);
-      // Continue even if migrations fail (might already be up to date)
-    }
-
     const server = await buildServer();
     // Use PORT env var or default to 4001 for backend
     const port = parseInt(process.env.PORT || '4001', 10);
