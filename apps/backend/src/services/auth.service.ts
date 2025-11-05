@@ -45,7 +45,12 @@ export class AuthService {
         Authorization: `Bearer ${tokens.accessToken}`,
       },
     });
-    const discordUser: DiscordUser = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(`Discord API error: ${response.statusText}`);
+    }
+    
+    const discordUser = await response.json() as DiscordUser;
 
     // Check whitelist
     if (!this.isWhitelisted(discordUser.id)) {
