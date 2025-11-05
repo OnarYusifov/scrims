@@ -133,8 +133,8 @@ async function buildServer(): Promise<FastifyInstance> {
 async function start() {
   try {
     const server = await buildServer();
-    // Hardcoded to port 3001 for backend
-    const port = 3001;
+    // Use PORT env var or default to 4001 for backend
+    const port = parseInt(process.env.PORT || '4001', 10);
     const host = process.env.HOST || '0.0.0.0';
 
     await server.listen({ port, host });
