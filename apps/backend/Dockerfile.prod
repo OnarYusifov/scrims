@@ -36,7 +36,6 @@ COPY --from=builder /app/apps/backend/node_modules ./node_modules
 
 # Copy Prisma schema and generate client
 COPY --from=builder /app/apps/backend/prisma ./prisma
-COPY --from=builder /app/prisma ./prisma
 RUN npx prisma generate
 
 # Expose the application port
