@@ -16,7 +16,6 @@ export const prisma = new PrismaClient();
 export const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
   // Connection timeout settings to prevent long delays
   connectTimeout: 5000,
-  commandTimeout: 3000,
   retryStrategy: (times) => {
     // Don't retry too many times
     if (times > 3) {
@@ -26,6 +25,7 @@ export const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379'
   },
   maxRetriesPerRequest: 1,
   enableOfflineQueue: false, // Don't queue commands if disconnected
+  lazyConnect: false, // Connect immediately
 });
 
 async function buildServer(): Promise<FastifyInstance> {
