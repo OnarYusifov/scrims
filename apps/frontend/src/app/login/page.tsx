@@ -88,7 +88,8 @@ function LoginContent() {
     })
 
     // Redirect to Discord OAuth
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'}/api/auth/discord`
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
+    window.location.href = `${apiUrl}/api/auth/discord`
   }
 
   return (

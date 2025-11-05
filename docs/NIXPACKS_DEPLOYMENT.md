@@ -78,8 +78,8 @@ DISCORD_CLIENT_SECRET=<your-discord-client-secret>
 In Dokploy → Frontend App → **Environment** tab, update:
 
 ```bash
-# Change from api.customs.trayb.az to customs.trayb.az/api
-NEXT_PUBLIC_API_URL=https://customs.trayb.az/api
+# Base URL without /api (endpoints already include /api/ prefix)
+NEXT_PUBLIC_API_URL=https://customs.trayb.az
 
 # Keep these
 NODE_ENV=production
