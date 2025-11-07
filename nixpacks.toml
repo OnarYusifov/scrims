@@ -1,3 +1,15 @@
 [phases.setup]
-nixPkgs = ['nodejs_20']
+nixPkgs = [
+  'nodejs_20',
+  'python311',
+  'pkg-config',
+  'cairo',
+  'pango',
+  'pixman',
+  'libpng',
+  'jpeg',
+  'giflib',
+  'freetype',
+  'librsvg'
+]
 
