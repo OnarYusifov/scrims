@@ -49,17 +49,17 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Matrix Theme Colors
+        // Matrix Theme Colors - Improved readability
         matrix: {
           50: '#f0fdf4',
           100: '#dcfce7',
           200: '#bbf7d0',
           300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',  // Primary Matrix Green
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
+          400: '#6ee7b7',  // Brighter for better readability
+          500: '#34d399',  // Primary Matrix Green - brighter and more readable
+          600: '#22c55e',  // Medium green for accents
+          700: '#16a34a',  // Darker for borders
+          800: '#15803d',
           900: '#14532d',
           950: '#052e16',
         },
@@ -68,10 +68,10 @@ module.exports = {
           100: '#cffafe',
           200: '#a5f3fc',
           300: '#67e8f9',
-          400: '#22d3ee',
-          500: '#06b6d4',  // Cyan accent
-          600: '#0891b2',
-          700: '#0e7490',
+          400: '#5ee7f0',  // Brighter cyan for better readability
+          500: '#22d3ee',  // Primary Cyan - brighter
+          600: '#06b6d4',  // Medium cyan for accents
+          700: '#0891b2',
           800: '#155e75',
           900: '#164e63',
           950: '#083344',
@@ -80,8 +80,15 @@ module.exports = {
           bg: '#0a0e0a',
           panel: '#0f1410',
           border: '#1a251a',
-          text: '#00ff41',
-          muted: '#4a6e4a',
+          text: '#4ade80',  // Brighter green for better readability
+          'text-bright': '#6ee7b7',  // Even brighter for emphasis
+          muted: '#6b7280',  // Gray instead of green for muted text
+          // Light mode colors
+          'bg-light': '#f9fafb',
+          'panel-light': '#ffffff',
+          'border-light': '#e5e7eb',
+          'text-light': '#16a34a',  // Darker green for light mode
+          'muted-light': '#6b7280',
         }
       },
       borderRadius: {
@@ -128,10 +135,10 @@ module.exports = {
         },
         "glow-pulse": {
           "0%, 100%": {
-            boxShadow: "0 0 3px #22c55e, 0 0 6px #22c55e",
+            boxShadow: "0 0 3px #34d399, 0 0 6px #34d399",
           },
           "50%": {
-            boxShadow: "0 0 8px #22c55e, 0 0 12px #22c55e",
+            boxShadow: "0 0 8px #4ade80, 0 0 12px #4ade80",
           },
         },
         "terminal-blink": {
@@ -157,9 +164,9 @@ module.exports = {
         "matrix-fall": "matrix-fall 10s linear infinite",
       },
       boxShadow: {
-        'neon-green': '0 0 3px #22c55e, 0 0 6px #22c55e',
-        'neon-cyan': '0 0 3px #06b6d4, 0 0 6px #06b6d4',
-        'terminal': '0 0 10px rgba(34, 197, 94, 0.2)',
+        'neon-green': '0 0 3px #34d399, 0 0 6px #34d399',
+        'neon-cyan': '0 0 3px #22d3ee, 0 0 6px #22d3ee',
+        'terminal': '0 0 10px rgba(52, 211, 153, 0.2)',
       },
     },
   },

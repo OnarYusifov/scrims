@@ -1,6 +1,191 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../index';
 import { EloService } from '../services/elo.service';
+import { randomService } from '../services/random.service';
+import { MatchStatus } from '@prisma/client';
+import {
+  DiscordIdentity,
+  MatchResultPayload,
+  MatchResultPlayer,
+} from '../bot/types';
+
+const buildDiscordIdentity = (user: {
+  discordId: string | null;
+  username: string | null;
+  avatar: string | null;
+}): DiscordIdentity | null => {
+  if (!user.discordId) {
+    return null;
+  }
+  return {
+    discordId: user.discordId,
+    username: user.username,
+    avatarUrl: user.avatar
+      ? `https://cdn.discordapp.com/avatars/${user.discordId}/${user.avatar}.png`
+      : null,
+  };
+};
+
+interface AggregatedPlayerStats {
+  userId: string;
+  teamId?: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  acs: number;
+  adr: number;
+  firstKills?: number;
+  firstDeaths?: number;
+  kast?: number;
+  multiKills?: number;
+  damageDelta?: number;
+}
+
+interface TeamMemberWithUser {
+  userId: string;
+  user: {
+    id: string;
+    username: string | null;
+    discordId: string | null;
+    avatar: string | null;
+    elo: number | null;
+  };
+}
+
+interface TeamWithMembers {
+  id: string;
+  name: string;
+  members: TeamMemberWithUser[];
+  mapsWon: number | null;
+}
+
+const createMatchResultPayload = ({
+  matchId,
+  seriesType,
+  teams,
+  winnerTeamId,
+  maps,
+  stats,
+  eloResults,
+  completedAt,
+}: {
+  matchId: string;
+  seriesType: string;
+  teams: TeamWithMembers[];
+  winnerTeamId: string;
+  maps: Array<{
+    mapName: string;
+    score: { alpha: number; bravo: number };
+    winnerTeamId: string;
+  }>;
+  stats: Map<string, AggregatedPlayerStats>;
+  eloResults: Array<{
+    userId: string;
+    oldElo: number;
+    newElo: number;
+    change: number;
+  }>;
+  completedAt: Date;
+}): MatchResultPayload => {
+  const teamAlpha = teams.find((t) => t.name === 'Team Alpha');
+  const teamBravo = teams.find((t) => t.name === 'Team Bravo');
+
+  const summarizeTeam = (
+    team: TeamWithMembers | undefined,
+    teamKey: 'ALPHA' | 'BRAVO',
+  ): MatchResultPayload['teamAlpha'] => {
+    if (!team) {
+      return {
+        name: teamKey === 'ALPHA' ? 'Team Alpha' : 'Team Bravo',
+        score: 0,
+        players: [],
+      };
+    }
+
+    const players: MatchResultPlayer[] = team.members.map((member) => {
+      const identity = buildDiscordIdentity(member.user);
+      const stat = stats.get(member.userId);
+      const elo = eloResults.find((result) => result.userId === member.userId);
+      const kills = stat?.kills ?? 0;
+      const deaths = stat?.deaths ?? 0;
+      const assists = stat?.assists ?? 0;
+      const acs = stat?.acs ?? 0;
+      const adr = stat?.adr ?? 0;
+      const plusMinus = kills - deaths;
+
+      return {
+        ...identity,
+        username: identity?.username ?? member.user.username,
+        team: teamKey,
+        kills,
+        deaths,
+        assists,
+        acs,
+        adr,
+        plusMinus,
+        elo: elo
+          ? {
+              oldElo: elo.oldElo,
+              newElo: elo.newElo,
+              change: elo.change,
+            }
+          : undefined,
+      };
+    });
+
+    const score = maps.filter((map) =>
+      map.winnerTeamId === team.id,
+    ).length;
+
+    return {
+      name: team.name,
+      score,
+      players,
+    };
+  };
+
+  const matchMaps = maps.map((map) => ({
+    mapName: map.mapName,
+    scoreAlpha: map.score?.alpha ?? 0,
+    scoreBravo: map.score?.bravo ?? 0,
+    winner:
+      map.winnerTeamId === teamAlpha?.id
+        ? 'ALPHA'
+        : map.winnerTeamId === teamBravo?.id
+        ? 'BRAVO'
+        : 'TIE',
+  }));
+
+  const teamAlphaSummary = summarizeTeam(teamAlpha, 'ALPHA');
+  const teamBravoSummary = summarizeTeam(teamBravo, 'BRAVO');
+  const allPlayers = [...teamAlphaSummary.players, ...teamBravoSummary.players];
+  const mvp =
+    allPlayers.length > 0
+      ? allPlayers
+          .slice()
+          .sort((a, b) =>
+            b.acs === a.acs ? b.kills - a.kills : b.acs - a.acs,
+          )[0]
+      : undefined;
+
+  const winner =
+    winnerTeamId === teamAlpha?.id
+      ? 'ALPHA'
+      : winnerTeamId === teamBravo?.id
+      ? 'BRAVO'
+      : 'TIE';
+
+  return {
+    matchId,
+    seriesType,
+    teamAlpha: teamAlphaSummary,
+    teamBravo: teamBravoSummary,
+    winner,
+    maps: matchMaps,
+    mvp,
+    completedAt,
+  };
+};
 
 export default async function matchRoutes(fastify: FastifyInstance) {
   // Get all matches (paginated)
@@ -117,6 +302,12 @@ export default async function matchRoutes(fastify: FastifyInstance) {
                       avatar: true,
                       elo: true,
                       isCalibrating: true,
+                      totalKills: true,
+                      totalDeaths: true,
+                      totalAssists: true,
+                      totalACS: true,
+                      totalADR: true,
+                      matchesPlayed: true,
                     },
                   },
                 },
@@ -166,22 +357,92 @@ export default async function matchRoutes(fastify: FastifyInstance) {
               },
             },
           },
-          votes: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                },
-              },
-            },
-          },
         },
       });
 
       if (!match) {
         return reply.code(404).send({ error: 'Match not found' });
       }
+
+      // Aggregate per-map stats for all users in the match
+      const userIds = new Set<string>();
+      match.teams.forEach(team => {
+        team.members.forEach(member => {
+          userIds.add(member.userId);
+        });
+      });
+
+      // Get aggregated stats from PlayerMatchStats for all users
+      const aggregatedStats = await Promise.all(
+        Array.from(userIds).map(async (userId) => {
+          const stats = await prisma.playerMatchStats.groupBy({
+            by: ['userId'],
+            where: { userId },
+            _avg: {
+              headshotPercent: true,
+              kast: true,
+              damageDelta: true,
+            },
+            _sum: {
+              firstKills: true,
+              firstDeaths: true,
+              multiKills: true,
+            },
+            _count: {
+              id: true, // Number of matches with stats
+            },
+          });
+
+          if (stats.length > 0) {
+            const stat = stats[0];
+            return {
+              userId,
+              avgHeadshotPercent: stat._avg.headshotPercent || 0,
+              avgKAST: stat._avg.kast || 0,
+              avgDamageDelta: stat._avg.damageDelta || 0,
+              totalFirstKills: stat._sum.firstKills || 0,
+              totalFirstDeaths: stat._sum.firstDeaths || 0,
+              totalMultiKills: stat._sum.multiKills || 0,
+            };
+          }
+          return {
+            userId,
+            avgHeadshotPercent: 0,
+            avgKAST: 0,
+            avgDamageDelta: 0,
+            totalFirstKills: 0,
+            totalFirstDeaths: 0,
+            totalMultiKills: 0,
+          };
+        })
+      );
+
+      // Create a map for quick lookup
+      const statsMap = new Map(
+        aggregatedStats.map(s => [s.userId, s])
+      );
+
+      // Enrich user data with aggregated stats
+      match.teams.forEach(team => {
+        team.members.forEach(member => {
+          const stats = statsMap.get(member.userId);
+          if (stats) {
+            (member.user as any).avgHeadshotPercent = stats.avgHeadshotPercent;
+            (member.user as any).avgKAST = stats.avgKAST;
+            (member.user as any).avgDamageDelta = stats.avgDamageDelta;
+            (member.user as any).totalFirstKills = stats.totalFirstKills;
+            (member.user as any).totalFirstDeaths = stats.totalFirstDeaths;
+            (member.user as any).totalMultiKills = stats.totalMultiKills;
+          } else {
+            (member.user as any).avgHeadshotPercent = 0;
+            (member.user as any).avgKAST = 0;
+            (member.user as any).avgDamageDelta = 0;
+            (member.user as any).totalFirstKills = 0;
+            (member.user as any).totalFirstDeaths = 0;
+            (member.user as any).totalMultiKills = 0;
+          }
+        });
+      });
 
       return match;
     } catch (error) {
@@ -280,87 +541,94 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           },
         });
 
+        const userRecord = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            username: true,
+            discordId: true,
+            avatar: true,
+          },
+        });
+
+        const identity = userRecord ? buildDiscordIdentity(userRecord) : null;
+        if (identity && fastify.discordBot) {
+          fastify.discordBot
+            .syncLobby({
+              matchId,
+              players: [identity],
+            })
+            .catch((err) => fastify.log.error({ err, matchId, userId }, 'Failed to queue lobby sync after join'));
+        }
+
         return { message: 'Joined team successfully' };
       }
 
-      // If no teamId, check if user is already in any team
+      // If no teamId, check if user is already in any team (including Player Pool)
       const userInTeam = match.teams.some(team =>
         team.members.some(member => member.userId === userId)
       );
 
       if (userInTeam) {
-        return reply.code(400).send({ error: 'Already in a team' });
+        return reply.code(400).send({ error: 'Already in this match' });
       }
 
-      // Find team with space (or create new team if needed)
-      // Always ensure we have both teams available
-      let teamAlpha = match.teams.find(t => t.name === 'Team Alpha');
-      let teamBravo = match.teams.find(t => t.name === 'Team Bravo');
-
-      if (!teamAlpha) {
-        teamAlpha = await prisma.team.create({
-          data: {
-            matchId,
-            name: 'Team Alpha',
-            side: 'ATTACKER',
-          },
-          include: {
-            members: true,
-          },
-        });
-      } else {
-        // Reload team with members if it exists
-        teamAlpha = await prisma.team.findUnique({
-          where: { id: teamAlpha.id },
-          include: {
-            members: true,
-          },
-        });
-      }
-
-      if (!teamBravo) {
-        teamBravo = await prisma.team.create({
-          data: {
-            matchId,
-            name: 'Team Bravo',
-            side: 'DEFENDER',
-          },
-          include: {
-            members: true,
-          },
-        });
-      } else {
-        // Reload team with members if it exists
-        teamBravo = await prisma.team.findUnique({
-          where: { id: teamBravo.id },
-          include: {
-            members: true,
-          },
-        });
-      }
-
-      if (!teamAlpha || !teamBravo) {
-        return reply.code(500).send({ error: 'Failed to create teams' });
-      }
-
-      // Find team with space (prefer Alpha first)
-      let targetTeam = teamAlpha.members.length < 5 ? teamAlpha : 
-                       teamBravo.members.length < 5 ? teamBravo : null;
+      // Add user to Player Pool (unassigned) instead of directly to a team
+      // This allows admins to manually assign teams later
+      let playerPool = match.teams.find(t => t.name === 'Player Pool');
       
-      if (!targetTeam) {
-        // Both teams full - shouldn't happen if we check properly
-        return reply.code(400).send({ error: 'Match is full' });
+      if (!playerPool) {
+        playerPool = await prisma.team.create({
+          data: {
+            matchId,
+            name: 'Player Pool',
+            side: 'ATTACKER', // Doesn't matter for pool
+          },
+          include: {
+            members: true,
+          },
+        });
+      } else {
+        // Reload team with members if it exists
+        playerPool = await prisma.team.findUnique({
+          where: { id: playerPool.id },
+          include: {
+            members: true,
+          },
+        });
       }
 
-      // Add to team
+      if (!playerPool) {
+        return reply.code(500).send({ error: 'Failed to create player pool' });
+      }
+
+      // Add to Player Pool
       await prisma.teamMember.create({
         data: {
-          teamId: targetTeam.id,
+          teamId: playerPool.id,
           userId,
         },
       });
 
-      return { message: 'Joined match successfully', teamId: targetTeam.id };
+      const userRecord = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          username: true,
+          discordId: true,
+          avatar: true,
+        },
+      });
+
+      const identity = userRecord ? buildDiscordIdentity(userRecord) : null;
+      if (identity && fastify.discordBot) {
+        fastify.discordBot
+          .syncLobby({
+            matchId,
+            players: [identity],
+          })
+          .catch((err) => fastify.log.error({ err, matchId, userId }, 'Failed to queue lobby sync after join'));
+      }
+
+      return { message: 'Joined match successfully. You are in the player pool.', teamId: playerPool.id };
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
@@ -406,6 +674,100 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       }
 
       return reply.code(400).send({ error: 'Not in this match' });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Remove player from match (admin/root only)
+  fastify.post('/:id/remove-player', {
+    onRequest: [fastify.authenticate],
+  }, async (request: FastifyRequest<{
+    Params: { id: string };
+    Body: {
+      userId: string;
+    };
+  }>, reply: FastifyReply) => {
+    try {
+      const currentUser = (request as any).user;
+      const { id: matchId } = request.params;
+      const { userId } = request.body;
+
+      // Check if user is admin or root
+      if (currentUser.role !== 'ADMIN' && currentUser.role !== 'ROOT') {
+        return reply.code(403).send({ error: 'Only admins can remove players' });
+      }
+
+      // Get match
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teams: {
+            include: {
+              members: true,
+            },
+          },
+        },
+      });
+
+      if (!match) {
+        return reply.code(404).send({ error: 'Match not found' });
+      }
+
+      // Find team member
+      let teamMember = null;
+      for (const team of match.teams) {
+        teamMember = team.members.find(m => m.userId === userId);
+        if (teamMember) {
+          await prisma.teamMember.delete({
+            where: { id: teamMember.id },
+          });
+          return { message: 'Player removed successfully' };
+        }
+      }
+
+      return reply.code(400).send({ error: 'Player not in this match' });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Update match status (admin/root only)
+  fastify.patch('/:id', {
+    onRequest: [fastify.authenticate],
+  }, async (request: FastifyRequest<{
+    Params: { id: string };
+    Body: { status?: MatchStatus };
+  }>, reply: FastifyReply) => {
+    try {
+      const userRole = (request as any).user.role;
+      const { id: matchId } = request.params;
+      const { status } = request.body;
+
+      // Only admins can update match status
+      if (!['ADMIN', 'ROOT'].includes(userRole)) {
+        return reply.code(403).send({ error: 'Insufficient permissions' });
+      }
+
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+      });
+
+      if (!match) {
+        return reply.code(404).send({ error: 'Match not found' });
+      }
+
+      // Update status if provided
+      if (status) {
+        await prisma.match.update({
+          where: { id: matchId },
+          data: { status },
+        });
+      }
+
+      return { message: 'Match updated successfully' };
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
@@ -632,7 +994,184 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         data: { status: 'MAP_PICK_BAN' },
       });
 
+      if (fastify.discordBot) {
+        const [teamAlphaMembers, teamBravoMembers] = await Promise.all([
+          prisma.teamMember.findMany({
+            where: { teamId: team1.id },
+            include: {
+              user: {
+                select: {
+                  username: true,
+                  discordId: true,
+                  avatar: true,
+                },
+              },
+            },
+          }),
+          prisma.teamMember.findMany({
+            where: { teamId: team2.id },
+            include: {
+              user: {
+                select: {
+                  username: true,
+                  discordId: true,
+                  avatar: true,
+                },
+              },
+            },
+          }),
+        ]);
+
+        const teamAlphaIdentities = teamAlphaMembers
+          .map((member) => buildDiscordIdentity(member.user))
+          .filter((identity): identity is DiscordIdentity => Boolean(identity));
+        const teamBravoIdentities = teamBravoMembers
+          .map((member) => buildDiscordIdentity(member.user))
+          .filter((identity): identity is DiscordIdentity => Boolean(identity));
+
+        if (teamAlphaIdentities.length || teamBravoIdentities.length) {
+          fastify.discordBot
+            .assignTeams({
+              matchId,
+              teamAlpha: teamAlphaIdentities,
+              teamBravo: teamBravoIdentities,
+            })
+            .catch((err) =>
+              fastify.log.error(
+                { err, matchId },
+                'Failed to assign team voice channels',
+              ),
+            );
+        }
+      }
+
       return { message: 'Teams finalized, moving to map pick/ban' };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Pick/Ban a map (captain only)
+  fastify.post('/:id/pick-ban', {
+    onRequest: [fastify.authenticate],
+  }, async (request: FastifyRequest<{
+    Params: { id: string };
+    Body: {
+      mapName: string;
+      action: 'PICK' | 'BAN';
+      order: number;
+      teamId: string;
+    };
+  }>, reply: FastifyReply) => {
+    try {
+      const userId = (request as any).user.userId;
+      const { id: matchId } = request.params;
+      const { mapName, action, order, teamId } = request.body;
+
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teams: {
+            include: {
+              members: true,
+            },
+          },
+          maps: true,
+        },
+      });
+
+      if (!match) {
+        return reply.code(404).send({ error: 'Match not found' });
+      }
+
+      if (match.status !== 'MAP_PICK_BAN') {
+        return reply.code(400).send({ error: 'Match not in pick/ban phase' });
+      }
+
+      // Verify user is captain of the team
+      const team = match.teams.find(t => t.id === teamId);
+      if (!team || team.captainId !== userId) {
+        return reply.code(403).send({ error: 'Only the team captain can pick/ban maps' });
+      }
+
+      // Verify map is not already picked/banned
+      const existingSelection = match.maps.find(m => m.mapName === mapName);
+      if (existingSelection) {
+        return reply.code(400).send({ error: 'Map already selected' });
+      }
+
+      // Create map selection
+      await prisma.mapSelection.create({
+        data: {
+          matchId,
+          mapName,
+          action,
+          order,
+          teamId,
+          wasPlayed: false,
+        },
+      });
+
+      return { message: `Map ${action === 'PICK' ? 'picked' : 'banned'} successfully` };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Start match (captain only, after pick/ban complete)
+  fastify.post('/:id/start-match', {
+    onRequest: [fastify.authenticate],
+  }, async (request: FastifyRequest<{
+    Params: { id: string };
+  }>, reply: FastifyReply) => {
+    try {
+      const userId = (request as any).user.userId;
+      const { id: matchId } = request.params;
+
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teams: {
+            include: {
+              members: true,
+            },
+          },
+          maps: true,
+        },
+      });
+
+      if (!match) {
+        return reply.code(404).send({ error: 'Match not found' });
+      }
+
+      if (match.status !== 'MAP_PICK_BAN') {
+        return reply.code(400).send({ error: 'Match not in pick/ban phase' });
+      }
+
+      // Verify user is a captain
+      const isCaptain = match.teams.some(t => t.captainId === userId);
+      if (!isCaptain) {
+        return reply.code(403).send({ error: 'Only captains can start the match' });
+      }
+
+      // Verify at least one map is picked
+      const pickedMaps = match.maps.filter(m => m.action === 'PICK');
+      if (pickedMaps.length === 0) {
+        return reply.code(400).send({ error: 'At least one map must be picked' });
+      }
+
+      // Update match status to IN_PROGRESS
+      await prisma.match.update({
+        where: { id: matchId },
+        data: {
+          status: 'IN_PROGRESS',
+          startedAt: new Date(),
+        },
+      });
+
+      return { message: 'Match started successfully' };
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
@@ -1013,8 +1552,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           });
         }
       } else {
-        // Random assignment
-        const shuffled = [...allPlayers].sort(() => Math.random() - 0.5);
+        // Random assignment using Random.org
+        const shuffled = await randomService.shuffleArray(allPlayers);
         for (let i = 0; i < shuffled.length; i++) {
           const teamId = i % 2 === 0 ? team1.id : team2.id;
           await prisma.teamMember.create({
@@ -1109,8 +1648,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       const { id: matchId } = request.params;
       const { purpose } = request.body;
 
-      // Random coinflip (0 or 1)
-      const result = Math.random() < 0.5 ? 0 : 1;
+      // Random coinflip using Random.org (0 or 1)
+      const result = await randomService.coinFlip();
       const winner = result === 0 ? 'heads' : 'tails';
 
       // Log coinflip result (could store in match details or audit log)
@@ -1311,6 +1850,32 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         addedUsers.push({ userId: user.id, username: user.username, teamId: targetTeam.id });
       }
 
+      if (fastify.discordBot) {
+        const identities = usersToActuallyAdd
+          .map((user) =>
+            buildDiscordIdentity({
+              discordId: user.discordId,
+              username: user.username,
+              avatar: user.avatar,
+            }),
+          )
+          .filter((identity): identity is DiscordIdentity => Boolean(identity));
+
+        if (identities.length) {
+          fastify.discordBot
+            .syncLobby({
+              matchId,
+              players: identities,
+            })
+            .catch((err) =>
+              fastify.log.error(
+                { err, matchId },
+                'Failed to sync lobby after adding test users',
+              ),
+            );
+        }
+      }
+
       return {
         message: `Added ${addedUsers.length} test users to match (${currentMembers.length + addedUsers.length}/10 total)`,
         addedUsers,
@@ -1406,6 +1971,28 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       });
 
       fastify.log.info(`Manually added user ${user.username} to player pool in match ${matchId}`);
+
+      if (fastify.discordBot) {
+        const identity = buildDiscordIdentity({
+          discordId: user.discordId,
+          username: user.username,
+          avatar: user.avatar,
+        });
+
+        if (identity) {
+          fastify.discordBot
+            .syncLobby({
+              matchId,
+              players: [identity],
+            })
+            .catch((err) =>
+              fastify.log.error(
+                { err, matchId, userId: user.id },
+                'Failed to sync lobby after manual user add',
+              ),
+            );
+        }
+      }
 
       return {
         message: `Added ${user.username} to player pool`,
@@ -1838,21 +2425,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       ]);
 
       // Collect stats from all maps
-      const aggregatedStats = new Map<string, {
-        userId: string;
-        teamId: string;
-        kills: number;
-        deaths: number;
-        assists: number;
-        acs: number;
-        adr: number;
-        headshotPercent: number;
-        firstKills: number;
-        firstDeaths: number;
-        kast: number;
-        multiKills: number;
-        damageDelta: number;
-      }>();
+      const aggregatedStats = new Map<string, AggregatedPlayerStats>();
 
       // Process each map's stats
       for (const mapData of maps) {
@@ -1886,7 +2459,18 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             existing.damageDelta = (existing.damageDelta || 0) + (stat.damageDelta || 0);
           } else {
             aggregatedStats.set(stat.userId, {
-              ...stat,
+              userId: stat.userId,
+              teamId: stat.teamId,
+              kills: stat.kills,
+              deaths: stat.deaths,
+              assists: stat.assists,
+              acs: stat.acs,
+              adr: stat.adr,
+              headshotPercent: stat.headshotPercent,
+              firstKills: stat.firstKills,
+              firstDeaths: stat.firstDeaths,
+              kast: stat.kast,
+              multiKills: stat.multiKills,
               damageDelta: stat.damageDelta || 0,
             });
           }
@@ -2012,14 +2596,37 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       }
 
       // Update match status
+      const completedAt = new Date();
       await prisma.match.update({
         where: { id: matchId },
         data: {
           status: 'COMPLETED',
           winnerTeamId,
-          completedAt: new Date(),
+          completedAt,
         },
       });
+
+      if (fastify.discordBot) {
+        const payload = createMatchResultPayload({
+          matchId,
+          seriesType: match.seriesType,
+          teams: match.teams as TeamWithMembers[],
+          winnerTeamId,
+          maps,
+          stats: aggregatedStats,
+          eloResults,
+          completedAt,
+        });
+
+        fastify.discordBot
+          .finalizeMatch(payload)
+          .catch((err) =>
+            fastify.log.error(
+              { err, matchId },
+              'Failed to synchronize match completion with Discord',
+            ),
+          );
+      }
 
       // Log audit
       await prisma.auditLog.create({
@@ -2040,6 +2647,315 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       return {
         message: 'Match stats submitted and Elo calculated',
         eloResults,
+      };
+    } catch (error: any) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: error.message || 'Internal server error' });
+    }
+  });
+
+  // Submit stats for a single map (any player in match)
+  fastify.post('/:id/stats/map', {
+    onRequest: [fastify.authenticate],
+  }, async (request: FastifyRequest<{
+    Params: { id: string };
+    Body: {
+      mapName: string;
+      winnerTeamId: string;
+      score: { alpha: number; bravo: number };
+      playerStats: Array<{
+        userId: string;
+        teamId: string;
+        kills: number;
+        deaths: number;
+        assists: number;
+        acs: number;
+        adr: number;
+        headshotPercent: number;
+        firstKills: number;
+        firstDeaths: number;
+        kast: number;
+        multiKills: number;
+        damageDelta?: number;
+      }>;
+    };
+  }>, reply: FastifyReply) => {
+    try {
+      const userId = (request.user as any).id;
+      const matchId = request.params.id;
+      const { mapName, winnerTeamId, score, playerStats } = request.body;
+
+      // Get match with all necessary relations
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teams: {
+            include: {
+              members: true,
+            },
+          },
+          maps: {
+            orderBy: {
+              order: 'asc',
+            },
+          },
+        },
+      });
+
+      if (!match) {
+        return reply.code(404).send({ error: 'Match not found' });
+      }
+
+      // Verify user is in the match
+      const userInMatch = match.teams.some(t => 
+        t.members.some(m => m.userId === userId)
+      );
+
+      if (!userInMatch) {
+        return reply.code(403).send({ error: 'You must be in the match to submit stats' });
+      }
+
+      if (match.status !== 'IN_PROGRESS') {
+        return reply.code(400).send({ error: 'Match must be in progress to submit stats' });
+      }
+
+      // Find the map selection
+      const mapSelection = match.maps.find(m => m.mapName === mapName && m.action === 'PICK');
+      if (!mapSelection) {
+        return reply.code(400).send({ error: 'Map not found in match' });
+      }
+
+      if (mapSelection.wasPlayed) {
+        return reply.code(400).send({ error: 'Stats for this map have already been submitted' });
+      }
+
+      // Validate all players have stats
+      const teamAlpha = match.teams.find(t => t.name === 'Team Alpha');
+      const teamBravo = match.teams.find(t => t.name === 'Team Bravo');
+
+      if (!teamAlpha || !teamBravo) {
+        return reply.code(400).send({ error: 'Teams not found' });
+      }
+
+      const allPlayerIds = new Set([
+        ...teamAlpha.members.map(m => m.userId),
+        ...teamBravo.members.map(m => m.userId),
+      ]);
+
+      const submittedPlayerIds = new Set(playerStats.map(s => s.userId));
+      for (const playerId of allPlayerIds) {
+        if (!submittedPlayerIds.has(playerId)) {
+          return reply.code(400).send({ error: `Missing stats for player ${playerId}` });
+        }
+      }
+
+      // Update map selection with winner and mark as played
+      await prisma.mapSelection.update({
+        where: { id: mapSelection.id },
+        data: {
+          wasPlayed: true,
+          winnerTeamId,
+        },
+      });
+
+      // Update team scores
+      const winnerTeam = match.teams.find(t => t.id === winnerTeamId);
+      if (winnerTeam) {
+        await prisma.team.update({
+          where: { id: winnerTeam.id },
+          data: { mapsWon: { increment: 1 } },
+        });
+      }
+
+      // Save player stats for this map (we'll aggregate later when match completes)
+      for (const stat of playerStats) {
+        // Calculate derived stats
+        const kd = stat.deaths > 0 ? stat.kills / stat.deaths : stat.kills;
+        const plusMinus = stat.kills - stat.deaths;
+
+        // Check if stats already exist for this player in this match
+        const existingStats = await prisma.playerMatchStats.findUnique({
+          where: {
+            matchId_userId: {
+              matchId,
+              userId: stat.userId,
+            },
+          },
+        });
+
+        if (existingStats) {
+          // Aggregate with existing stats
+          await prisma.playerMatchStats.update({
+            where: { id: existingStats.id },
+            data: {
+              kills: { increment: stat.kills },
+              deaths: { increment: stat.deaths },
+              assists: { increment: stat.assists },
+              acs: Math.round((existingStats.acs + stat.acs) / 2), // Average
+              adr: Math.round((existingStats.adr + stat.adr) / 2), // Average
+              headshotPercent: (existingStats.headshotPercent + stat.headshotPercent) / 2,
+              firstKills: { increment: stat.firstKills },
+              firstDeaths: { increment: stat.firstDeaths },
+              kast: (existingStats.kast + stat.kast) / 2,
+              multiKills: { increment: stat.multiKills },
+              damageDelta: (existingStats.damageDelta || 0) + (stat.damageDelta || 0),
+              kd: (existingStats.kd + kd) / 2,
+              plusMinus: { increment: plusMinus },
+            },
+          });
+        } else {
+          // Create new stats entry
+          await prisma.playerMatchStats.create({
+            data: {
+              matchId,
+              userId: stat.userId,
+              teamId: stat.teamId,
+              kills: stat.kills,
+              deaths: stat.deaths,
+              assists: stat.assists,
+              acs: stat.acs,
+              adr: stat.adr,
+              headshotPercent: stat.headshotPercent,
+              firstKills: stat.firstKills,
+              firstDeaths: stat.firstDeaths,
+              kast: stat.kast,
+              multiKills: stat.multiKills,
+              damageDelta: stat.damageDelta || 0,
+              kd,
+              plusMinus,
+            },
+          });
+        }
+      }
+
+      // Check if more maps are needed (after marking current map as played)
+      // We need to reload match data to get accurate count, but for now we'll calculate it
+      const pickedMaps = match.maps.filter(m => m.action === 'PICK');
+      const playedMapsBeforeUpdate = match.maps.filter(m => m.action === 'PICK' && m.wasPlayed);
+      const mapsNeeded = match.seriesType === 'BO1' ? 1 : match.seriesType === 'BO3' ? 3 : 5;
+      
+      // After we update, this map will be played, so total played = playedMapsBeforeUpdate.length + 1
+      const totalPlayedAfterUpdate = playedMapsBeforeUpdate.length + 1;
+
+      // Determine if match should continue or complete
+      let nextStatus: 'MAP_PICK_BAN' | 'COMPLETED' = 'COMPLETED';
+      let message = 'Map stats submitted successfully';
+
+      if (totalPlayedAfterUpdate < mapsNeeded) {
+        // More maps needed - return to pick/ban phase
+        nextStatus = 'MAP_PICK_BAN';
+        message = 'Map stats submitted. Moving to next map pick/ban phase.';
+      } else {
+        // All maps played - complete match and calculate Elo
+        const eloService = new EloService();
+        const eloResults: Array<{
+          userId: string;
+          oldElo: number;
+          newElo: number;
+          change: number;
+        }> = [];
+
+        // Reload match to get updated mapsWon counts and team members
+        const updatedMatch = await prisma.match.findUnique({
+          where: { id: matchId },
+          include: {
+            teams: {
+              include: {
+                members: true,
+              },
+            },
+          },
+        });
+
+        if (!updatedMatch) {
+          return reply.code(404).send({ error: 'Match not found after update' });
+        }
+
+        const updatedTeamAlpha = updatedMatch.teams.find(t => t.name === 'Team Alpha');
+        const updatedTeamBravo = updatedMatch.teams.find(t => t.name === 'Team Bravo');
+
+        if (!updatedTeamAlpha || !updatedTeamBravo) {
+          return reply.code(400).send({ error: 'Teams not found' });
+        }
+
+        // Determine overall winner
+        const finalMapsWon = {
+          alpha: updatedTeamAlpha.mapsWon || 0,
+          bravo: updatedTeamBravo.mapsWon || 0,
+        };
+
+        const overallWinnerTeamId = finalMapsWon.alpha > finalMapsWon.bravo 
+          ? updatedTeamAlpha.id 
+          : updatedTeamBravo.id;
+
+        // Calculate average Elos
+        const winnerTeam = updatedMatch.teams.find(t => t.id === overallWinnerTeamId);
+        const loserTeam = updatedMatch.teams.find(t => t.id !== overallWinnerTeamId);
+
+        if (winnerTeam && loserTeam) {
+          const winnerAvgElo = await eloService.getTeamAverageElo(winnerTeam.members.map(m => m.userId));
+          const loserAvgElo = await eloService.getTeamAverageElo(loserTeam.members.map(m => m.userId));
+
+          // Calculate Elo for ALL players in the match (not just the last map)
+          const allPlayerIds = new Set([
+            ...updatedTeamAlpha.members.map(m => m.userId),
+            ...updatedTeamBravo.members.map(m => m.userId),
+          ]);
+
+          for (const playerId of allPlayerIds) {
+            const playerTeam = updatedMatch.teams.find(t => 
+              t.members.some(m => m.userId === playerId)
+            );
+            if (!playerTeam) continue;
+
+            const won = playerTeam.id === overallWinnerTeamId;
+            const eloResult = await eloService.calculateElo({
+              userId: playerId,
+              matchId,
+              won,
+              seriesType: match.seriesType,
+              opponentAvgElo: won ? loserAvgElo : winnerAvgElo,
+            });
+
+            eloResults.push({
+              userId: playerId,
+              oldElo: eloResult.oldElo,
+              newElo: eloResult.newElo,
+              change: eloResult.change,
+            });
+          }
+        }
+
+        // Update match status
+        await prisma.match.update({
+          where: { id: matchId },
+          data: {
+            status: 'COMPLETED',
+            winnerTeamId: overallWinnerTeamId,
+            completedAt: new Date(),
+          },
+        });
+
+        return {
+          message: 'Match completed! Elo calculated.',
+          eloResults,
+          matchCompleted: true,
+        };
+      }
+
+      // Update match status if more maps needed
+      if (nextStatus === 'MAP_PICK_BAN') {
+        await prisma.match.update({
+          where: { id: matchId },
+          data: { status: 'MAP_PICK_BAN' },
+        });
+      }
+
+      return {
+        message,
+        matchCompleted: false,
+        mapsPlayed: totalPlayedAfterUpdate,
+        mapsNeeded,
       };
     } catch (error: any) {
       fastify.log.error(error);
@@ -2094,8 +3010,8 @@ async function selectCaptains(
     captain1 = sorted[0];
     captain2 = sorted[1];
   } else if (method === 'random') {
-    // Random selection
-    const shuffled = [...allPlayers].sort(() => Math.random() - 0.5);
+    // Random selection using Random.org
+    const shuffled = await randomService.shuffleArray(allPlayers);
     captain1 = shuffled[0];
     captain2 = shuffled[1];
   } else {

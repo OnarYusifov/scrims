@@ -147,6 +147,13 @@ export async function leaveMatch(matchId: string): Promise<{ message: string }> 
   });
 }
 
+export async function removePlayerFromMatch(matchId: string, userId: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/api/matches/${matchId}/remove-player`, {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
+}
+
 export async function deleteMatch(matchId: string): Promise<{ message: string }> {
   return apiRequest<{ message: string }>(`/api/matches/${matchId}`, {
     method: 'DELETE',
@@ -535,6 +542,53 @@ export async function submitMatchStats(
   );
 }
 
+// Submit stats for a single map
+export interface MapStatsSubmission {
+  mapName: string;
+  winnerTeamId: string;
+  score: { alpha: number; bravo: number };
+  playerStats: Array<{
+    userId: string;
+    teamId: string;
+    kills: number;
+    deaths: number;
+    assists: number;
+    acs: number;
+    adr: number;
+    headshotPercent: number;
+    firstKills: number;
+    firstDeaths: number;
+    kast: number;
+    multiKills: number;
+    damageDelta?: number;
+  }>;
+}
+
+export async function submitMapStats(
+  matchId: string,
+  stats: MapStatsSubmission
+): Promise<{ 
+  message: string; 
+  matchCompleted: boolean;
+  eloResults?: EloChangeResult[];
+  mapsPlayed?: number;
+  mapsNeeded?: number;
+}> {
+  return apiRequest<{ 
+    message: string; 
+    matchCompleted: boolean;
+    eloResults?: EloChangeResult[];
+    mapsPlayed?: number;
+    mapsNeeded?: number;
+  }>(
+    `/api/matches/${matchId}/stats/map`,
+    {
+      method: 'POST',
+      body: JSON.stringify(stats),
+    }
+  );
+}
+
 export async function getImportedMatch(id: string): Promise<{ match: ImportedMatch }> {
   return apiRequest<{ match: ImportedMatch }>(`/api/import/${id}`);
 }
@@ -580,6 +634,16 @@ export async function rootAssignTeams(
       body: JSON.stringify(data),
     }
   )
+}
+
+export async function updateMatchStatus(
+  matchId: string,
+  status: MatchStatus
+): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/api/matches/${matchId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
 }
 
 export async function rootSetMatchStatus(

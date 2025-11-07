@@ -341,7 +341,7 @@ export default function AdminPage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold font-mono uppercase text-matrix-500 neon-text">
+          <h1 className="text-3xl font-bold font-mono uppercase text-gray-900 dark:text-matrix-500">
             ADMIN PANEL
           </h1>
           <p className="text-terminal-muted font-mono mt-1">

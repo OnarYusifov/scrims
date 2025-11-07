@@ -28,5 +28,10 @@
     "eslint": "^9.17.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "csv-writer": "^1.6.0",
+    "sharp": "^0.34.5",
+    "tesseract.js": "^6.0.1"
   }
 }

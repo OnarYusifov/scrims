@@ -1218,5 +1218,3 @@ async function generateSimulatedMatchData(trackerLink: string, matchId: string, 
     ],
   };
 }
-
-

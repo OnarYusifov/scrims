@@ -134,14 +134,14 @@ export default function HomePage() {
           </motion.div>
 
           <h1 className="text-3xl font-bold leading-tight tracking-tighter md:text-5xl lg:text-6xl lg:leading-[1.1]">
-            <span className="text-matrix-500 neon-text">TRAYB</span>{" "}
-            <span className="text-cyber-500 neon-text">CUSTOMS</span>
+            <span className="text-gray-900 dark:text-matrix-500">TRAYB</span>{" "}
+            <span className="text-gray-900 dark:text-cyber-500">CUSTOMS</span>
           </h1>
 
-          <p className="max-w-[750px] text-lg text-terminal-muted sm:text-xl">
+          <p className="max-w-[750px] text-lg text-gray-600 dark:text-terminal-muted sm:text-xl">
             Elite Valorant customs platform. Terminal-grade stats tracking.
             <br />
-            <span className="text-matrix-500">Matrix-themed. Discord-integrated. Crew only.</span>
+            <span className="text-gray-900 dark:text-matrix-500">Matrix-themed. Discord-integrated. Crew only.</span>
           </p>
         </div>
 
@@ -207,19 +207,19 @@ export default function HomePage() {
             <div className="grid gap-4 md:grid-cols-4">
               <div className="flex flex-col items-center gap-1">
                 <span className="text-3xl font-bold text-matrix-500">0</span>
-                <span className="text-sm text-terminal-muted uppercase">Total Matches</span>
+                <span className="text-sm text-gray-600 dark:text-terminal-muted uppercase">Total Matches</span>
               </div>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-3xl font-bold text-matrix-500">0</span>
-                <span className="text-sm text-terminal-muted uppercase">Active Players</span>
+                <span className="text-sm text-gray-600 dark:text-terminal-muted uppercase">Active Players</span>
               </div>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-3xl font-bold text-cyber-500">0</span>
-                <span className="text-sm text-terminal-muted uppercase">Kills Tracked</span>
+                <span className="text-sm text-gray-600 dark:text-terminal-muted uppercase">Kills Tracked</span>
               </div>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-3xl font-bold text-cyber-500">∞</span>
-                <span className="text-sm text-terminal-muted uppercase">Uptime</span>
+                <span className="text-sm text-gray-600 dark:text-terminal-muted uppercase">Uptime</span>
               </div>
             </div>
           </CardContent>
@@ -231,7 +231,7 @@ export default function HomePage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
-        className="mx-auto mt-8 max-w-[600px] text-center text-sm text-terminal-muted"
+        className="mx-auto mt-8 max-w-[600px] text-center text-sm text-gray-600 dark:text-terminal-muted"
       >
         <p className="font-mono">
           <span className="text-matrix-500">&gt;</span> System initialized. Discord authentication required.

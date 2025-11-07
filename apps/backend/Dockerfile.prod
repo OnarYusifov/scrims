@@ -3,6 +3,18 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+RUN apk add --no-cache \
+  python3 \
+  make \
+  g++ \
+  cairo-dev \
+  pango-dev \
+  jpeg-dev \
+  giflib-dev \
+  pixman-dev \
+  freetype-dev \
+  pkgconfig
+
 # Copy package files
 COPY package*.json ./
 COPY apps/backend/package*.json ./apps/backend/
@@ -23,6 +35,13 @@ RUN npm run build --workspace=@trayb/backend
 FROM node:20-alpine
 
 WORKDIR /app
+
+RUN apk add --no-cache \
+  cairo \
+  pango \
+  jpeg \
+  giflib \
+  freetype
 
 # Copy package files and install only production dependencies
 COPY --from=builder /app/package*.json ./

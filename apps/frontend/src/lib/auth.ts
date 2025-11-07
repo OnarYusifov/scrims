@@ -26,7 +26,8 @@ export async function getCurrentUser(): Promise<User | null> {
   const token = getToken()
 
   try {
-    const response = await fetch(`${API_URL}/api/auth/me`, {
+    const apiUrl = `${API_URL}/api/auth/me`
+    const response = await fetch(apiUrl, {
       credentials: 'include', // Include cookies (cookie-based auth)
       headers: {
         // Only send Authorization header if we have a token in localStorage
@@ -36,7 +37,16 @@ export async function getCurrentUser(): Promise<User | null> {
     })
 
     if (!response.ok) {
-      // If auth fails, clear localStorage token (cookie might be expired)
+      // 401 (Unauthorized) is expected when not logged in - don't log as error
+      if (response.status === 401) {
+        // Silently handle - user is just not authenticated
+        if (token) {
+          removeToken()
+        }
+        return null
+      }
+      // Other errors (500, 404, etc.) should be logged
+      console.warn(`Auth endpoint returned ${response.status}: ${response.statusText}`)
       if (token) {
         removeToken()
       }
@@ -55,7 +65,16 @@ export async function getCurrentUser(): Promise<User | null> {
     
     return user
   } catch (error) {
-    console.error("Failed to fetch current user:", error)
+    // More detailed error logging
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error(
+        `❌ Cannot connect to backend API at ${API_URL}. ` +
+        `Make sure the backend server is running on port 4001. ` +
+        `Run: npm run dev:backend`
+      )
+    } else {
+      console.error("Failed to fetch current user:", error)
+    }
     return null
   }
 }

@@ -29,6 +29,8 @@
     "cheerio": "^1.1.2",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.0",
+    "discord.js": "^14.17.3",
+    "canvas": "^2.11.2",
     "fastify-plugin": "^5.0.1",
     "ioredis": "^5.4.2",
     "pino-pretty": "^13.0.0",

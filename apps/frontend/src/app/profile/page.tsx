@@ -169,7 +169,7 @@ export default function ProfilePage() {
               <div className="flex-1 text-center md:text-left">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
-                    <h1 className="text-3xl font-bold font-mono uppercase text-matrix-500 neon-text">
+                    <h1 className="text-3xl font-bold font-mono uppercase text-gray-900 dark:text-matrix-500">
                       {user.username}
                     </h1>
                     <p className="text-terminal-muted font-mono text-sm mt-1">
@@ -275,7 +275,7 @@ export default function ProfilePage() {
         <motion.div variants={itemVariants}>
           <Card className="border-cyber-500 shadow-neon-cyan h-full">
             <CardHeader>
-              <CardTitle className="text-cyber-500 neon-text-cyan flex items-center gap-2">
+              <CardTitle className="text-gray-900 dark:text-cyber-500 flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
                 PERFORMANCE RADAR
               </CardTitle>
@@ -293,7 +293,7 @@ export default function ProfilePage() {
         <motion.div variants={itemVariants}>
           <Card className="border-matrix-500 shadow-neon-green h-full">
             <CardHeader>
-              <CardTitle className="text-matrix-500 neon-text flex items-center gap-2">
+              <CardTitle className="text-gray-900 dark:text-matrix-500 flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
                 ELO HISTORY
               </CardTitle>

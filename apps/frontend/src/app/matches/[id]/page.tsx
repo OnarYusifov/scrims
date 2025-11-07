@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -27,16 +27,17 @@ import {
   X,
 } from "lucide-react"
 import { Match, MatchStatus } from "@/types"
-import { fetchMatch, joinMatch, leaveMatch, deleteMatch, addTestUsersToMatch, submitMatchStats, MatchStatsSubmission, addUserToMatchManually, rootAssignTeams, rootSetMatchStatus, rootSetMaps, fetchUsers } from "@/lib/api"
+import { fetchMatch, joinMatch, leaveMatch, deleteMatch, addTestUsersToMatch, submitMatchStats, MatchStatsSubmission, addUserToMatchManually, fetchUsers, removePlayerFromMatch, updateMatchStatus } from "@/lib/api"
 import { formatTimestamp } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { TeamSelection } from "@/components/match/team-selection"
+import { MapPickBan } from "@/components/match/map-pick-ban"
+import { PerMapStatsEntry } from "@/components/match/per-map-stats-entry"
 import { OCRStatsUpload } from "@/components/match/ocr-stats-upload"
-import { DragDropTeamBuilder } from "@/components/match/drag-drop-team-builder"
-import { Users2, ImagePlus, Settings, ChevronDown, ChevronUp } from "lucide-react"
+import { Users2, ImagePlus } from "lucide-react"
 
 const STATUS_COLORS: Record<MatchStatus, string> = {
-  DRAFT: "border-terminal-muted text-terminal-muted",
+  DRAFT: "border-gray-400 dark:border-terminal-muted text-gray-700 dark:text-terminal-muted",
   CAPTAIN_VOTING: "border-purple-500 text-purple-500",
   TEAM_SELECTION: "border-matrix-500 text-matrix-500",
   MAP_PICK_BAN: "border-cyber-500 text-cyber-500",
@@ -76,13 +77,6 @@ export default function MatchDetailPage() {
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; username: string; discordId: string; elo: number }>>([])
   const [selectedUserId, setSelectedUserId] = useState('')
   
-  // ROOT Admin Override state
-  const [showRootControls, setShowRootControls] = useState(false)
-  const [rootTeamAlphaCaptain, setRootTeamAlphaCaptain] = useState<string | null>(null)
-  const [rootTeamBravoCaptain, setRootTeamBravoCaptain] = useState<string | null>(null)
-  const [rootTeamAlphaPlayers, setRootTeamAlphaPlayers] = useState<Array<{ userId: string }>>([])
-  const [rootTeamBravoPlayers, setRootTeamBravoPlayers] = useState<Array<{ userId: string }>>([])
-
   const [mapsStats, setMapsStats] = useState<Array<{
     mapName: string;
     winnerTeamId: string;
@@ -125,6 +119,7 @@ export default function MatchDetailPage() {
       setIsLoading(true)
       const data = await fetchMatch(matchId)
       setMatch(data)
+      
     } catch (error: any) {
       console.error("Failed to load match:", error)
       router.push("/matches")
@@ -134,18 +129,26 @@ export default function MatchDetailPage() {
   }
 
   async function handleJoinMatch() {
+    if (match?.status === 'CANCELLED') {
+      return // Locked when cancelled
+    }
     try {
       await joinMatch(matchId)
-      loadMatch()
+      // Reload match - teams are already saved in database, so they should persist
+      await loadMatch()
     } catch (error: any) {
       console.error("Failed to join match:", error)
     }
   }
 
   async function handleLeaveMatch() {
+    if (match?.status === 'CANCELLED') {
+      return // Locked when cancelled
+    }
     try {
       await leaveMatch(matchId)
-      loadMatch()
+      // Reload match - teams are already saved in database, so they should persist
+      await loadMatch()
     } catch (error: any) {
       console.error("Failed to leave match:", error)
     }
@@ -174,13 +177,33 @@ export default function MatchDetailPage() {
   async function loadAvailableUsers() {
     try {
       const { users } = await fetchUsers({ limit: 100 })
-      setAvailableUsers(users.map(u => ({ id: u.id, username: u.username, discordId: u.discordId, elo: u.elo || 800 })))
+      
+      // Get all user IDs already in the match
+      const usersInMatch = new Set<string>()
+      if (match) {
+        match.teams.forEach(team => {
+          team.members.forEach(member => {
+            usersInMatch.add(member.userId)
+          })
+        })
+      }
+      
+      // Filter out: current user, and users already in the match
+      const filteredUsers = users
+        .filter(u => u.id !== user?.id) // Don't show current user
+        .filter(u => !usersInMatch.has(u.id)) // Don't show users already in match
+        .map(u => ({ id: u.id, username: u.username, discordId: u.discordId, elo: u.elo || 800 }))
+      
+      setAvailableUsers(filteredUsers)
     } catch (error: any) {
       console.error("Failed to load users:", error)
     }
   }
 
   async function handleAddUserManually() {
+    if (match?.status === 'CANCELLED') {
+      return // Locked when cancelled
+    }
     if (!selectedUserId) {
       console.error("User ID is required")
       return
@@ -196,58 +219,49 @@ export default function MatchDetailPage() {
       setSelectedUserId('')
       // Remove added user from available list
       setAvailableUsers(availableUsers.filter(u => u.id !== selectedUserId))
-      loadMatch()
+      
+      // Reload match - teams are already saved in database, so they should persist
+      await loadMatch()
+      
+      // Reload available users to update the list (filter out the newly added user)
+      await loadAvailableUsers()
     } catch (error: any) {
       console.error("Failed to add user:", error)
     }
   }
 
-  // ROOT Override functions
-  async function handleRootAssignTeams() {
-    try {
-      console.log('Assigning teams:', {
-        alpha: rootTeamAlphaPlayers,
-        bravo: rootTeamBravoPlayers,
-        alphaCaptain: rootTeamAlphaCaptain,
-        bravoCaptain: rootTeamBravoCaptain,
-      })
+  async function handleRemovePlayer(userId: string) {
+    if (match?.status === 'CANCELLED') {
+      return // Locked when cancelled
+    }
+    if (!confirm("Are you sure you want to remove this player from the match?")) {
+      return
+    }
 
-      await rootAssignTeams(matchId, {
-        teamAlpha: rootTeamAlphaPlayers,
-        teamBravo: rootTeamBravoPlayers,
-        alphaCaptainId: rootTeamAlphaCaptain || undefined,
-        bravoCaptainId: rootTeamBravoCaptain || undefined,
-      })
+    try {
+      await removePlayerFromMatch(matchId, userId)
       
-      console.log("Teams assigned successfully")
-      loadMatch()
+      // Reload match to sync
+      await loadMatch()
+      
+      // Reload available users to add the removed player back to the list
+      await loadAvailableUsers()
     } catch (error: any) {
-      console.error("Failed to assign teams:", error)
+      console.error("Failed to remove player:", error)
     }
   }
 
-  async function handleRootSetStatus(status: string) {
-    try {
-      const validStatus = status as 'DRAFT' | 'CAPTAIN_VOTING' | 'TEAM_SELECTION' | 'MAP_PICK_BAN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
-      await rootSetMatchStatus(matchId, validStatus)
-      console.log(`Match status set to ${status}`)
-      loadMatch()
-    } catch (error: any) {
-      console.error("Failed to set status:", error)
+  async function handleCancelMatch() {
+    if (!confirm("Are you sure you want to cancel this match? This will lock all actions.")) {
+      return
     }
-  }
 
-  async function handleRootSetMaps(maps: Array<{ mapName: string; action: any; wasPlayed?: boolean }>) {
     try {
-      await rootSetMaps(matchId, maps.map(m => ({
-        mapName: m.mapName,
-        action: (m.action === 'DECIDER' ? 'PICK' : m.action) as 'PICK' | 'BAN',
-        wasPlayed: m.wasPlayed,
-      })))
-      console.log("Maps set successfully")
-      loadMatch()
+      await updateMatchStatus(matchId, 'CANCELLED')
+      await loadMatch()
     } catch (error: any) {
-      console.error("Failed to set maps:", error)
+      console.error("Failed to cancel match:", error)
+      alert(`Failed to cancel match: ${error.message}. You may need to delete and recreate it.`)
     }
   }
 
@@ -472,12 +486,10 @@ export default function MatchDetailPage() {
       setEloResults(result.eloResults)
       
       // Reload match to show updated status
-      setTimeout(() => {
-        loadMatch()
-        setShowStatsEntry(false)
-        setMapsStats([])
-        setEloResults(null)
-      }, 3000) // Show results for 3 seconds
+      // Don't auto-close Elo results - user must close manually
+      loadMatch()
+      setShowStatsEntry(false)
+      setMapsStats([])
       
     } catch (error: any) {
       console.error("Failed to submit stats:", error)
@@ -511,7 +523,7 @@ export default function MatchDetailPage() {
             className="text-center"
           >
             <div className="h-12 w-12 border-2 border-matrix-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-lg font-mono text-matrix-500">
+            <p className="text-lg font-mono text-gray-900 dark:text-matrix-500">
               CHECKING_AUTH<span className="animate-terminal-blink">_</span>
             </p>
           </motion.div>
@@ -540,8 +552,8 @@ export default function MatchDetailPage() {
       <div className="container relative py-10">
         <Card className="border-terminal-muted">
           <CardContent className="flex flex-col items-center justify-center py-20">
-            <AlertCircle className="h-16 w-16 text-terminal-muted mb-4 opacity-50" />
-            <p className="text-terminal-muted font-mono text-lg mb-2">Match not found</p>
+            <AlertCircle className="h-16 w-16 text-gray-400 dark:text-terminal-muted mb-4 opacity-50" />
+            <p className="text-gray-600 dark:text-terminal-muted font-mono text-lg mb-2">Match not found</p>
             <Button onClick={() => router.push("/matches")} variant="outline">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Matches
@@ -555,7 +567,8 @@ export default function MatchDetailPage() {
   const userInMatch = isUserInMatch()
   const totalPlayers = getTotalPlayers()
   const isFull = totalPlayers >= 10
-  const canJoin = match.status === "DRAFT" || match.status === "TEAM_SELECTION"
+  const isCancelled = match.status === "CANCELLED"
+  const canJoin = !isCancelled && (match.status === "DRAFT" || match.status === "TEAM_SELECTION")
 
   return (
     <div className="container relative z-10 py-10 space-y-6">
@@ -577,17 +590,22 @@ export default function MatchDetailPage() {
             BACK
           </Button>
           <div>
-            <h1 className="text-3xl font-bold font-mono uppercase text-matrix-500 neon-text">
+            <h1 className="text-3xl font-bold font-mono uppercase text-gray-900 dark:text-matrix-400">
               MATCH DETAILS
             </h1>
-            <p className="text-terminal-muted font-mono mt-1">
+            <p className="text-gray-600 dark:text-terminal-muted font-mono mt-1">
               {match.seriesType} • {STATUS_LABELS[match.status]}
             </p>
           </div>
         </div>
 
         <div className="flex gap-2">
-          {userInMatch ? (
+          {isCancelled ? (
+            <Button variant="outline" disabled className="font-mono border-red-500 text-red-500">
+              <AlertCircle className="mr-2 h-4 w-4" />
+              CANCELLED - LOCKED
+            </Button>
+          ) : userInMatch ? (
             <Button
               variant="outline"
               onClick={handleLeaveMatch}
@@ -611,7 +629,7 @@ export default function MatchDetailPage() {
               {isFull ? "FULL" : "LOCKED"}
             </Button>
           )}
-          {user && user.role === "ROOT" && (
+          {user && user.role === "ROOT" && !isCancelled && (
             <Button
               variant="outline"
               onClick={handleAddTestUsers}
@@ -622,7 +640,7 @@ export default function MatchDetailPage() {
               ADD TEST USERS
             </Button>
           )}
-          {user && (user.role === "ADMIN" || user.role === "ROOT") && (
+          {user && (user.role === "ADMIN" || user.role === "ROOT") && !isCancelled && (
             <Button
               variant="outline"
               onClick={() => {
@@ -637,185 +655,31 @@ export default function MatchDetailPage() {
             </Button>
           )}
           {user && (user.role === "ADMIN" || user.role === "ROOT") && (
-            <Button
-              variant="outline"
-              onClick={handleDeleteMatch}
-              className="relative z-10"
-              style={{ pointerEvents: 'auto' }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <>
+              {!isCancelled && (
+                <Button
+                  variant="outline"
+                  onClick={handleCancelMatch}
+                  className="relative z-10 font-mono border-red-500 text-red-500 hover:bg-red-500/10"
+                  style={{ pointerEvents: 'auto' }}
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  CANCEL
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={handleDeleteMatch}
+                className="relative z-10"
+                style={{ pointerEvents: 'auto' }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
           )}
         </div>
       </motion.div>
 
-      {/* ROOT Admin Override Panel */}
-      {user && user.role === "ROOT" && match && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="relative z-50"
-          style={{ pointerEvents: 'auto' }}
-        >
-          <Card className="border-2 border-yellow-500/50 bg-yellow-500/5 relative z-50">
-            <CardHeader 
-              className="cursor-pointer hover:bg-yellow-500/10 transition-colors relative z-50"
-              onClick={(e) => {
-                e.stopPropagation()
-                console.log('Clicked ROOT controls toggle')
-                setShowRootControls(!showRootControls)
-              }}
-              style={{ pointerEvents: 'auto' }}
-            >
-              <div className="flex items-center justify-between" style={{ pointerEvents: 'none' }}>
-                <CardTitle className="font-mono uppercase text-yellow-500 flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  ROOT ADMIN OVERRIDE
-                </CardTitle>
-                {showRootControls ? (
-                  <ChevronUp className="h-5 w-5 text-yellow-500" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 text-yellow-500" />
-                )}
-              </div>
-              <CardDescription className="font-mono text-xs text-yellow-400/70">
-                Manually control all match settings (teams, captains, status, maps) - Click to expand
-              </CardDescription>
-            </CardHeader>
-
-            {showRootControls && (
-              <CardContent className="space-y-6">
-                {/* Match Status Control */}
-                <div className="space-y-2">
-                  <Label className="font-mono text-sm text-yellow-400">MATCH STATUS</Label>
-                  <select
-                    value={match.status}
-                    onChange={(e) => handleRootSetStatus(e.target.value as MatchStatus)}
-                    className="font-mono text-sm bg-terminal-bg border-2 border-yellow-500/50 rounded px-3 py-2 text-yellow-400 w-full"
-                    style={{ pointerEvents: 'auto' }}
-                  >
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="CAPTAIN_VOTING">CAPTAIN VOTING</option>
-                    <option value="TEAM_SELECTION">TEAM SELECTION</option>
-                    <option value="MAP_PICK_BAN">MAP PICK/BAN</option>
-                    <option value="IN_PROGRESS">IN PROGRESS</option>
-                    <option value="COMPLETED">COMPLETED</option>
-                    <option value="CANCELLED">CANCELLED</option>
-                  </select>
-                </div>
-
-                {/* Team Assignment with Drag & Drop */}
-                <div className="space-y-2">
-                  <Label className="font-mono text-sm text-yellow-400">TEAM ASSIGNMENT</Label>
-                  <DragDropTeamBuilder
-                    availablePlayers={(() => {
-                      // Get players from Player Pool only (unassigned players)
-                      const playerPool = match.teams.find(t => t.name === 'Player Pool')
-                      if (!playerPool) return []
-                      return playerPool.members.map(m => ({
-                        userId: m.userId,
-                        username: m.user.username,
-                        avatar: m.user.avatar || undefined,
-                        discordId: m.user.discordId,
-                        elo: m.user.elo || 800,
-                      }))
-                    })()}
-                    teamAlphaPlayers={match.teams.find(t => t.name === 'Team Alpha')?.members.map(m => ({
-                      userId: m.userId,
-                      username: m.user.username,
-                      avatar: m.user.avatar || undefined,
-                      discordId: m.user.discordId,
-                      elo: m.user.elo || 800,
-                    })) || []}
-                    teamBravoPlayers={match.teams.find(t => t.name === 'Team Bravo')?.members.map(m => ({
-                      userId: m.userId,
-                      username: m.user.username,
-                      avatar: m.user.avatar || undefined,
-                      discordId: m.user.discordId,
-                      elo: m.user.elo || 800,
-                    })) || []}
-                    teamAlphaCaptain={match.teams.find(t => t.name === 'Team Alpha')?.captainId || undefined}
-                    teamBravoCaptain={match.teams.find(t => t.name === 'Team Bravo')?.captainId || undefined}
-                    onTeamChange={(alphaPlayers, bravoPlayers) => {
-                      // Update state as user drags
-                      console.log('onTeamChange fired:', { 
-                        alphaCount: alphaPlayers.length, 
-                        bravoCount: bravoPlayers.length,
-                        alphaPlayers,
-                        bravoPlayers 
-                      })
-                      setRootTeamAlphaPlayers(alphaPlayers.map(p => ({ userId: p.userId })))
-                      setRootTeamBravoPlayers(bravoPlayers.map(p => ({ userId: p.userId })))
-                    }}
-                    onCaptainChange={(team, userId) => {
-                      if (team === 'alpha') {
-                        setRootTeamAlphaCaptain(userId)
-                      } else {
-                        setRootTeamBravoCaptain(userId)
-                      }
-                    }}
-                    onConfirm={handleRootAssignTeams}
-                  />
-                </div>
-
-                {/* Map Selection Control */}
-                <div className="space-y-2">
-                  <Label className="font-mono text-sm text-yellow-400">MAP SELECTIONS (BO{match.seriesType === 'BO1' ? '1' : match.seriesType === 'BO3' ? '3' : '5'})</Label>
-                  <div className="space-y-2">
-                    {['Ascent', 'Bind', 'Haven', 'Split', 'Lotus', 'Sunset', 'Breeze'].slice(0, match.seriesType === 'BO1' ? 1 : match.seriesType === 'BO3' ? 3 : 5).map((mapName, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <Input
-                          value={match.maps[idx]?.mapName || mapName}
-                          readOnly
-                          className="font-mono flex-1"
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            // Create or update the map
-                            const currentMap = match.maps[idx]
-                            const newWasPlayed = !currentMap?.wasPlayed
-                            
-                            // Create a complete map object
-                            const mapToUpdate = {
-                              mapName: currentMap?.mapName || mapName,
-                              action: (currentMap?.action || 'PICK') as 'PICK' | 'BAN',
-                              wasPlayed: newWasPlayed,
-                              teamId: currentMap?.teamId,
-                            }
-                            
-                            // Build the full maps array
-                            const allMaps = ['Ascent', 'Bind', 'Haven', 'Split', 'Lotus', 'Sunset', 'Breeze']
-                              .slice(0, match.seriesType === 'BO1' ? 1 : match.seriesType === 'BO3' ? 3 : 5)
-                              .map((name, i) => {
-                                if (i === idx) return mapToUpdate
-                                const existing = match.maps[i]
-                                return {
-                                  mapName: existing?.mapName || name,
-                                  action: (existing?.action || 'PICK') as 'PICK' | 'BAN',
-                                  wasPlayed: existing?.wasPlayed || false,
-                                  teamId: existing?.teamId,
-                                }
-                              })
-                            
-                            handleRootSetMaps(allMaps)
-                          }}
-                          className={match.maps[idx]?.wasPlayed ? 'bg-green-500/20 border-green-500' : ''}
-                          style={{ pointerEvents: 'auto' }}
-                        >
-                          {match.maps[idx]?.wasPlayed ? 'PLAYED' : 'NOT PLAYED'}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        </motion.div>
-      )}
 
       {/* Match Info */}
       <motion.div
@@ -833,22 +697,22 @@ export default function MatchDetailPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <p className="text-xs font-mono uppercase text-terminal-muted mb-1">Series Type</p>
-                <p className="font-mono text-matrix-500">{match.seriesType}</p>
+                <p className="text-xs font-mono uppercase text-gray-600 dark:text-terminal-muted mb-1">Series Type</p>
+                <p className="font-mono text-gray-900 dark:text-matrix-500">{match.seriesType}</p>
               </div>
               <div>
-                <p className="text-xs font-mono uppercase text-terminal-muted mb-1">Status</p>
+                <p className="text-xs font-mono uppercase text-gray-600 dark:text-terminal-muted mb-1">Status</p>
                 <p className={`font-mono ${STATUS_COLORS[match.status]}`}>
                   {STATUS_LABELS[match.status]}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-mono uppercase text-terminal-muted mb-1">Players</p>
-                <p className="font-mono text-matrix-500">{totalPlayers}/10</p>
+                <p className="text-xs font-mono uppercase text-gray-600 dark:text-terminal-muted mb-1">Players</p>
+                <p className="font-mono text-gray-900 dark:text-matrix-500">{totalPlayers}/10</p>
               </div>
               <div>
-                <p className="text-xs font-mono uppercase text-terminal-muted mb-1">Match ID</p>
-                <p className="font-mono text-xs text-terminal-muted break-all">{match.id}</p>
+                <p className="text-xs font-mono uppercase text-gray-600 dark:text-terminal-muted mb-1">Match ID</p>
+                <p className="font-mono text-xs text-gray-600 dark:text-terminal-muted break-all">{match.id}</p>
               </div>
             </div>
           </CardContent>
@@ -874,12 +738,12 @@ export default function MatchDetailPage() {
               >
                 <Card className={`border-2 ${borderColor}`}>
                   <CardHeader>
-                    <CardTitle className="font-mono uppercase flex items-center justify-between">
+                    <CardTitle className="font-mono uppercase flex items-center justify-between text-gray-900 dark:text-matrix-500">
                       <span>{name}</span>
-                      <span className="text-xs text-terminal-muted">{side}</span>
+                      <span className="text-xs text-gray-600 dark:text-terminal-muted">{side}</span>
                     </CardTitle>
                     {team?.captain && (
-                      <CardDescription className="font-mono text-xs">
+                      <CardDescription className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
                         Captain: {team.captain.username}
                       </CardDescription>
                     )}
@@ -887,38 +751,85 @@ export default function MatchDetailPage() {
                   <CardContent>
                     <div className="space-y-2">
                       {team && team.members.length > 0 ? (
-                        team.members.map((member) => (
-                          <div
-                            key={member.id}
-                            className="flex items-center gap-3 p-2 rounded border border-terminal-border bg-terminal-panel/50"
-                          >
-                            <Avatar className="h-8 w-8">
-                              {member.user.avatar ? (
-                                <AvatarImage
-                                  src={`https://cdn.discordapp.com/avatars/${member.user.discordId}/${member.user.avatar}.png?size=64`}
-                                  alt={member.user.username}
-                                />
-                              ) : (
-                                <AvatarFallback className="bg-terminal-panel text-matrix-500 text-xs">
-                                  {member.user.username?.charAt(0).toUpperCase() || 'U'}
-                                </AvatarFallback>
-                              )}
-                            </Avatar>
-                            <div className="flex-1">
-                              <p className="font-mono text-sm text-matrix-500">{member.user.username}</p>
-                              <p className="font-mono text-xs text-terminal-muted">
-                                Elo: {member.user.elo || 800}
-                              </p>
+                        team.members.map((member) => {
+                          // Calculate stats from user data (only the 6 stats we need)
+                          const user = member.user as any
+                          const matches = user.matchesPlayed || 0
+                          const avgACS = matches > 0 ? Math.round((user.totalACS || 0) / matches) : 0
+                          const kills = user.totalKills || 0
+                          const deaths = user.totalDeaths || 0
+                          const avgKD = deaths > 0 ? ((kills / deaths) || 0).toFixed(2) : kills > 0 ? kills.toFixed(2) : '0.00'
+                          const avgHS = user.avgHeadshotPercent || 0
+                          const avgKAST = user.avgKAST || 0
+
+                          return (
+                            <div
+                              key={member.id}
+                              className="flex items-center gap-3 p-3 rounded border border-gray-200 dark:border-terminal-border bg-gray-50 dark:bg-terminal-panel/50"
+                            >
+                              <Avatar className="h-10 w-10 flex-shrink-0">
+                                {member.user.avatar ? (
+                                  <AvatarImage
+                                    src={`https://cdn.discordapp.com/avatars/${member.user.discordId}/${member.user.avatar}.png?size=64`}
+                                    alt={member.user.username}
+                                  />
+                                ) : (
+                                  <AvatarFallback className="bg-gray-200 dark:bg-terminal-panel text-gray-700 dark:text-matrix-500 text-xs">
+                                    {member.user.username?.charAt(0).toUpperCase() || 'U'}
+                                  </AvatarFallback>
+                                )}
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-mono text-sm text-gray-900 dark:text-matrix-500 truncate">{member.user.username}</p>
+                                {/* Stats Table - Horizontal columns (6 stats only) */}
+                                <div className="flex gap-x-4 overflow-x-auto text-sm font-mono">
+                                  {/* ACS */}
+                                  <div className="flex flex-col items-center min-w-[50px]">
+                                    <span className="text-gray-900 dark:text-white opacity-100 text-xs mb-0.5">ACS</span>
+                                    <span className="text-gray-900 dark:text-cyber-400 opacity-100 font-semibold">{avgACS}</span>
+                                  </div>
+                                  
+                                  {/* K/D Ratio */}
+                                  <div className="flex flex-col items-center min-w-[50px]">
+                                    <span className="text-gray-900 dark:text-white opacity-100 text-xs mb-0.5">K/D</span>
+                                    <span className="text-gray-900 dark:text-matrix-400 opacity-100 font-semibold">{avgKD}</span>
+                                  </div>
+                                  
+                                  {/* HS% */}
+                                  <div className="flex flex-col items-center min-w-[50px]">
+                                    <span className="text-gray-900 dark:text-white opacity-100 text-xs mb-0.5">HS%</span>
+                                    <span className="text-gray-900 dark:text-cyber-400 opacity-100 font-semibold">{avgHS > 0 ? avgHS.toFixed(1) : '-'}%</span>
+                                  </div>
+                                  
+                                  {/* KAST */}
+                                  <div className="flex flex-col items-center min-w-[50px]">
+                                    <span className="text-gray-900 dark:text-white opacity-100 text-xs mb-0.5">KAST</span>
+                                    <span className="text-gray-900 dark:text-cyber-400 opacity-100 font-semibold">{avgKAST > 0 ? avgKAST.toFixed(1) : '-'}%</span>
+                                  </div>
+                                  
+                                  {/* ELO */}
+                                  <div className="flex flex-col items-center min-w-[50px]">
+                                    <span className="text-gray-900 dark:text-white opacity-100 text-xs mb-0.5">ELO</span>
+                                    <span className="text-gray-900 dark:text-matrix-400 opacity-100 font-semibold">{member.user.elo || 800}</span>
+                                  </div>
+                                  
+                                  {/* Matches */}
+                                  <div className="flex flex-col items-center min-w-[40px]">
+                                    <span className="text-gray-900 dark:text-white opacity-100 text-xs mb-0.5">M</span>
+                                    <span className="text-gray-900 dark:text-matrix-400 opacity-100 font-semibold">{matches}</span>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        ))
+                          )
+                        })
                       ) : (
-                        <p className="text-center py-4 text-terminal-muted font-mono text-sm">
+                        <p className="text-center py-4 text-gray-600 dark:text-terminal-muted font-mono text-sm">
                           No players yet
                         </p>
                       )}
-                      <div className="pt-2 border-t border-terminal-border">
-                        <p className="font-mono text-xs text-terminal-muted">
+                      <div className="pt-2 border-t border-gray-200 dark:border-terminal-border">
+                        <p className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
                           {team?.members.length || 0}/5 players
                         </p>
                       </div>
@@ -942,8 +853,36 @@ export default function MatchDetailPage() {
             </motion.div>
           )}
 
-      {/* Maps */}
-      {match.maps && match.maps.length > 0 && (
+          {/* Map Pick/Ban Phase */}
+          {match.status === 'MAP_PICK_BAN' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              <MapPickBan match={match} onMatchUpdate={loadMatch} />
+            </motion.div>
+          )}
+
+          {/* Per-Map Stats Entry Phase */}
+          {match.status === 'IN_PROGRESS' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              <PerMapStatsEntry 
+                match={match} 
+                onMatchUpdate={loadMatch}
+                onMatchCompleted={(eloResults) => {
+                  setEloResults(eloResults)
+                }}
+              />
+            </motion.div>
+          )}
+
+      {/* Maps Display (for reference) */}
+      {match.maps && match.maps.length > 0 && match.status !== 'MAP_PICK_BAN' && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -961,7 +900,7 @@ export default function MatchDetailPage() {
                     className="flex items-center justify-between p-2 rounded border border-terminal-border"
                   >
                     <span className="font-mono text-sm text-matrix-500">{map.mapName}</span>
-                    <span className="font-mono text-xs text-terminal-muted uppercase">{map.action}</span>
+                    <span className="font-mono text-xs text-gray-600 dark:text-terminal-muted uppercase">{map.action}</span>
                   </div>
                 ))}
               </div>
@@ -1118,7 +1057,7 @@ export default function MatchDetailPage() {
                                   <CardContent className="space-y-2">
                                     <div className="grid grid-cols-3 gap-1">
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">K</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">K</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1133,7 +1072,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">D</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">D</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1148,7 +1087,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">A</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">A</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1165,7 +1104,7 @@ export default function MatchDetailPage() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-1">
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">ACS</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">ACS</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1180,7 +1119,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">ADR</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">ADR</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1197,7 +1136,7 @@ export default function MatchDetailPage() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-1">
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">HS%</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">HS%</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1212,7 +1151,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">KAST%</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">KAST%</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1229,7 +1168,7 @@ export default function MatchDetailPage() {
                                     </div>
                                     <div className="grid grid-cols-3 gap-1">
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">FK</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">FK</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1244,7 +1183,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">FD</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">FD</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1259,7 +1198,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">MK</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">MK</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1275,7 +1214,7 @@ export default function MatchDetailPage() {
                                       </div>
                                     </div>
                                     <div className="space-y-1">
-                                      <Label className="font-mono text-xs text-terminal-muted">DDΔ</Label>
+                                      <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">DDΔ</Label>
                                       <Input
                                         type="text"
                                         inputMode="decimal"
@@ -1318,7 +1257,7 @@ export default function MatchDetailPage() {
                                   <CardContent className="space-y-2">
                                     <div className="grid grid-cols-3 gap-1">
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">K</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">K</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1333,7 +1272,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">D</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">D</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1348,7 +1287,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">A</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">A</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1365,7 +1304,7 @@ export default function MatchDetailPage() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-1">
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">ACS</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">ACS</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1380,7 +1319,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">ADR</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">ADR</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1397,7 +1336,7 @@ export default function MatchDetailPage() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-1">
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">HS%</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">HS%</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1412,7 +1351,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">KAST%</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">KAST%</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1429,7 +1368,7 @@ export default function MatchDetailPage() {
                                     </div>
                                     <div className="grid grid-cols-3 gap-1">
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">FK</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">FK</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1444,7 +1383,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">FD</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">FD</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1459,7 +1398,7 @@ export default function MatchDetailPage() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-terminal-muted">MK</Label>
+                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">MK</Label>
                                         <Input
                                           type="text"
                                           inputMode="decimal"
@@ -1475,7 +1414,7 @@ export default function MatchDetailPage() {
                                       </div>
                                     </div>
                                     <div className="space-y-1">
-                                      <Label className="font-mono text-xs text-terminal-muted">DDΔ</Label>
+                                      <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">DDΔ</Label>
                                       <Input
                                         type="text"
                                         inputMode="decimal"
@@ -1513,7 +1452,18 @@ export default function MatchDetailPage() {
                   >
                     <Card className="border-matrix-500 bg-matrix-500/10">
                       <CardHeader>
-                        <CardTitle className="font-mono uppercase text-matrix-400">ELO CALCULATED</CardTitle>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="font-mono uppercase text-matrix-400">ELO CALCULATED</CardTitle>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEloResults(null)}
+                            className="font-mono"
+                          >
+                            <X className="h-4 w-4" />
+                            CLOSE
+                          </Button>
+                        </div>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 gap-3">
@@ -1533,7 +1483,7 @@ export default function MatchDetailPage() {
                                 <p className={`font-mono text-lg font-bold ${result.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                   {result.change >= 0 ? '+' : ''}{result.change}
                                 </p>
-                                <p className="font-mono text-xs text-terminal-muted">
+                                <p className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
                                   {result.oldElo} → {result.newElo}
                                 </p>
                               </div>

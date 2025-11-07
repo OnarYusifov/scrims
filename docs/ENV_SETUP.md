@@ -22,7 +22,7 @@ DATABASE_URL="postgresql://postgres:password@localhost:5432/trayb_customs?schema
 REDIS_URL="redis://localhost:6379"
 
 # Server Configuration
-PORT=3001
+PORT=4001
 HOST="0.0.0.0"
 NODE_ENV="development"
 
@@ -36,13 +36,13 @@ JWT_EXPIRATION="7d"
 # ⚠️ REQUIRED: Get these from https://discord.com/developers/applications
 DISCORD_CLIENT_ID="your-discord-client-id-here"
 DISCORD_CLIENT_SECRET="your-discord-client-secret-here"
-DISCORD_REDIRECT_URI="http://localhost:3001/api/auth/discord/callback"
+DISCORD_REDIRECT_URI="http://localhost:4001/api/auth/discord/callback"
 
 # Whitelist (Optional - leave empty to allow all users)
 DISCORD_WHITELISTED_IDS=""
 
 # Frontend URL (for redirects after OAuth)
-FRONTEND_URL="http://localhost:3000"
+FRONTEND_URL="http://localhost:4000"
 
 # Elo System Configuration
 ELO_START_RATING=1000
@@ -58,11 +58,17 @@ LOG_LEVEL="info"
 PRETTY_LOGS="true"
 
 # CORS Configuration
-CORS_ORIGIN="http://localhost:3000"
+CORS_ORIGIN="http://localhost:4000"
 
 # Rate Limiting
 RATE_LIMIT_MAX=100
 RATE_LIMIT_WINDOW="1 minute"
+
+# Random.org API (Optional - for true randomness)
+# Get your free API key from https://api.random.org/api-keys
+# Free tier: 1,000,000 bits/day
+# If not set, system will fallback to Math.random()
+RANDOM_ORG_API_KEY=""
 ```
 
 ## Frontend `.env.local` File Location
@@ -70,10 +76,10 @@ RATE_LIMIT_WINDOW="1 minute"
 
 ```env
 # Backend API URL
-NEXT_PUBLIC_API_URL="http://localhost:3001"
+NEXT_PUBLIC_API_URL="http://localhost:4001"
 
 # Frontend App URL
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXT_PUBLIC_APP_URL="http://localhost:4000"
 ```
 
 ## Getting Discord OAuth Credentials
@@ -83,20 +89,21 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 3. Go to **OAuth2** → **General**
 4. Copy **Client ID**
 5. Copy **Client Secret** (click "Reset Secret" if needed)
-6. Add redirect URI: `http://localhost:3001/api/auth/discord/callback`
+6. Add redirect URI: `http://localhost:4001/api/auth/discord/callback`
 
 ## Important Notes
 
 - **Whitelist**: Currently disabled (all users allowed). Set `DISCORD_WHITELISTED_IDS` to restrict access.
 - **JWT Secrets**: Generate secure random strings for production
 - **Database Password**: Update `DATABASE_URL` if you changed the PostgreSQL password
+- **Random.org API**: Optional but recommended for true randomness in team assignments, captain selection, and coin flips. Get a free API key from https://api.random.org/api-keys (1,000,000 bits/day free tier). If not set, the system will fallback to Math.random().
 
 ## Troubleshooting
 
 ### NetworkError when attempting to fetch
-- Check that backend is running on port 3001
-- Verify `NEXT_PUBLIC_API_URL` matches backend URL
-- Check CORS settings in backend `.env`
+- Check that backend is running on port 4001
+- Verify `NEXT_PUBLIC_API_URL` matches backend URL (should be `http://localhost:4001`)
+- Check CORS settings in backend `.env` (should allow `http://localhost:4000`)
 
 ### Authentication fails
 - Verify Discord OAuth credentials are correct

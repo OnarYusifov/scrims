@@ -45,6 +45,9 @@ export function TeamSelection({ match, onMatchUpdate }: TeamSelectionProps) {
   const [userVote, setUserVote] = useState<string | null>(null)
   const [allocationMethod, setAllocationMethod] = useState<AllocationMethod | null>(null)
   const [showPreview, setShowPreview] = useState(false)
+  const [draftStarted, setDraftStarted] = useState(false)
+  const [currentTurn, setCurrentTurn] = useState<'alpha' | 'bravo' | null>(null)
+  const [draftOrder, setDraftOrder] = useState<'alpha-first' | 'bravo-first' | null>(null)
 
   const isAdmin = user && ['ADMIN', 'ROOT'].includes(user.role)
   const totalPlayers = match.teams.reduce((sum, team) => sum + team.members.length, 0)
@@ -60,6 +63,55 @@ export function TeamSelection({ match, onMatchUpdate }: TeamSelectionProps) {
       loadCaptainVotes()
     }
   }, [match.status, match.id])
+
+  // Restore draft state when match loads
+  useEffect(() => {
+    if (match.status === 'TEAM_SELECTION' && teamAlpha && teamBravo) {
+      const alphaCount = teamAlpha.members.length
+      const bravoCount = teamBravo.members.length
+      const totalPicks = alphaCount + bravoCount
+      
+      // If teams have members but aren't full, we're in draft
+      if (totalPicks > 0 && totalPicks < 10) {
+        // Determine current turn based on snake draft
+        // Round 1: Alpha picks (1), Bravo picks (2)
+        // Round 2: Bravo picks (3), Alpha picks (4)
+        // Round 3: Alpha picks (5), Bravo picks (6)
+        // etc.
+        if (!draftOrder) {
+          // Initialize draft order if not set (first pick determines order)
+          const firstPick = alphaCount > bravoCount ? 'alpha-first' : 'bravo-first'
+          setDraftOrder(firstPick)
+        }
+        
+        // Determine whose turn it is
+        // If equal picks, first picker goes next
+        // If alpha has more, bravo goes next
+        // If bravo has more, alpha goes next
+        let nextTurn: 'alpha' | 'bravo'
+        if (alphaCount === bravoCount) {
+          // Equal picks - first picker goes next
+          nextTurn = draftOrder === 'alpha-first' ? 'alpha' : 'bravo'
+        } else if (alphaCount > bravoCount) {
+          // Alpha has more - bravo goes next
+          nextTurn = 'bravo'
+        } else {
+          // Bravo has more - alpha goes next
+          nextTurn = 'alpha'
+        }
+        
+        setCurrentTurn(nextTurn)
+        setDraftStarted(true)
+        setAllocationMethod('captain')
+      } else if (totalPicks === 0 && allocationMethod === 'captain') {
+        // Draft started but no picks yet - determine first picker
+        const firstPick = Math.random() < 0.5 ? 'alpha' : 'bravo'
+        setDraftOrder(firstPick === 'alpha' ? 'alpha-first' : 'bravo-first')
+        setCurrentTurn(firstPick)
+        setDraftStarted(true)
+      }
+    }
+  }, [match.status, teamAlpha, teamBravo, allocationMethod])
 
   async function loadCaptainVotes() {
     try {
@@ -198,6 +250,104 @@ export function TeamSelection({ match, onMatchUpdate }: TeamSelectionProps) {
       toast({
         title: "Error",
         description: error.message || "Failed to finalize teams",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function handleStartCaptainDraft() {
+    try {
+      setIsLoading(true)
+      setAllocationMethod('captain')
+      
+      // Check if captains exist
+      if (!teamAlpha?.captain || !teamBravo?.captain) {
+        toast({
+          title: "Error",
+          description: "Both teams need captains before starting draft",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Determine draft order (coinflip or first captain picks first)
+      // For now, we'll use a simple coinflip to determine who picks first
+      // In a real implementation, you might want to use the coinflip API
+      const firstPick = Math.random() < 0.5 ? 'alpha' : 'bravo'
+      setDraftOrder(firstPick === 'alpha' ? 'alpha-first' : 'bravo-first')
+      setCurrentTurn(firstPick)
+      setDraftStarted(true)
+      
+      toast({
+        title: "Captain Draft Started",
+        description: `${firstPick === 'alpha' ? teamAlpha.captain.username : teamBravo.captain.username} picks first!`,
+      })
+      
+      onMatchUpdate()
+    } catch (error: any) {
+      console.error("Failed to start captain draft:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start captain draft",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function handleCaptainPick(playerId: string) {
+    try {
+      setIsLoading(true)
+      
+      // Determine which team the current user is captain of
+      const userTeam = teamAlpha?.captainId === user?.id ? teamAlpha : 
+                      teamBravo?.captainId === user?.id ? teamBravo : null
+      
+      if (!userTeam) {
+        toast({
+          title: "Error",
+          description: "You are not a captain",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Pick the player
+      await captainPickPlayer(match.id, playerId, userTeam.id)
+      
+      toast({
+        title: "Player Picked",
+        description: "Player added to your team",
+      })
+      
+      // Determine next turn (snake draft)
+      // Snake draft alternates: A-B, B-A, A-B, B-A, etc.
+      const alphaCount = (teamAlpha?.members.length || 0) + (userTeam.name === 'Team Alpha' ? 1 : 0)
+      const bravoCount = (teamBravo?.members.length || 0) + (userTeam.name === 'Team Bravo' ? 1 : 0)
+      
+      let nextTurn: 'alpha' | 'bravo'
+      if (alphaCount === bravoCount) {
+        // Equal picks - alternate based on draft order
+        nextTurn = draftOrder === 'alpha-first' ? 'bravo' : 'alpha'
+      } else if (alphaCount > bravoCount) {
+        // Alpha has more - bravo goes next
+        nextTurn = 'bravo'
+      } else {
+        // Bravo has more - alpha goes next
+        nextTurn = 'alpha'
+      }
+      
+      setCurrentTurn(nextTurn)
+      
+      onMatchUpdate()
+    } catch (error: any) {
+      console.error("Failed to pick player:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to pick player",
         variant: "destructive",
       })
     } finally {
@@ -358,6 +508,142 @@ export function TeamSelection({ match, onMatchUpdate }: TeamSelectionProps) {
 
   // TEAM_SELECTION Phase: Show team allocation options
   if (match.status === 'TEAM_SELECTION') {
+    // Captain Draft Mode
+    if (allocationMethod === 'captain' && draftStarted) {
+      // Get available players (not yet in any team)
+      const playersInTeams = new Set(
+        [...(teamAlpha?.members || []), ...(teamBravo?.members || [])].map(m => m.userId)
+      )
+      const draftAvailablePlayers = availablePlayers.filter(p => !playersInTeams.has(p.id))
+      
+      const isUserAlphaCaptain = teamAlpha?.captainId === user?.id
+      const isUserBravoCaptain = teamBravo?.captainId === user?.id
+      const isUserCaptain = isUserAlphaCaptain || isUserBravoCaptain
+      const isUserTurn = (currentTurn === 'alpha' && isUserAlphaCaptain) || 
+                         (currentTurn === 'bravo' && isUserBravoCaptain)
+      
+      const alphaFull = (teamAlpha?.members.length || 0) >= 5
+      const bravoFull = (teamBravo?.members.length || 0) >= 5
+      const draftComplete = alphaFull && bravoFull
+      
+      return (
+        <Card className="border-matrix-500">
+          <CardHeader>
+            <CardTitle className="font-mono uppercase">CAPTAIN DRAFT</CardTitle>
+            <CardDescription className="font-mono">
+              {draftComplete ? (
+                "Draft complete! Review teams and finalize."
+              ) : (
+                `Current turn: ${currentTurn === 'alpha' ? teamAlpha?.captain?.username : teamBravo?.captain?.username}`
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Team Status */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className={`border-2 rounded p-4 ${currentTurn === 'alpha' && !draftComplete ? 'border-matrix-500 bg-matrix-500/10' : 'border-matrix-500/50'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-matrix-500">TEAM ALPHA</span>
+                  <span className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
+                    {teamAlpha?.members.length || 0}/5
+                  </span>
+                </div>
+                {teamAlpha?.captain && (
+                  <p className="font-mono text-xs text-gray-600 dark:text-terminal-muted mb-2">
+                    Captain: {teamAlpha.captain.username}
+                  </p>
+                )}
+                <div className="space-y-1">
+                  {teamAlpha?.members.map((member) => (
+                    <div key={member.id} className="font-mono text-sm text-matrix-500">
+                      • {member.user.username}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className={`border-2 rounded p-4 ${currentTurn === 'bravo' && !draftComplete ? 'border-cyber-500 bg-cyber-500/10' : 'border-cyber-500/50'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-cyber-500">TEAM BRAVO</span>
+                  <span className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
+                    {teamBravo?.members.length || 0}/5
+                  </span>
+                </div>
+                {teamBravo?.captain && (
+                  <p className="font-mono text-xs text-gray-600 dark:text-terminal-muted mb-2">
+                    Captain: {teamBravo.captain.username}
+                  </p>
+                )}
+                <div className="space-y-1">
+                  {teamBravo?.members.map((member) => (
+                    <div key={member.id} className="font-mono text-sm text-cyber-500">
+                      • {member.user.username}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Available Players */}
+            {!draftComplete && (
+              <div>
+                <p className="font-mono text-sm text-gray-600 dark:text-terminal-muted mb-2">
+                  {isUserTurn ? "Your turn! Pick a player:" : `Waiting for ${currentTurn === 'alpha' ? teamAlpha?.captain?.username : teamBravo?.captain?.username} to pick...`}
+                </p>
+                <div className="grid gap-2 max-h-64 overflow-y-auto">
+                  {draftAvailablePlayers.map((player) => (
+                    <Button
+                      key={player.id}
+                      variant="outline"
+                      onClick={() => handleCaptainPick(player.id)}
+                      disabled={isLoading || !isUserTurn || !isUserCaptain}
+                      className="font-mono justify-start relative z-10"
+                      style={{ pointerEvents: 'auto' }}
+                    >
+                      <Avatar className="h-6 w-6 mr-2">
+                        {player.avatar ? (
+                          <AvatarImage
+                            src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar}.png?size=32`}
+                            alt={player.username}
+                          />
+                        ) : (
+                          <AvatarFallback className="bg-terminal-panel text-matrix-500 text-xs">
+                            {player.username?.charAt(0).toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      {player.username} (Elo: {player.elo || 800})
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Finalize Button */}
+            {draftComplete && (
+              <Button
+                onClick={handleFinalizeTeams}
+                disabled={isLoading}
+                className="w-full font-mono relative z-10"
+                style={{ pointerEvents: 'auto' }}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    FINALIZING...
+                  </>
+                ) : (
+                  <>
+                    <ArrowRight className="mr-2 h-4 w-4" />
+                    FINALIZE TEAMS
+                  </>
+                )}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )
+    }
+
     // If teams are assigned and preview is shown
     if (showPreview && teamAlpha && teamBravo && (teamAlpha.members.length > 0 || teamBravo.members.length > 0)) {
       return (
@@ -479,19 +765,13 @@ export function TeamSelection({ match, onMatchUpdate }: TeamSelectionProps) {
             </Button>
             <Button
               variant={allocationMethod === 'captain' ? 'default' : 'outline'}
-              onClick={() => {
-                setAllocationMethod('captain')
-                toast({
-                  title: "Captain Draft",
-                  description: "Captain draft mode coming soon",
-                })
-              }}
+              onClick={handleStartCaptainDraft}
               disabled={isLoading}
               className="font-mono justify-start relative z-10"
               style={{ pointerEvents: 'auto' }}
             >
               <Crown className="mr-2 h-4 w-4" />
-              CAPTAIN DRAFT - Captains pick players (Coming Soon)
+              CAPTAIN DRAFT - Captains pick players
             </Button>
           </div>
         </CardContent>

@@ -208,6 +208,7 @@ model PlayerMatchStats {
   // Calculated metrics
   kd              Float  @default(0) // Kill/Death ratio
   plusMinus       Int    @default(0) // Kills - Deaths
+  damageDelta     Int    @default(0) // Damage dealt - Damage received (per round average)
   
   // Weighted Performance Rating
   wpr             Float  @default(0) // Calculated using WeightProfile

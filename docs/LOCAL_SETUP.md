@@ -6,6 +6,10 @@ Before starting, you need:
 - Node.js 18+ installed
 - PostgreSQL 16 (or use Docker Desktop for just Postgres + Redis)
 - Redis (or use Docker Desktop)
+- Cairo graphics toolchain for the Discord bot's Canvas rendering:
+  - **Ubuntu/Debian:** `sudo apt install -y libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev`
+  - **Alpine (WSL/Docker):** `apk add --no-cache cairo-dev pango-dev jpeg-dev giflib-dev pixman-dev freetype-dev`
+  - **macOS:** `brew install pkg-config cairo pango libpng jpeg giflib`
 
 ## Option 1: Using Docker Desktop (Recommended)
 

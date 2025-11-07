@@ -63,6 +63,8 @@ async function buildServer(): Promise<FastifyInstance> {
     },
   });
 
+  await fastify.register(import('./plugins/discord-bot'));
+
   // Register CORS
   await fastify.register(cors, {
     origin: process.env.CORS_ORIGIN || '*',
@@ -86,8 +88,8 @@ async function buildServer(): Promise<FastifyInstance> {
     // Continue without rate limiting if Redis fails
   }
 
-  // Health check endpoint
-  fastify.get('/health', async () => {
+  // Health check endpoint (accessible at /api/health)
+  fastify.get('/api/health', async () => {
     try {
       await prisma.$queryRaw`SELECT 1`;
       const redisStatus = redis.status;
@@ -117,6 +119,7 @@ async function buildServer(): Promise<FastifyInstance> {
   await fastify.register(import('./routes/matches'), { prefix: '/api/matches' });
   await fastify.register(import('./routes/admin'), { prefix: '/api/admin' });
   await fastify.register(import('./routes/import'), { prefix: '/api/import' });
+  await fastify.register(import('./routes/random'), { prefix: '/api' });
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {

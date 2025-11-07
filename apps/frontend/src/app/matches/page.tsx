@@ -28,7 +28,7 @@ import { formatTimestamp } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const STATUS_COLORS: Record<MatchStatus, string> = {
-  DRAFT: "border-terminal-muted text-terminal-muted",
+  DRAFT: "border-gray-400 dark:border-terminal-muted text-gray-700 dark:text-terminal-muted",
   CAPTAIN_VOTING: "border-yellow-500 text-yellow-500",
   MAP_PICK_BAN: "border-cyber-500 text-cyber-500",
   TEAM_SELECTION: "border-matrix-500 text-matrix-500",
@@ -207,7 +207,7 @@ export default function MatchesPage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold font-mono uppercase text-matrix-500 neon-text">
+          <h1 className="text-3xl font-bold font-mono uppercase text-gray-900 dark:text-matrix-500">
             MATCHES
           </h1>
           <p className="text-terminal-muted font-mono mt-1">
@@ -328,7 +328,7 @@ export default function MatchesPage() {
                         <CardTitle className="font-mono text-sm uppercase">
                           {STATUS_LABELS[match.status]}
                         </CardTitle>
-                        <span className="text-xs font-mono text-terminal-muted">
+                        <span className="text-xs font-mono text-gray-600 dark:text-terminal-muted">
                           {match.seriesType}
                         </span>
                       </div>
@@ -343,10 +343,10 @@ export default function MatchesPage() {
                           match.teams.map((team, idx) => (
                             <div
                               key={team.id}
-                              className="flex items-center justify-between p-2 rounded border border-terminal-border bg-terminal-panel/50"
+                              className="flex items-center justify-between p-2 rounded border border-gray-200 dark:border-terminal-border bg-gray-50 dark:bg-terminal-panel/50"
                             >
                               <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs text-terminal-muted">
+                                <span className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
                                   {team.name}
                                 </span>
                                 {team.captain && (
@@ -354,15 +354,15 @@ export default function MatchesPage() {
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
-                                <Users className="h-3 w-3 text-terminal-muted" />
-                                <span className="font-mono text-xs text-terminal-muted">
+                                <Users className="h-3 w-3 text-gray-600 dark:text-terminal-muted" />
+                                <span className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
                                   {team.members.length}/5
                                 </span>
                               </div>
                             </div>
                           ))
                         ) : (
-                          <div className="text-center py-4 text-terminal-muted font-mono text-sm">
+                          <div className="text-center py-4 text-gray-600 dark:text-terminal-muted font-mono text-sm">
                             No teams yet
                           </div>
                         )}
@@ -370,7 +370,7 @@ export default function MatchesPage() {
 
                       {/* Player Count */}
                       <div className="flex items-center justify-between text-sm">
-                        <span className="font-mono text-terminal-muted">
+                        <span className="font-mono text-gray-600 dark:text-terminal-muted">
                           Players: {totalPlayers}/10
                         </span>
                         {match.status === "COMPLETED" && match.winnerTeamId && (

@@ -57,8 +57,41 @@ trayb-customs/
 
 - **Frontend:** Next.js 16, React, TypeScript, TailwindCSS, Framer Motion
 - **Backend:** Fastify, TypeScript, Prisma, PostgreSQL, Redis
+- **Realtime:** Discord.js 14, Canvas (for leaderboard rendering)
 - **Auth:** Discord OAuth 2.0
 - **Deployment:** Dokploy, Docker, Cloudflare
+
+## 🤖 Discord Bot
+
+The backend now hosts a Discord bot that keeps your voice channels and results channel in sync with match flow:
+
+- Auto-moves players into the lobby (`1436009958469533726`) when they join a match.
+- Splits teams into `Team Alpha` (`1426994984300712027`) and `Team Bravo` (`1426995070590255186`) channels at the start of pick/ban, enforcing 5-player limits.
+- Returns everyone to the lobby (or disconnects) when a match finishes and unlocks/reset channel limits.
+- Drops a rich match summary embed plus a generated leaderboard image into the results channel (`1436464923365605426`) after stats are submitted.
+
+### Required Environment Variables
+
+Add the following to `apps/backend/.env` (values can live at the root if you centralize envs):
+
+```
+DISCORD_BOT_TOKEN=<bot-token>
+DISCORD_GUILD_ID=<guild-id>
+DISCORD_LOBBY_CHANNEL_ID=1436009958469533726
+DISCORD_TEAM_ALPHA_CHANNEL_ID=1426994984300712027
+DISCORD_TEAM_BRAVO_CHANNEL_ID=1426995070590255186
+DISCORD_RESULTS_CHANNEL_ID=1436464923365605426
+```
+
+> The channel IDs above match production defaults. Override them if your staging guild uses different IDs.
+
+### Native Dependencies
+
+The bot renders leaderboard images with `canvas`. If you run locally outside Docker make sure the Cairo toolchain is available:
+
+- **Debian/Ubuntu:** `sudo apt install -y libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev`
+- **Alpine (WSL/Docker):** `apk add --no-cache cairo-dev pango-dev jpeg-dev giflib-dev pixman-dev freetype-dev`
+- **macOS (Homebrew):** `brew install pkg-config cairo pango libpng jpeg giflib`
 
 ## 📚 Documentation
 
