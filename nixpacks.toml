@@ -1,6 +1,6 @@
 [phases.setup]
 nixPkgs = [
-  'nodejs_20',
+  'nodejs_22',
   'python311',
   'pkg-config',
   'cairo',
@@ -12,4 +12,16 @@ nixPkgs = [
   'freetype',
   'librsvg'
 ]
+
+[phases.install]
+cmds = ['npm ci --workspace=@trayb/backend']
+
+[phases.build]
+cmds = [
+  'npx prisma generate --schema=./apps/backend/prisma/schema.prisma',
+  'npm run build --workspace=@trayb/backend'
+]
+
+[start]
+cmd = 'cd apps/backend && node dist/index.js'
 
