@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 import {
   ArrowLeft,
   Users,
@@ -62,6 +63,7 @@ export default function MatchDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { toast } = useToast()
   const [match, setMatch] = useState<Match | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const matchId = params.id as string
@@ -374,17 +376,17 @@ export default function MatchDetailPage() {
         updated[0].playerStats[playerIndex] = {
           userId: updated[0].playerStats[playerIndex].userId,
           teamId: updated[0].playerStats[playerIndex].teamId,
-          kills: playerStats.kills,
-          deaths: playerStats.deaths,
-          assists: playerStats.assists,
-          acs: playerStats.acs,
-          adr: playerStats.adr,
-          headshotPercent: playerStats.headshotPercent,
-          firstKills: playerStats.firstKills,
-          firstDeaths: playerStats.firstDeaths,
-          kast: playerStats.kast,
-          multiKills: playerStats.multiKills,
-          damageDelta: playerStats.damageDelta,
+          kills: playerStats.kills ?? 0,
+          deaths: playerStats.deaths ?? 0,
+          assists: playerStats.assists ?? 0,
+          acs: playerStats.acs ?? 0,
+          adr: playerStats.adr ?? 0,
+          headshotPercent: playerStats.headshotPercent ?? 0,
+          firstKills: playerStats.firstKills ?? 0,
+          firstDeaths: playerStats.firstDeaths ?? 0,
+          kast: playerStats.kast ?? 0,
+          multiKills: playerStats.multiKills ?? 0,
+          damageDelta: playerStats.damageDelta ?? 0,
         }
         updatedCount++
       }
@@ -478,7 +480,11 @@ export default function MatchDetailPage() {
     // Validate all maps have winner
     const invalidMaps = mapsStats.filter(m => !m.winnerTeamId)
     if (invalidMaps.length > 0) {
-      console.error("Please select winner for all maps")
+      toast({
+        title: "Winner missing",
+        description: "Pick a winner (or enter the final score) for every map before submitting.",
+        variant: "destructive",
+      })
       return
     }
 
@@ -490,7 +496,11 @@ export default function MatchDetailPage() {
     )
     
     if (hasEmptyStats) {
-      console.error("Please fill in all stats for all players")
+      toast({
+        title: "Stats incomplete",
+        description: "Some players are still missing numbers. Add or edit the remaining stats.",
+        variant: "destructive",
+      })
       return
     }
 
