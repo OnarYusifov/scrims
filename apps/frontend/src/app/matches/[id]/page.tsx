@@ -477,19 +477,36 @@ export default function MatchDetailPage() {
       return
     }
 
-    // Validate all maps have winner
-    const invalidMaps = mapsStats.filter(m => !m.winnerTeamId)
-    if (invalidMaps.length > 0) {
+    const alphaTeam = match.teams.find(t => t.name === 'Team Alpha')
+    const bravoTeam = match.teams.find(t => t.name === 'Team Bravo')
+    if (!alphaTeam || !bravoTeam) {
+      toast({
+        title: "Teams missing",
+        description: "Both teams must be set before submitting stats.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const resolvedMaps = mapsStats.map(map => {
+      const winner =
+        map.winnerTeamId ||
+        (map.score.alpha >= 13 && map.score.alpha > map.score.bravo ? alphaTeam.id :
+          map.score.bravo >= 13 && map.score.bravo > map.score.alpha ? bravoTeam.id : '')
+      return { ...map, winnerTeamId: winner }
+    })
+
+    if (resolvedMaps.some(m => !m.winnerTeamId)) {
       toast({
         title: "Winner missing",
-        description: "Pick a winner (or enter the final score) for every map before submitting.",
+        description: "Enter the final score for every map so we can determine the winner.",
         variant: "destructive",
       })
       return
     }
 
     // Validate all players have stats
-    const hasEmptyStats = mapsStats.some(map =>
+    const hasEmptyStats = resolvedMaps.some(map =>
       map.playerStats.some(p =>
         p.kills === null || p.deaths === null || p.acs === null
       )
@@ -509,11 +526,11 @@ export default function MatchDetailPage() {
       
       // Determine overall winner (team with most maps won)
       const mapsWon = {
-        alpha: mapsStats.filter(m => {
+        alpha: resolvedMaps.filter(m => {
           const team = match.teams.find(t => t.id === m.winnerTeamId)
           return team?.name === 'Team Alpha'
         }).length,
-        bravo: mapsStats.filter(m => {
+        bravo: resolvedMaps.filter(m => {
           const team = match.teams.find(t => t.id === m.winnerTeamId)
           return team?.name === 'Team Bravo'
         }).length,
@@ -530,7 +547,7 @@ export default function MatchDetailPage() {
 
       // Prepare stats for submission
       const statsToSubmit: MatchStatsSubmission = {
-        maps: mapsStats.map(map => ({
+        maps: resolvedMaps.map(map => ({
           mapName: map.mapName,
           winnerTeamId: map.winnerTeamId,
           score: map.score,

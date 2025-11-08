@@ -139,12 +139,16 @@ export function PerMapStatsEntry({ match, onMatchUpdate, onMatchCompleted }: Per
   }
 
   // Check if user can submit (all stats filled and winner selected)
+  const resolveWinner = () => {
+    if (!teamAlpha || !teamBravo) return ''
+    return mapStats.winnerTeamId || determineWinnerFromScore(mapStats.score) || ''
+  }
+
   const canSubmit = () => {
     if (!currentMap || !teamAlpha || !teamBravo) return false
-    if (!mapStats.winnerTeamId) return false
-    
-    // Check if all players have required stats
-    for (const [userId, stats] of mapStats.playerStats.entries()) {
+    if (!resolveWinner()) return false
+
+    for (const stats of mapStats.playerStats.values()) {
       if (
         stats.kills === null ||
         stats.deaths === null ||
@@ -161,7 +165,6 @@ export function PerMapStatsEntry({ match, onMatchUpdate, onMatchCompleted }: Per
         return false
       }
     }
-    
     return true
   }
 
@@ -171,9 +174,14 @@ export function PerMapStatsEntry({ match, onMatchUpdate, onMatchCompleted }: Per
     try {
       setIsSubmitting(true)
 
+      const winnerTeam = resolveWinner()
+      if (!winnerTeam) {
+        return
+      }
+
       const statsToSubmit = {
         mapName: currentMap.mapName,
-        winnerTeamId: mapStats.winnerTeamId,
+        winnerTeamId: winnerTeam,
         score: mapStats.score,
         playerStats: Array.from(mapStats.playerStats.values()).map(s => ({
           userId: s.userId,
@@ -213,11 +221,11 @@ export function PerMapStatsEntry({ match, onMatchUpdate, onMatchCompleted }: Per
       }
 
       // Reset stats
-      setMapStats({
+      setMapStats(prev => ({
         score: { alpha: 0, bravo: 0 },
         winnerTeamId: '',
-        playerStats: new Map(mapStats.playerStats.keys().map(userId => {
-          const existing = mapStats.playerStats.get(userId)!
+        playerStats: new Map(prev.playerStats.keys().map(userId => {
+          const existing = prev.playerStats.get(userId)!
           return [userId, {
             ...existing,
             kills: null,
@@ -233,7 +241,7 @@ export function PerMapStatsEntry({ match, onMatchUpdate, onMatchCompleted }: Per
             damageDelta: null,
           }]
         })),
-      })
+      }))
 
       onMatchUpdate()
     } catch (error: any) {
@@ -306,27 +314,17 @@ export function PerMapStatsEntry({ match, onMatchUpdate, onMatchCompleted }: Per
           </div>
         </div>
 
-        {/* Winner Selection */}
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Label className="font-mono text-sm text-gray-600 dark:text-terminal-muted">
-            Winner Team
+            Winner
           </Label>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant={mapStats.winnerTeamId === teamAlpha.id ? "default" : "outline"}
-              onClick={() => setMapStats({ ...mapStats, winnerTeamId: teamAlpha.id })}
-              className="font-mono"
-            >
-              Team Alpha
-            </Button>
-            <Button
-              variant={mapStats.winnerTeamId === teamBravo.id ? "default" : "outline"}
-              onClick={() => setMapStats({ ...mapStats, winnerTeamId: teamBravo.id })}
-              className="font-mono"
-            >
-              Team Bravo
-            </Button>
-          </div>
+          <p className="font-mono text-base">
+            {resolveWinner()
+              ? resolveWinner() === teamAlpha?.id
+                ? 'Team Alpha (auto)'
+                : 'Team Bravo (auto)'
+              : 'Enter the final score to determine the winner'}
+          </p>
         </div>
 
         {/* Player Stats */}

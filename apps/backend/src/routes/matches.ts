@@ -2756,8 +2756,12 @@ export default async function matchRoutes(fastify: FastifyInstance) {
     };
   }>, reply: FastifyReply) => {
     try {
-      const userId = (request.user as any).id;
+      const userId = (request as any).user?.userId;
       const matchId = request.params.id;
+
+      if (!userId) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
 
       // Check if user is admin
       const user = await prisma.user.findUnique({
