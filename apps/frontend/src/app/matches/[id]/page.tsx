@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -27,14 +27,14 @@ import {
   X,
 } from "lucide-react"
 import { Match, MatchStatus } from "@/types"
-import { fetchMatch, joinMatch, leaveMatch, deleteMatch, addTestUsersToMatch, submitMatchStats, MatchStatsSubmission, addUserToMatchManually, fetchUsers, removePlayerFromMatch, updateMatchStatus } from "@/lib/api"
+import { fetchMatch, joinMatch, leaveMatch, deleteMatch, addRandomPlayersToMatch, submitMatchStats, MatchStatsSubmission, addUserToMatchManually, fetchUsers, removePlayerFromMatch, updateMatchStatus, setTeamCaptain } from "@/lib/api"
 import { formatTimestamp } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { TeamSelection } from "@/components/match/team-selection"
 import { MapPickBan } from "@/components/match/map-pick-ban"
 import { PerMapStatsEntry } from "@/components/match/per-map-stats-entry"
 import { OCRStatsUpload } from "@/components/match/ocr-stats-upload"
-import { Users2, ImagePlus } from "lucide-react"
+import { Users2 } from "lucide-react"
 
 const STATUS_COLORS: Record<MatchStatus, string> = {
   DRAFT: "border-gray-400 dark:border-terminal-muted text-gray-700 dark:text-terminal-muted",
@@ -97,6 +97,30 @@ export default function MatchDetailPage() {
       damageDelta: number | null;
     }>;
   }>>([])
+  const [playerActionLoading, setPlayerActionLoading] = useState<string | null>(null)
+  const isAdminUser = !!user && (user.role === 'ADMIN' || user.role === 'ROOT')
+
+  const playerGroups = useMemo(() => {
+    if (!match) return []
+    const order: Record<string, number> = {
+      'Team Alpha': 0,
+      'Player Pool': 1,
+      'Team Bravo': 2,
+    }
+
+    return [...match.teams]
+      .sort((a, b) => {
+        const orderA = order[a.name] ?? 99
+        const orderB = order[b.name] ?? 99
+        return orderA - orderB
+      })
+      .map((team) => ({
+        id: team.id,
+        name: team.name,
+        captainId: team.captainId ?? team.captain?.id ?? null,
+        members: team.members,
+      }))
+  }, [match])
 
   useEffect(() => {
     // Wait for auth to finish loading
@@ -165,12 +189,38 @@ export default function MatchDetailPage() {
     }
   }
 
-  async function handleAddTestUsers() {
+  async function handleAddRandomPlayers() {
     try {
-      const result = await addTestUsersToMatch(matchId)
-      loadMatch()
+      const result = await addRandomPlayersToMatch(matchId)
+      await loadMatch()
     } catch (error: any) {
-      console.error("Failed to add test users:", error)
+      console.error("Failed to add random players:", error)
+      alert(error.message || "Failed to add random players")
+    }
+  }
+
+  async function handleSetCaptain(teamId: string, userId: string) {
+    if (!isAdminUser) return
+    const actionKey = `captain:${teamId}:${userId}`
+    setPlayerActionLoading(actionKey)
+    try {
+      await setTeamCaptain(matchId, teamId, userId)
+      await loadMatch()
+    } catch (error: any) {
+      console.error("Failed to set captain:", error)
+      alert(error.message || "Failed to set captain")
+    } finally {
+      setPlayerActionLoading((current) => (current === actionKey ? null : current))
+    }
+  }
+
+  async function handleAdminRemovePlayer(userId: string) {
+    const actionKey = `remove:${userId}`
+    setPlayerActionLoading(actionKey)
+    try {
+      await handleRemovePlayer(userId)
+    } finally {
+      setPlayerActionLoading((current) => (current === actionKey ? null : current))
     }
   }
 
@@ -631,15 +681,15 @@ export default function MatchDetailPage() {
               {isFull ? "FULL" : "LOCKED"}
             </Button>
           )}
-          {user && user.role === "ROOT" && !isCancelled && (
+          {user && (user.role === "ADMIN" || user.role === "ROOT") && !isCancelled && (
             <Button
               variant="outline"
-              onClick={handleAddTestUsers}
+              onClick={handleAddRandomPlayers}
               className="relative z-10 font-mono"
               style={{ pointerEvents: 'auto' }}
             >
               <Users2 className="mr-2 h-4 w-4" />
-              ADD TEST USERS
+              ADD RANDOM PLAYERS
             </Button>
           )}
           {user && (user.role === "ADMIN" || user.role === "ROOT") && !isCancelled && (
@@ -720,6 +770,123 @@ export default function MatchDetailPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Admin Player Management */}
+      {isAdminUser && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Card className="border-matrix-500/50 bg-terminal-panel/50">
+            <CardHeader>
+              <CardTitle className="font-mono uppercase text-matrix-500">PLAYER MANAGEMENT</CardTitle>
+              <CardDescription className="font-mono text-terminal-muted">
+                Manage all players in this match. Remove players from the lobby or assign captains for each team.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {playerGroups.length === 0 ? (
+                <p className="font-mono text-xs text-terminal-muted italic">No players have joined this match yet.</p>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-3">
+                  {playerGroups.map((group) => {
+                    const isPlayableTeam = ['Team Alpha', 'Team Bravo'].includes(group.name)
+                    return (
+                      <div
+                        key={group.id || group.name}
+                        className="border border-terminal-border rounded-lg bg-terminal-panel/60 p-3 space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono uppercase text-xs text-terminal-muted">{group.name}</span>
+                          <span className="font-mono text-xs text-terminal-muted">
+                            {group.members.length}{isPlayableTeam ? '/5' : ''}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {group.members.length === 0 ? (
+                            <p className="font-mono text-xs text-terminal-muted italic">No players assigned.</p>
+                          ) : (
+                            group.members.map((member) => {
+                              const removeKey = `remove:${member.userId}`
+                              const captainKey = `captain:${group.id}:${member.userId}`
+                              const removeLoading = playerActionLoading === removeKey
+                              const captainLoading = playerActionLoading === captainKey
+                              const isCaptain = group.captainId === member.userId
+                              const canSetCaptain = isPlayableTeam && !!group.id && !isCaptain
+
+                              return (
+                                <div
+                                  key={member.id}
+                                  className="flex items-center gap-3 border border-terminal-border/70 rounded-lg bg-black/30 p-3"
+                                >
+                                  <Avatar className="h-9 w-9">
+                                    {member.user.avatar ? (
+                                      <AvatarImage
+                                        src={`https://cdn.discordapp.com/avatars/${member.user.discordId}/${member.user.avatar}.png?size=64`}
+                                        alt={member.user.username}
+                                      />
+                                    ) : (
+                                      <AvatarFallback className="bg-terminal-panel text-matrix-500 text-xs">
+                                        {member.user.username?.charAt(0).toUpperCase() || 'U'}
+                                      </AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-mono text-sm text-gray-200 truncate">{member.user.username}</p>
+                                    <p className="font-mono text-[11px] text-terminal-muted truncate">
+                                      ELO {member.user.elo ?? 800}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {isCaptain ? (
+                                      <span className="font-mono text-[10px] uppercase px-2 py-1 rounded border border-matrix-500/40 text-matrix-500 bg-matrix-500/10">
+                                        CAPTAIN
+                                      </span>
+                                    ) : (
+                                      canSetCaptain && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => group.id && handleSetCaptain(group.id, member.userId)}
+                                          disabled={captainLoading}
+                                          className="font-mono text-[11px] h-7 px-2 border-matrix-500 text-matrix-500 hover:bg-matrix-500/10"
+                                        >
+                                          {captainLoading ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          ) : (
+                                            'MAKE CAPTAIN'
+                                          )}
+                                        </Button>
+                                      )
+                                    )}
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleAdminRemovePlayer(member.userId)}
+                                      disabled={removeLoading}
+                                      className="font-mono text-[11px] h-7 px-2 border-red-500 text-red-500 hover:bg-red-500/10"
+                                    >
+                                      {removeLoading ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        'KICK'
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Teams - Only show when teams have been formed (not during draft, captain voting, or team selection) */}
       {match.status !== 'DRAFT' && match.status !== 'CAPTAIN_VOTING' && match.status !== 'TEAM_SELECTION' && (
@@ -928,24 +1095,15 @@ export default function MatchDetailPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <Button
-                  onClick={() => setShowStatsEntry(true)}
-                  className="font-mono w-full"
-                  style={{ pointerEvents: 'auto' }}
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  ENTER STATS MANUALLY
-                </Button>
-                <Button
                   onClick={() => {
                     setShowStatsEntry(true)
                     setShowOCRUpload(true)
                   }}
-                  variant="outline"
-                  className="font-mono w-full border-matrix-500 text-matrix-500 hover:bg-matrix-500/10"
+                  className="font-mono w-full bg-matrix-500 hover:bg-matrix-600 text-black"
                   style={{ pointerEvents: 'auto' }}
                 >
-                  <ImagePlus className="mr-2 h-4 w-4" />
-                  IMPORT FROM IMAGE (OCR)
+                  <FileText className="mr-2 h-4 w-4" />
+                  IMPORT SCOREBOARD HTML
                 </Button>
               </CardContent>
             </Card>
@@ -1505,8 +1663,8 @@ export default function MatchDetailPage() {
                     className="font-mono border-matrix-500 text-matrix-500 hover:bg-matrix-500/10"
                     style={{ pointerEvents: 'auto' }}
                   >
-                    <ImagePlus className="mr-2 h-4 w-4" />
-                    IMPORT FROM IMAGE
+                    <FileText className="mr-2 h-4 w-4" />
+                    IMPORT HTML
                   </Button>
                   <Button
                     onClick={handleSubmitStats}

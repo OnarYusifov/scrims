@@ -3,7 +3,7 @@ import { prisma } from '../index';
 import { EloService } from '../services/elo.service';
 import { randomService } from '../services/random.service';
 import { parseScoreboardFromHtml } from '../services/scoreboard-html.service';
-import { MatchStatus, MatchStatsReviewStatus, MatchStatsSource, Prisma } from '@prisma/client';
+import { MatchStatus, MatchStatsReviewStatus, MatchStatsSource, SeriesType, Prisma } from '@prisma/client';
 import {
   DiscordIdentity,
   MatchResultPayload,
@@ -737,11 +737,20 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'Match not found' });
       }
 
-      // Find team member
+      // Find team member and remove captain if needed
       let teamMember = null;
+      let teamWithMember = null;
       for (const team of match.teams) {
         teamMember = team.members.find(m => m.userId === userId);
         if (teamMember) {
+          teamWithMember = team;
+          // Remove captain if this player is captain
+          if (team.captainId === userId) {
+            await prisma.team.update({
+              where: { id: team.id },
+              data: { captainId: null },
+            });
+          }
           await prisma.teamMember.delete({
             where: { id: teamMember.id },
           });
@@ -750,6 +759,68 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       }
 
       return reply.code(400).send({ error: 'Player not in this match' });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Set team captain (admin/root only)
+  fastify.post('/:id/set-captain', {
+    onRequest: [fastify.authenticate],
+  }, async (request: FastifyRequest<{
+    Params: { id: string };
+    Body: {
+      userId: string;
+      teamId: string;
+    };
+  }>, reply: FastifyReply) => {
+    try {
+      const currentUser = (request as any).user;
+      const { id: matchId } = request.params;
+      const { userId, teamId } = request.body;
+
+      // Check if user is admin or root
+      if (!['ADMIN', 'ROOT'].includes(currentUser.role)) {
+        return reply.code(403).send({ error: 'Only admins can set captains' });
+      }
+
+      // Get match and team
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teams: {
+            include: {
+              members: true,
+            },
+          },
+        },
+      });
+
+      if (!match) {
+        return reply.code(404).send({ error: 'Match not found' });
+      }
+
+      const team = match.teams.find(t => t.id === teamId);
+      if (!team) {
+        return reply.code(404).send({ error: 'Team not found' });
+      }
+
+      // Verify player is in the team
+      const isMember = team.members.some(m => m.userId === userId);
+      if (!isMember) {
+        return reply.code(400).send({ error: 'Player is not a member of this team' });
+      }
+
+      // Set captain
+      await prisma.team.update({
+        where: { id: teamId },
+        data: { captainId: userId },
+      });
+
+      fastify.log.info(`Set captain ${userId} for team ${teamId} in match ${matchId}`);
+
+      return { message: 'Captain set successfully' };
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
@@ -1541,6 +1612,9 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         },
       });
 
+      // Track assigned player IDs
+      const assignedPlayerIds = new Set<string>();
+
       if (method === 'manual' && assignments) {
         // Manual assignment (admin or captain)
         const isAdmin = ['ADMIN', 'ROOT'].includes(userRole);
@@ -1559,6 +1633,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
               userId: assignment.userId,
             },
           });
+          assignedPlayerIds.add(assignment.userId);
         }
       } else if (method === 'elo') {
         // Sort by Elo and split
@@ -1572,6 +1647,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
               userId: sorted[i].userId,
             },
           });
+          assignedPlayerIds.add(sorted[i].userId);
         }
       } else {
         // Random assignment using Random.org
@@ -1584,7 +1660,25 @@ export default async function matchRoutes(fastify: FastifyInstance) {
               userId: shuffled[i].userId,
             },
           });
+          assignedPlayerIds.add(shuffled[i].userId);
         }
+      }
+
+      // Remove any players from teams that weren't assigned (cleanup any leftover members)
+      const allTeamIds = [team1.id, team2.id];
+      const unassignedMembers = await prisma.teamMember.findMany({
+        where: {
+          teamId: { in: allTeamIds },
+          userId: { notIn: Array.from(assignedPlayerIds) },
+        },
+      });
+
+      if (unassignedMembers.length > 0) {
+        await prisma.teamMember.deleteMany({
+          where: {
+            id: { in: unassignedMembers.map(m => m.id) },
+          },
+        });
       }
 
       // Don't update status yet - let frontend show preview and finalize
@@ -1697,8 +1791,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Add test users to match (ROOT only)
-  fastify.post('/:id/add-test-users', {
+  // Add random players to match for testing (ROOT/ADMIN only)
+  fastify.post('/:id/add-random-players', {
     onRequest: [fastify.authenticate],
   }, async (request: FastifyRequest<{
     Params: { id: string };
@@ -1706,9 +1800,9 @@ export default async function matchRoutes(fastify: FastifyInstance) {
     try {
       const userRole = (request as any).user.role;
       
-      // Only ROOT can add test users
-      if (userRole !== 'ROOT') {
-        return reply.code(403).send({ error: 'Only ROOT can add test users' });
+      // Only ADMIN/ROOT can add random players
+      if (!['ADMIN', 'ROOT'].includes(userRole)) {
+        return reply.code(403).send({ error: 'Only admins can add random players' });
       }
 
       const { id: matchId } = request.params;
@@ -1733,17 +1827,24 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: 'Match is not in a joinable state' });
       }
 
-      // Get test users (Discord IDs starting with 10000000000000000)
-      const testUsers = await prisma.user.findMany({
+      // Get all real users (exclude test users with fake Discord IDs)
+      const allUsers = await prisma.user.findMany({
         where: {
+          isBanned: false,
           discordId: {
-            startsWith: '10000000000000000',
+            not: {
+              startsWith: '10000000000000000',
+            },
           },
         },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 1000, // Get up to 1000 users
       });
 
-      if (testUsers.length === 0) {
-        return reply.code(404).send({ error: 'No test users found. Run: npm run test-users' });
+      if (allUsers.length === 0) {
+        return reply.code(404).send({ error: 'No users found in database' });
       }
 
       // Ensure both teams exist
@@ -1809,14 +1910,15 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       }
 
       // Filter out users already in match
-      const usersToAdd = testUsers.filter(user => !currentMembers.includes(user.id));
+      const usersToAdd = allUsers.filter(user => !currentMembers.includes(user.id));
 
       if (usersToAdd.length === 0) {
-        return reply.code(400).send({ error: 'All test users are already in the match' });
+        return reply.code(400).send({ error: 'All available users are already in the match' });
       }
 
-      // Only add up to the number needed to reach 10 players
-      const usersToActuallyAdd = usersToAdd.slice(0, playersNeeded)
+      // Shuffle and select random users
+      const shuffled = await randomService.shuffleArray(usersToAdd);
+      const usersToActuallyAdd = shuffled.slice(0, playersNeeded);
 
       // Add users to teams (alternating between Alpha and Bravo)
       // HARD LIMIT: Max 5 players per team
@@ -1892,14 +1994,16 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             .catch((err) =>
               fastify.log.error(
                 { err, matchId },
-                'Failed to sync lobby after adding test users',
+                'Failed to sync lobby after adding random players',
               ),
             );
         }
       }
 
+      fastify.log.info(`Added ${addedUsers.length} random players to match ${matchId}`);
+
       return {
-        message: `Added ${addedUsers.length} test users to match (${currentMembers.length + addedUsers.length}/10 total)`,
+        message: `Added ${addedUsers.length} random players to match (${currentMembers.length + addedUsers.length}/10 total)`,
         addedUsers,
         totalPlayers: currentMembers.length + addedUsers.length,
       };
@@ -2876,6 +2980,293 @@ export default async function matchRoutes(fastify: FastifyInstance) {
 
       return {
         message: 'Match stats submitted and Elo calculated',
+        eloResults,
+      };
+    } catch (error: any) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: error.message || 'Internal server error' });
+    }
+  });
+
+  // Direct match import - bypass all phases and import completed match (admin/root only)
+  fastify.post('/:id/import-completed', {
+    onRequest: [fastify.authenticate],
+  }, async (request: FastifyRequest<{
+    Params: { id: string };
+    Body: {
+      teams: Array<{
+        name: string;
+        playerIds: string[];
+        captainId?: string;
+      }>;
+      maps: Array<{
+        mapName: string;
+        winnerTeamName: string;
+        score: { alpha: number; bravo: number };
+        playerStats: Array<{
+          userId: string;
+          teamName: string;
+          kills: number;
+          deaths: number;
+          assists: number;
+          acs: number;
+          adr: number;
+          headshotPercent: number;
+          firstKills: number;
+          firstDeaths: number;
+          kast: number;
+          multiKills: number;
+          damageDelta?: number;
+        }>;
+      }>;
+      winnerTeamName: string;
+      seriesType?: SeriesType;
+    };
+  }>, reply: FastifyReply) => {
+    try {
+      const currentUser = (request as any).user;
+      const { id: matchId } = request.params;
+      const { teams, maps, winnerTeamName, seriesType } = request.body;
+
+      // Only ADMIN/ROOT can import matches
+      if (!['ADMIN', 'ROOT'].includes(currentUser.role)) {
+        return reply.code(403).send({ error: 'Only admins can import completed matches' });
+      }
+
+      // Get or create match
+      let match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teams: {
+            include: {
+              members: true,
+            },
+          },
+        },
+      });
+
+      if (!match) {
+        // Create match if it doesn't exist
+        match = await prisma.match.create({
+          data: {
+            id: matchId,
+            seriesType: seriesType || 'BO1',
+            status: 'COMPLETED',
+            statsStatus: MatchStatsReviewStatus.CONFIRMED,
+            startedAt: new Date(),
+            completedAt: new Date(),
+          },
+          include: {
+            teams: {
+              include: {
+                members: true,
+              },
+            },
+          },
+        }) as any;
+      }
+
+      // Clear existing teams
+      await prisma.teamMember.deleteMany({
+        where: {
+          teamId: { in: match.teams.map(t => t.id) },
+        },
+      });
+      await prisma.team.deleteMany({
+        where: { matchId },
+      });
+
+      // Create teams and add players
+      const createdTeams: Array<{ id: string; name: string }> = [];
+      for (const teamData of teams) {
+        const team = await prisma.team.create({
+          data: {
+            matchId,
+            name: teamData.name,
+            side: teamData.name === 'Team Alpha' ? 'ATTACKER' : 'DEFENDER',
+            captainId: teamData.captainId || null,
+            mapsWon: maps.filter(m => m.winnerTeamName === teamData.name).length,
+          },
+        });
+        createdTeams.push({ id: team.id, name: team.name });
+
+        // Add players to team
+        for (const playerId of teamData.playerIds) {
+          await prisma.teamMember.create({
+            data: {
+              teamId: team.id,
+              userId: playerId,
+            },
+          });
+        }
+      }
+
+      // Find winner team
+      const winnerTeam = createdTeams.find(t => t.name === winnerTeamName);
+      if (!winnerTeam) {
+        return reply.code(400).send({ error: 'Winner team not found' });
+      }
+
+      // Process maps and stats (reuse logic from stats submission)
+      const teamAlpha = createdTeams.find(t => t.name === 'Team Alpha');
+      const teamBravo = createdTeams.find(t => t.name === 'Team Bravo');
+      if (!teamAlpha || !teamBravo) {
+        return reply.code(400).send({ error: 'Both Team Alpha and Team Bravo must be provided' });
+      }
+
+      // Create map selections
+      for (const mapData of maps) {
+        await prisma.mapSelection.create({
+          data: {
+            matchId,
+            mapName: mapData.mapName,
+            action: 'PICK',
+            order: maps.indexOf(mapData),
+            wasPlayed: true,
+            winnerTeamId: createdTeams.find(t => t.name === mapData.winnerTeamName)?.id,
+          },
+        });
+      }
+
+      // Aggregate stats
+      const aggregatedStats = new Map<string, AggregatedPlayerStats>();
+      for (const mapData of maps) {
+        for (const stat of mapData.playerStats) {
+          const teamId = createdTeams.find(t => t.name === stat.teamName)?.id;
+          if (!teamId) continue;
+
+          const existing = aggregatedStats.get(stat.userId);
+          if (existing) {
+            existing.kills += stat.kills;
+            existing.deaths += stat.deaths;
+            existing.assists += stat.assists;
+            existing.acs = Math.round((existing.acs + stat.acs) / 2);
+            existing.adr = Math.round((existing.adr + stat.adr) / 2);
+            existing.headshotPercent = (existing.headshotPercent + stat.headshotPercent) / 2;
+            existing.firstKills += stat.firstKills;
+            existing.firstDeaths += stat.firstDeaths;
+            existing.kast = (existing.kast + stat.kast) / 2;
+            existing.multiKills += stat.multiKills;
+            existing.damageDelta = (existing.damageDelta || 0) + (stat.damageDelta || 0);
+          } else {
+            aggregatedStats.set(stat.userId, {
+              userId: stat.userId,
+              teamId,
+              kills: stat.kills,
+              deaths: stat.deaths,
+              assists: stat.assists,
+              acs: stat.acs,
+              adr: stat.adr,
+              headshotPercent: stat.headshotPercent,
+              firstKills: stat.firstKills,
+              firstDeaths: stat.firstDeaths,
+              kast: stat.kast,
+              multiKills: stat.multiKills,
+              damageDelta: stat.damageDelta || 0,
+            });
+          }
+        }
+      }
+
+      // Calculate and save Elo (reuse EloService logic)
+      const eloService = new EloService();
+      const eloResults: Array<{
+        userId: string;
+        oldElo: number;
+        newElo: number;
+        change: number;
+      }> = [];
+
+      const winnerTeamMembers = await prisma.teamMember.findMany({
+        where: { teamId: winnerTeam.id },
+      });
+      const loserTeamMembers = await prisma.teamMember.findMany({
+        where: { teamId: createdTeams.find(t => t.id !== winnerTeam.id)?.id },
+      });
+
+      const winnerAvgElo = await eloService.getTeamAverageElo(winnerTeamMembers.map(m => m.userId));
+      const loserAvgElo = await eloService.getTeamAverageElo(loserTeamMembers.map(m => m.userId));
+
+      for (const [playerId, stats] of aggregatedStats.entries()) {
+        const playerTeam = createdTeams.find(t => t.id === stats.teamId);
+        if (!playerTeam) continue;
+
+        const kd = stats.deaths > 0 ? stats.kills / stats.deaths : stats.kills;
+        const plusMinus = stats.kills - stats.deaths;
+
+        await prisma.playerMatchStats.upsert({
+          where: {
+            matchId_userId: {
+              matchId,
+              userId: playerId,
+            },
+          },
+          create: {
+            matchId,
+            userId: playerId,
+            teamId: stats.teamId,
+            kills: stats.kills,
+            deaths: stats.deaths,
+            assists: stats.assists,
+            acs: stats.acs,
+            adr: stats.adr,
+            headshotPercent: stats.headshotPercent,
+            firstKills: stats.firstKills,
+            firstDeaths: stats.firstDeaths,
+            kast: stats.kast,
+            multiKills: stats.multiKills,
+            kd,
+            plusMinus,
+            wpr: 0,
+          },
+          update: {
+            kills: stats.kills,
+            deaths: stats.deaths,
+            assists: stats.assists,
+            acs: stats.acs,
+            adr: stats.adr,
+            headshotPercent: stats.headshotPercent,
+            firstKills: stats.firstKills,
+            firstDeaths: stats.firstDeaths,
+            kast: stats.kast,
+            multiKills: stats.multiKills,
+            kd,
+            plusMinus,
+          },
+        });
+
+        const won = playerTeam.id === winnerTeam.id;
+        const eloResult = await eloService.calculateElo({
+          userId: playerId,
+          matchId,
+          won,
+          seriesType: match.seriesType,
+          opponentAvgElo: won ? loserAvgElo : winnerAvgElo,
+        });
+
+        eloResults.push({
+          userId: playerId,
+          oldElo: eloResult.oldElo,
+          newElo: eloResult.newElo,
+          change: eloResult.change,
+        });
+      }
+
+      // Update match
+      await prisma.match.update({
+        where: { id: matchId },
+        data: {
+          status: 'COMPLETED',
+          winnerTeamId: winnerTeam.id,
+          completedAt: new Date(),
+          statsStatus: MatchStatsReviewStatus.CONFIRMED,
+        },
+      });
+
+      fastify.log.info(`Imported completed match ${matchId} with ${maps.length} maps`);
+
+      return {
+        message: 'Match imported successfully',
         eloResults,
       };
     } catch (error: any) {

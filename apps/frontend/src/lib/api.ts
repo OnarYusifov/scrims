@@ -154,6 +154,17 @@ export async function removePlayerFromMatch(matchId: string, userId: string): Pr
   });
 }
 
+export async function setTeamCaptain(
+  matchId: string,
+  teamId: string,
+  userId: string,
+): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/api/matches/${matchId}/set-captain`, {
+    method: 'POST',
+    body: JSON.stringify({ teamId, userId }),
+  });
+}
+
 export async function deleteMatch(matchId: string): Promise<{ message: string }> {
   return apiRequest<{ message: string }>(`/api/matches/${matchId}`, {
     method: 'DELETE',
@@ -383,10 +394,10 @@ export async function performCoinflip(
   });
 }
 
-export async function addTestUsersToMatch(
+export async function addRandomPlayersToMatch(
   matchId: string
 ): Promise<{ message: string; addedUsers: Array<{ userId: string; username: string; teamId: string }>; totalPlayers: number }> {
-  return apiRequest<{ message: string; addedUsers: Array<{ userId: string; username: string; teamId: string }>; totalPlayers: number }>(`/api/matches/${matchId}/add-test-users`, {
+  return apiRequest<{ message: string; addedUsers: Array<{ userId: string; username: string; teamId: string }>; totalPlayers: number }>(`/api/matches/${matchId}/add-random-players`, {
     method: 'POST',
   });
 }

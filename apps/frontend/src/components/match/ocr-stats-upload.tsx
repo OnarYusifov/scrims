@@ -47,7 +47,7 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
       const { players, submissionId: newSubmissionId, statsStatus } = await extractStatsFromHtml(matchId, file)
 
       if (players.length === 0) {
-        throw new Error('No players detected in the uploaded HTML file.')
+        throw new Error('No players detected in the uploaded HTML file. Please ensure the file is a valid tracker.gg scoreboard export.')
       }
 
       setSubmissionId(newSubmissionId)
@@ -228,12 +228,26 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
           )}
 
           {submissionId && (
-            <div className="p-3 border border-matrix-500/50 bg-matrix-500/5 rounded font-mono text-xs text-matrix-400">
-              Pending review for submission <span className="font-semibold">{submissionId}</span>
-              {statsReviewStatus && (
-                <span className="ml-2 uppercase tracking-wide text-matrix-500">[{statsReviewStatus}]</span>
-              )}
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3 border border-green-500/50 bg-green-500/10 rounded font-mono text-xs"
+            >
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <div>
+                  <p className="text-green-500 font-semibold">SUCCESSFULLY PARSED</p>
+                  <p className="text-terminal-muted mt-1">
+                    Found {extractedPlayers.length} players • Submission ID: <span className="font-semibold text-matrix-500">{submissionId}</span>
+                  </p>
+                  {statsReviewStatus && (
+                    <p className="text-terminal-muted mt-1 uppercase tracking-wide">
+                      Status: <span className="text-matrix-500">{statsReviewStatus}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
           )}
 
           {/* Uploaded file summary and matching */}
