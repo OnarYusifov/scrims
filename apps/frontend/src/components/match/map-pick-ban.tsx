@@ -46,7 +46,7 @@ export function MapPickBan({ match, onMatchUpdate }: MapPickBanProps) {
   const [availableMaps, setAvailableMaps] = useState<string[]>(MAP_POOL)
   const [pickBanOrder, setPickBanOrder] = useState<Array<'BAN' | 'PICK'>>([])
   const [currentTurn, setCurrentTurn] = useState<number>(0)
-  const [selections, setSelections] = useState<Map<number, { mapName: string; action: 'PICK' | 'BAN'; teamId: string }>>(new Map())
+  const [selections, setSelections] = useState<Map<number, { mapName: string; action: 'PICK' | 'BAN' | 'DECIDER'; teamId: string }>>(new Map())
 
   const teamAlpha = match.teams.find(t => t.name === 'Team Alpha')
   const teamBravo = match.teams.find(t => t.name === 'Team Bravo')
@@ -64,7 +64,7 @@ export function MapPickBan({ match, onMatchUpdate }: MapPickBanProps) {
     setPickBanOrder(order)
 
     // Load existing selections from match (use map.order as index, not array index)
-    const existingSelections = new Map<number, { mapName: string; action: 'PICK' | 'BAN'; teamId: string }>()
+    const existingSelections = new Map<number, { mapName: string; action: 'PICK' | 'BAN' | 'DECIDER'; teamId: string }>()
     match.maps?.forEach((map) => {
       if (map.teamId) {
         existingSelections.set(map.order, {
