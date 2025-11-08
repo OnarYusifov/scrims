@@ -1004,11 +1004,73 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         return reply.code(403).send({ error: 'Insufficient permissions' });
       }
 
+      // Get match with all stats to reverse
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          playerStats: {
+            include: {
+              user: true,
+            },
+          },
+          eloChanges: true,
+        },
+      });
+
+      if (!match) {
+        return reply.code(404).send({ error: 'Match not found' });
+      }
+
+      // If match was completed, reverse all Elo changes and user stats
+      if (match.status === 'COMPLETED' && match.eloChanges.length > 0) {
+        fastify.log.info(`Reversing Elo changes for match ${matchId}`);
+
+        // Reverse Elo for each player
+        for (const eloChange of match.eloChanges) {
+          await prisma.user.update({
+            where: { id: eloChange.userId },
+            data: {
+              elo: eloChange.oldElo, // Revert to old Elo
+              matchesPlayed: {
+                decrement: 1, // Decrease match count
+              },
+            },
+          });
+        }
+
+        // Reverse aggregated user stats (totalKills, totalDeaths, etc.)
+        for (const playerStat of match.playerStats) {
+          await prisma.user.update({
+            where: { id: playerStat.userId },
+            data: {
+              totalKills: {
+                decrement: playerStat.kills,
+              },
+              totalDeaths: {
+                decrement: playerStat.deaths,
+              },
+              totalAssists: {
+                decrement: playerStat.assists,
+              },
+              totalACS: {
+                decrement: playerStat.acs,
+              },
+              totalADR: {
+                decrement: playerStat.adr,
+              },
+            },
+          });
+        }
+
+        fastify.log.info(`Reversed stats for ${match.playerStats.length} players in match ${matchId}`);
+      }
+
+      // Delete the match (cascade will handle related records)
       await prisma.match.delete({
         where: { id: matchId },
       });
 
-      return { message: 'Match deleted successfully' };
+      return { message: 'Match deleted successfully. Elo and stats have been reversed.' };
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
