@@ -284,8 +284,16 @@ async function buildProfileResponse(
         (team) => team.id !== playerStat.teamId && team.name !== 'Player Pool',
       );
 
-      const userScore = userTeam?.mapsWon ?? 0;
-      const opponentScore = opponentTeam?.mapsWon ?? 0;
+      const userRounds = userTeam?.roundsWon ?? 0;
+      const opponentRounds = opponentTeam?.roundsWon ?? 0;
+      const userMapsWon = userTeam?.mapsWon ?? 0;
+      const opponentMapsWon = opponentTeam?.mapsWon ?? 0;
+
+      const useRoundScore =
+        match.seriesType === 'BO1' && (userRounds > 0 || opponentRounds > 0);
+
+      const userScore = useRoundScore ? userRounds : userMapsWon;
+      const opponentScore = useRoundScore ? opponentRounds : opponentMapsWon;
 
       let result: 'WIN' | 'LOSS' | 'PENDING' = 'PENDING';
       if (match.winnerTeamId) {

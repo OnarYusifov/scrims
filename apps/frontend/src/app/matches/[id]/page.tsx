@@ -27,7 +27,7 @@ import {
   CheckCircle2,
   X,
 } from "lucide-react"
-import { Match, MatchStatus } from "@/types"
+import { Match, MatchStatus, MatchStatsReviewStatus } from "@/types"
 import { fetchMatch, joinMatch, leaveMatch, deleteMatch, addRandomPlayersToMatch, submitMatchStats, MatchStatsSubmission, addUserToMatchManually, fetchUsers, removePlayerFromMatch, updateMatchStatus, setTeamCaptain, movePlayerToTeam } from "@/lib/api"
 import { formatTimestamp } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -36,6 +36,7 @@ import { MapPickBan } from "@/components/match/map-pick-ban"
 import { PerMapStatsEntry } from "@/components/match/per-map-stats-entry"
 import { OCRStatsUpload } from "@/components/match/ocr-stats-upload"
 import { TrackerHtmlUpload } from "@/components/match/tracker-html-upload"
+import type { ExtractedPlayerStats } from "@/lib/ocr"
 import { Users2 } from "lucide-react"
 
 const STATUS_COLORS: Record<MatchStatus, string> = {
@@ -146,6 +147,13 @@ export default function MatchDetailPage() {
   const [mapsStats, setMapsStats] = useState<MapStatsEntry[]>([])
   const [playerActionLoading, setPlayerActionLoading] = useState<string | null>(null)
   const isAdminUser = !!user && (user.role === 'ADMIN' || user.role === 'ROOT')
+const [pendingOcrData, setPendingOcrData] = useState<{
+  players: ExtractedPlayerStats[]
+  submissionId?: string | null
+  statsStatus?: MatchStatsReviewStatus | null
+  sourceLabel?: string
+} | null>(null)
+const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undefined)
 
   const playerGroups = useMemo(() => {
     if (!match) return []
@@ -168,6 +176,24 @@ export default function MatchDetailPage() {
         members: team.members,
       }))
   }, [match])
+
+  const mapOptions = useMemo(() => {
+    if (mapsStats.length > 0) {
+      return mapsStats.map((map, index) => ({
+        index,
+        label: map.mapName || `Map ${index + 1}`,
+      }))
+    }
+
+    if (match?.maps && match.maps.length > 0) {
+      return match.maps.map((map, index) => ({
+        index,
+        label: map.mapName || `Map ${index + 1}`,
+      }))
+    }
+
+    return [{ index: 0, label: "Map 1" }]
+  }, [mapsStats, match?.maps])
 
   useEffect(() => {
     // Wait for auth to finish loading
@@ -377,37 +403,35 @@ export default function MatchDetailPage() {
     }
   }
 
-  function handleOCRStatsImported(
-    stats: Array<{
+  function handleOCRStatsImported(payload: {
+    mapIndex: number
+    players: Array<{
       userId: string
       teamId: string
       stats: Partial<Record<PlayerEditableField, number | null>>
     }>
-  ) {
-    console.log('OCR Stats Import - Received stats for', stats.length, 'players')
-    console.log('Current mapsStats length:', mapsStats.length)
-    
-    // Ensure mapsStats is initialized
+    submission?: { id: string | null; status: MatchStatsReviewStatus | null } | null
+  }) {
+    const targetIndex = mapsStats.length > 0
+      ? Math.min(Math.max(payload.mapIndex, 0), mapsStats.length - 1)
+      : 0
+
     if (mapsStats.length === 0) {
-      console.error('mapsStats not initialized')
+      console.error("mapsStats not initialized")
       return
     }
 
-    // Create a deep copy of mapsStats
-    const updated = mapsStats.map(mapData => ({
+    const updated = mapsStats.map((mapData) => ({
       ...mapData,
-      playerStats: [...mapData.playerStats]
+      playerStats: [...mapData.playerStats],
     }))
     
-    // Update each player's stats for the first map (Map 1)
     let updatedCount = 0
-    stats.forEach(({ userId, teamId, stats: playerStats }) => {
-      const playerIndex = updated[0].playerStats.findIndex(p => p.userId === userId)
-      console.log(`Updating player ${userId}, found at index ${playerIndex}`)
-      
+    payload.players.forEach(({ userId, stats: playerStats }) => {
+      const playerIndex = updated[targetIndex].playerStats.findIndex((p) => p.userId === userId)
       if (playerIndex !== -1) {
-        updated[0].playerStats[playerIndex] = {
-          ...updated[0].playerStats[playerIndex],
+        updated[targetIndex].playerStats[playerIndex] = {
+          ...updated[targetIndex].playerStats[playerIndex],
           ...EDITABLE_STAT_FIELDS.reduce((acc, { key }) => {
             acc[key] = playerStats[key] ?? 0
             return acc
@@ -417,9 +441,11 @@ export default function MatchDetailPage() {
       }
     })
     
-    console.log(`Updated ${updatedCount} players in the stats form`)
+    console.log(`Updated ${updatedCount} players for map index ${targetIndex}`)
     setMapsStats(updated)
     setShowOCRUpload(false)
+    setPendingOcrData(null)
+    setPendingMapIndex(undefined)
   }
 
   function isUserInMatch(): boolean {
@@ -1320,17 +1346,17 @@ export default function MatchDetailPage() {
                                 const plusMinus = kills - deaths
                                 const kdValue = deaths > 0 ? kills / deaths : kills
                                 const kdDisplay = Number.isFinite(kdValue) ? kdValue.toFixed(2) : "0.00"
-
-                                return (
+                              
+                              return (
                                   <Card
                                     key={player.userId}
                                     className="border-terminal-border bg-terminal-panel/30"
                                   >
-                                    <CardHeader className="pb-2">
+                                  <CardHeader className="pb-2">
                                       <CardTitle className={`font-mono text-sm ${teamInfo.accent}`}>
                                         {playerUser?.username || "Unknown"}
-                                      </CardTitle>
-                                    </CardHeader>
+                                    </CardTitle>
+                                  </CardHeader>
                                     <CardContent className="space-y-3">
                                       <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
                                         {EDITABLE_STAT_FIELDS.map(({ key, label, allowNegative }) => (
@@ -1338,9 +1364,9 @@ export default function MatchDetailPage() {
                                             <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
                                               {label}
                                             </Label>
-                                            <Input
-                                              type="text"
-                                              inputMode="decimal"
+                                        <Input
+                                          type="text"
+                                          inputMode="decimal"
                                               value={player[key] ?? ""}
                                               onChange={handleStatChange(
                                                 mapIndex,
@@ -1348,11 +1374,11 @@ export default function MatchDetailPage() {
                                                 key,
                                                 allowNegative,
                                               )}
-                                              placeholder="0"
+                                          placeholder="0"
                                               className="font-mono text-xs h-8"
                                               style={{ pointerEvents: "auto" }}
-                                            />
-                                          </div>
+                                        />
+                                      </div>
                                         ))}
                                       </div>
                                       <div className="flex items-center justify-between text-[11px] font-mono text-terminal-muted">
@@ -1368,12 +1394,12 @@ export default function MatchDetailPage() {
                                             {kdDisplay}
                                           </span>
                                         </span>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                )
-                              })}
-                            </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              )
+                            })}
+                          </div>
                           ))}
                         </div>
                       </CardContent>
@@ -1441,12 +1467,19 @@ export default function MatchDetailPage() {
                 <div className="mt-6">
                   <TrackerHtmlUpload
                     matchId={match.id}
-                    onUploaded={(result) =>
-                      toast({
-                        title: "Tracker data staged",
-                        description: `Submitted ${result.receivedFiles.length} file(s) for review.`,
-                      })
-                    }
+                onScoreboardReady={({ players, submissionId, statsStatus }) => {
+                  const emptyMapIndex = mapsStats.findIndex((map) =>
+                    map.playerStats.every((p) => (p.kills ?? 0) === 0 && (p.deaths ?? 0) === 0 && (p.acs ?? 0) === 0),
+                  )
+                  setPendingMapIndex(emptyMapIndex >= 0 ? emptyMapIndex : undefined)
+                  setPendingOcrData({
+                    players,
+                    submissionId,
+                    statsStatus,
+                    sourceLabel: "tracker bundle",
+                  })
+                  setShowOCRUpload(true)
+                }}
                   />
                 </div>
 
@@ -1490,16 +1523,23 @@ export default function MatchDetailPage() {
       {showOCRUpload && match && (
         <OCRStatsUpload
           matchId={match.id}
-          matchPlayers={match.teams.flatMap(team => 
-            team.members.map(member => ({
+          matchPlayers={match.teams.flatMap((team) =>
+            team.members.map((member) => ({
               userId: member.userId,
               username: member.user.username,
               teamId: team.id,
               teamName: team.name,
-            }))
+            })),
           )}
+          mapOptions={mapOptions}
+          defaultMapIndex={pendingMapIndex ?? mapOptions[0]?.index ?? 0}
+          initialData={pendingOcrData}
           onStatsExtracted={handleOCRStatsImported}
-          onClose={() => setShowOCRUpload(false)}
+          onClose={() => {
+            setShowOCRUpload(false)
+            setPendingOcrData(null)
+            setPendingMapIndex(undefined)
+          }}
         />
       )}
 

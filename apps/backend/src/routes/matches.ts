@@ -621,8 +621,16 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         .send({ error: 'Only match participants or admins can upload tracker stats' });
     }
 
-    const acceptedFields = new Set(['scoreboard', 'rounds', 'duels', 'economy', 'performance']);
-    const files: Record<string, string> = {};
+    const bucketKeys = ['scoreboard', 'rounds', 'duels', 'economy', 'performance'] as const;
+    type TrackerBucketKey = typeof bucketKeys[number];
+    const buckets: Record<TrackerBucketKey, string | undefined> = {
+      scoreboard: undefined,
+      rounds: undefined,
+      duels: undefined,
+      economy: undefined,
+      performance: undefined,
+    };
+    const unrecognised: Array<{ filename?: string }> = [];
 
     try {
       const parts = (request as any).parts?.();
@@ -630,18 +638,92 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: 'Multipart form data is required' });
       }
 
+      const filenameMatchers = [
+        { key: 'scoreboard' as const, pattern: /scoreboard/i },
+        { key: 'rounds' as const, pattern: /round/i },
+        { key: 'duels' as const, pattern: /duel/i },
+        { key: 'economy' as const, pattern: /econ/i },
+        { key: 'performance' as const, pattern: /perf/i },
+      ];
+
       for await (const part of parts) {
-        if (part.type === 'file' && acceptedFields.has(part.fieldname)) {
+        if (part.type === 'file') {
           const buffer = await part.toBuffer();
-          files[part.fieldname] = buffer.toString('utf-8');
-        } else if (part.type === 'file') {
+          const content = buffer.toString('utf-8');
+          const filename = part.filename || '';
+
+          const matchedByName = filenameMatchers.find(({ pattern }) => pattern.test(filename));
+          if (matchedByName) {
+            buckets[matchedByName.key] = content;
+            continue;
+          }
+
+          if (bucketKeys.includes(part.fieldname as TrackerBucketKey)) {
+            buckets[part.fieldname as TrackerBucketKey] = content;
+            continue;
+          }
+
+          unrecognised.push({ filename });
+        } else {
           await part.toBuffer().catch(() => undefined);
         }
       }
 
-      if (!files.scoreboard) {
-        return reply.code(400).send({ error: 'Scoreboard HTML file is required' });
+      if (!buckets.scoreboard) {
+        return reply.code(400).send({ error: 'Scoreboard HTML file is required (filename should include "scoreboard")' });
       }
+
+      const parsedScoreboard = parseScoreboardFromHtml(buckets.scoreboard);
+
+      const buildRows = (
+        players: typeof parsedScoreboard.teams[number]['players'],
+        team: 'alpha' | 'bravo',
+      ) =>
+        players.map((player, index) => ({
+          team,
+          position: index + 1,
+          playerName: player.playerId,
+          rank: player.rank,
+          acs: player.acs,
+          kills: player.kills,
+          deaths: player.deaths,
+          assists: player.assists,
+          plusMinus: player.plusMinus,
+          kd: player.kd,
+          damageDelta: player.damageDelta,
+          adr: player.adr,
+          hsPercent: player.headshotPercent,
+          kastPercent: player.kast,
+          firstKills: player.firstKills,
+          firstDeaths: player.firstDeaths,
+          multiKills: player.multiKills,
+        }));
+
+      const teamsForScoreboard = parsedScoreboard.teams.slice(0, 2);
+      const scoreboardPayload = {
+        alpha: buildRows(teamsForScoreboard[0]?.players ?? [], 'alpha'),
+        bravo: buildRows(teamsForScoreboard[1]?.players ?? [], 'bravo'),
+        teams: parsedScoreboard.teams.map((team) => ({
+          name: team.name,
+          players: team.players,
+        })),
+      };
+
+      const serialisedScoreboard = JSON.parse(JSON.stringify(parsedScoreboard)) as Prisma.JsonValue;
+
+      const submissionPayload: Prisma.JsonObject = {
+        files: Object.fromEntries(
+          bucketKeys
+            .map((key) => [key, buckets[key]])
+            .filter(([, value]) => value !== undefined),
+        ),
+        metadata: {
+          uploadedAt: new Date().toISOString(),
+          providedFiles: bucketKeys.filter((key) => buckets[key]),
+          unrecognisedFiles: unrecognised.map((entry) => entry.filename).filter(Boolean),
+        },
+        parsedScoreboard: serialisedScoreboard,
+      };
 
       const submission = await prisma.matchStatsSubmission.create({
         data: {
@@ -649,13 +731,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           uploaderId: userId,
           source: MatchStatsSource.TRACKER,
           status: MatchStatsReviewStatus.PENDING_REVIEW,
-          payload: {
-            files,
-            metadata: {
-              uploadedAt: new Date().toISOString(),
-              providedFiles: Object.keys(files),
-            },
-          } satisfies Prisma.JsonObject,
+          payload: submissionPayload,
         },
       });
 
@@ -674,7 +750,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           details: {
             submissionId: submission.id,
             source: MatchStatsSource.TRACKER,
-            providedFiles: Object.keys(files),
+            providedFiles: bucketKeys.filter((key) => buckets[key]),
+            unrecognisedFiles: unrecognised.map((entry) => entry.filename).filter(Boolean),
           },
         },
       });
@@ -683,7 +760,9 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         message: 'Tracker HTML bundle submitted for review',
         submissionId: submission.id,
         statsStatus: submission.status,
-        receivedFiles: Object.keys(files),
+        receivedFiles: bucketKeys.filter((key) => buckets[key]),
+        scoreboard: scoreboardPayload,
+        unrecognisedFiles: unrecognised.map((entry) => entry.filename).filter(Boolean),
       };
     } catch (error) {
       fastify.log.error(error);
@@ -3402,14 +3481,22 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         }).length,
       };
 
+      const roundsWon = maps.reduce(
+        (acc, map) => ({
+          alpha: acc.alpha + (map.score?.alpha ?? 0),
+          bravo: acc.bravo + (map.score?.bravo ?? 0),
+        }),
+        { alpha: 0, bravo: 0 },
+      );
+
       await prisma.team.update({
         where: { id: teamAlpha.id },
-        data: { mapsWon: mapsWon.alpha },
+        data: { mapsWon: mapsWon.alpha, roundsWon: roundsWon.alpha },
       });
 
       await prisma.team.update({
         where: { id: teamBravo.id },
-        data: { mapsWon: mapsWon.bravo },
+        data: { mapsWon: mapsWon.bravo, roundsWon: roundsWon.bravo },
       });
 
       const { eloResults } = await applyEloAdjustments({
@@ -3577,6 +3664,14 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       // Create teams and add players
       const createdTeams: Array<{ id: string; name: string }> = [];
       for (const teamData of teams) {
+        const normalizedName = teamData.name.toLowerCase();
+        const isAlpha = normalizedName.includes('alpha');
+        const isBravo = normalizedName.includes('bravo');
+        const roundsKey: 'alpha' | 'bravo' | null = isAlpha ? 'alpha' : isBravo ? 'bravo' : null;
+        const totalRounds = roundsKey
+          ? maps.reduce((sum, mapData) => sum + (mapData.score?.[roundsKey] ?? 0), 0)
+          : 0;
+
         const team = await prisma.team.create({
           data: {
             matchId,
@@ -3584,6 +3679,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             side: teamData.name === 'Team Alpha' ? 'ATTACKER' : 'DEFENDER',
             captainId: teamData.captainId || null,
             mapsWon: maps.filter(m => m.winnerTeamName === teamData.name).length,
+            roundsWon: totalRounds,
           },
         });
         createdTeams.push({ id: team.id, name: team.name });
@@ -3858,6 +3954,28 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         });
       }
 
+      if (teamAlpha) {
+        await prisma.team.update({
+          where: { id: teamAlpha.id },
+          data: {
+            roundsWon: {
+              increment: score.alpha,
+            },
+          },
+        });
+      }
+
+      if (teamBravo) {
+        await prisma.team.update({
+          where: { id: teamBravo.id },
+          data: {
+            roundsWon: {
+              increment: score.bravo,
+            },
+          },
+        });
+      }
+
       // Save player stats for this map (we'll aggregate later when match completes)
       for (const stat of playerStats) {
         // Calculate derived stats
@@ -3923,7 +4041,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       // We need to reload match data to get accurate count, but for now we'll calculate it
       const pickedMaps = match.maps.filter(m => m.action === 'PICK');
       const playedMapsBeforeUpdate = match.maps.filter(m => m.action === 'PICK' && m.wasPlayed);
-      const mapsNeeded = match.seriesType === 'BO1' ? 1 : match.seriesType === 'BO3' ? 3 : 5;
+      const totalMapsForSeries = match.seriesType === 'BO5' ? 5 : match.seriesType === 'BO3' ? 3 : 1;
+      const winsRequired = Math.floor(totalMapsForSeries / 2) + 1;
       
       // After we update, this map will be played, so total played = playedMapsBeforeUpdate.length + 1
       const totalPlayedAfterUpdate = playedMapsBeforeUpdate.length + 1;
@@ -3932,61 +4051,75 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       let nextStatus: 'MAP_PICK_BAN' | 'COMPLETED' = 'COMPLETED';
       let message = 'Map stats submitted successfully';
 
-      if (totalPlayedAfterUpdate < mapsNeeded) {
-        nextStatus = 'MAP_PICK_BAN';
-        message = 'Map stats submitted. Moving to next map pick/ban phase.';
-      } else {
-        const updatedMatch = await prisma.match.findUnique({
-          where: { id: matchId },
-          include: {
-            teams: {
-              include: {
-                members: {
-                  include: {
-                    user: {
-                      select: {
-                        id: true,
-                        username: true,
-                        discordId: true,
-                        avatar: true,
-                        elo: true,
-                        matchesPlayed: true,
-                        isCalibrating: true,
-                        peakElo: true,
-                      },
+      const updatedMatch = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teams: {
+            include: {
+              members: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      username: true,
+                      discordId: true,
+                      avatar: true,
+                      elo: true,
+                      matchesPlayed: true,
+                      isCalibrating: true,
+                      peakElo: true,
                     },
                   },
                 },
               },
             },
           },
-        });
+        },
+      });
 
-        if (!updatedMatch) {
-          return reply.code(404).send({ error: 'Match not found after update' });
-        }
+      if (!updatedMatch) {
+        return reply.code(404).send({ error: 'Match not found after update' });
+      }
 
-        const updatedTeamAlpha = updatedMatch.teams.find(
-          (t) => t.name === 'Team Alpha',
-        );
-        const updatedTeamBravo = updatedMatch.teams.find(
-          (t) => t.name === 'Team Bravo',
-        );
+      const updatedTeamAlpha = updatedMatch.teams.find(
+        (t) => t.name === 'Team Alpha',
+      );
+      const updatedTeamBravo = updatedMatch.teams.find(
+        (t) => t.name === 'Team Bravo',
+      );
 
-        if (!updatedTeamAlpha || !updatedTeamBravo) {
-          return reply.code(400).send({ error: 'Teams not found' });
-        }
+      if (!updatedTeamAlpha || !updatedTeamBravo) {
+        return reply.code(400).send({ error: 'Teams not found' });
+      }
 
-        const finalMapsWon = {
-          alpha: updatedTeamAlpha.mapsWon || 0,
-          bravo: updatedTeamBravo.mapsWon || 0,
-        };
+      const finalMapsWon = {
+        alpha: updatedTeamAlpha.mapsWon || 0,
+        bravo: updatedTeamBravo.mapsWon || 0,
+      };
 
-        const overallWinnerTeamId =
-          finalMapsWon.alpha > finalMapsWon.bravo
-            ? updatedTeamAlpha.id
-            : updatedTeamBravo.id;
+      const finalRoundsWon = {
+        alpha: updatedTeamAlpha.roundsWon || 0,
+        bravo: updatedTeamBravo.roundsWon || 0,
+      };
 
+      const alphaHasSeries = finalMapsWon.alpha >= winsRequired;
+      const bravoHasSeries = finalMapsWon.bravo >= winsRequired;
+      const allMapsPlayed = totalPlayedAfterUpdate >= totalMapsForSeries;
+      const hasWinner = finalMapsWon.alpha !== finalMapsWon.bravo;
+
+      const overallWinnerTeamId =
+        alphaHasSeries || (hasWinner && finalMapsWon.alpha > finalMapsWon.bravo)
+          ? updatedTeamAlpha.id
+          : bravoHasSeries || (hasWinner && finalMapsWon.bravo > finalMapsWon.alpha)
+          ? updatedTeamBravo.id
+          : winnerTeamId;
+
+      const matchShouldComplete =
+        alphaHasSeries ||
+        bravoHasSeries ||
+        allMapsPlayed;
+
+      if (matchShouldComplete) {
         const statsRecords = await prisma.playerMatchStats.findMany({
           where: { matchId },
           select: {
@@ -4050,7 +4183,16 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           message: 'Match completed! Elo calculated.',
           eloResults,
           matchCompleted: true,
+          finalScore: {
+            maps: finalMapsWon,
+            rounds: finalRoundsWon,
+          },
         };
+      }
+
+      if (!matchShouldComplete && totalPlayedAfterUpdate < totalMapsForSeries) {
+        nextStatus = 'MAP_PICK_BAN';
+        message = 'Map stats submitted. Moving to next map pick/ban phase.';
       }
 
       // Update match status if more maps needed
@@ -4065,7 +4207,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         message,
         matchCompleted: false,
         mapsPlayed: totalPlayedAfterUpdate,
-        mapsNeeded,
+        mapsNeeded: totalMapsForSeries,
       };
     } catch (error: any) {
       fastify.log.error(error);

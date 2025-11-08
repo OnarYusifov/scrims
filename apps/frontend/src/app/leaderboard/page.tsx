@@ -195,99 +195,101 @@ export default function LeaderboardPage() {
 
                     return (
                       <TableRow
-                        asChild
                         key={player.id}
+                        className="cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-terminal-panel/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-matrix-500"
                         onClick={() => router.push(`/profile/${player.discordId}`)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault()
+                            router.push(`/profile/${player.discordId}`)
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        data-index={index}
                       >
-                        <motion.tr
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="cursor-pointer"
-                        >
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {isTop3 && (
-                                <Crown
-                                  className={cn(
-                                    "h-4 w-4",
-                                    player.rank === 1
-                                      ? "text-yellow-500"
-                                      : player.rank === 2
-                                        ? "text-gray-400"
-                                        : "text-amber-700",
-                                  )}
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {isTop3 && (
+                              <Crown
+                                className={cn(
+                                  "h-4 w-4",
+                                  player.rank === 1
+                                    ? "text-yellow-500"
+                                    : player.rank === 2
+                                      ? "text-gray-400"
+                                      : "text-amber-700",
+                                )}
+                              />
+                            )}
+                            <div className="flex flex-col leading-tight">
+                              <span className="font-bold text-gray-900 dark:text-matrix-500">
+                                {player.rankName}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-terminal-muted">
+                                #{player.rank}
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10 border border-terminal-border/70">
+                              {player.avatar ? (
+                                <AvatarImage
+                                  src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar}.png?size=64`}
+                                  alt={player.username}
                                 />
+                              ) : (
+                                <AvatarFallback className="bg-gray-200 dark:bg-terminal-panel text-gray-700 dark:text-matrix-500">
+                                  {player.username.charAt(0).toUpperCase()}
+                                </AvatarFallback>
                               )}
-                              <div className="flex flex-col leading-tight">
-                                <span className="font-bold text-gray-900 dark:text-matrix-500">
-                                  {player.rankName}
+                            </Avatar>
+                            <div>
+                              <p className="font-semibold text-gray-900 dark:text-matrix-400">
+                                {player.username}
+                              </p>
+                              {player.isCalibrating && (
+                                <span className="text-xs text-yellow-600 dark:text-yellow-500">
+                                  CALIBRATING
                                 </span>
-                                <span className="text-xs text-gray-500 dark:text-terminal-muted">
-                                  #{player.rank}
-                                </span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-10 w-10 border border-terminal-border/70">
-                                {player.avatar ? (
-                                  <AvatarImage
-                                    src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar}.png?size=64`}
-                                    alt={player.username}
-                                  />
-                                ) : (
-                                  <AvatarFallback className="bg-gray-200 dark:bg-terminal-panel text-gray-700 dark:text-matrix-500">
-                                    {player.username.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                )}
-                              </Avatar>
-                              <div>
-                                <p className="font-semibold text-gray-900 dark:text-matrix-400">
-                                  {player.username}
-                                </p>
-                                {player.isCalibrating && (
-                                  <span className="text-xs text-yellow-600 dark:text-yellow-500">
-                                    CALIBRATING
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="font-bold text-lg text-gray-900 dark:text-matrix-500">
-                              {player.elo}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="text-sm text-gray-600 dark:text-terminal-muted">
-                              {player.peakElo}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="text-gray-700 dark:text-matrix-400">
-                              {player.matchesPlayed}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span
-                              className={cn(
-                                "font-semibold",
-                                player.avgKD >= 1
-                                  ? "text-green-600 dark:text-green-400"
-                                  : "text-gray-600 dark:text-terminal-muted",
                               )}
-                            >
-                              {player.avgKD.toFixed(2)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="text-sm text-gray-700 dark:text-cyber-400">
-                              {Math.round(player.avgACS)}
-                            </span>
-                          </TableCell>
-                        </motion.tr>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="font-bold text-lg text-gray-900 dark:text-matrix-500">
+                            {player.elo}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="text-sm text-gray-600 dark:text-terminal-muted">
+                            {player.peakElo}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="text-gray-700 dark:text-matrix-400">
+                            {player.matchesPlayed}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span
+                            className={cn(
+                              "font-semibold",
+                              player.avgKD >= 1
+                                ? "text-green-600 dark:text-green-400"
+                                : "text-gray-600 dark:text-terminal-muted",
+                            )}
+                          >
+                            {player.avgKD.toFixed(2)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="text-sm text-gray-700 dark:text-cyber-400">
+                            {Math.round(player.avgACS)}
+                          </span>
+                        </TableCell>
                       </TableRow>
                     )
                   })}

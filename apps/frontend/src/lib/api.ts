@@ -1,5 +1,5 @@
 import { getToken } from './auth';
-import { Match, MatchStatus, SeriesType, MatchStatsSource, MatchStatsReviewStatus, UploadMatchScoreboardResponse } from '@/types';
+import { Match, MatchStatus, SeriesType, MatchStatsSource, MatchStatsReviewStatus, UploadMatchScoreboardResponse, ScoreboardExtractionPayload } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
@@ -783,26 +783,25 @@ export interface UploadTrackerBundleResponse {
   submissionId: string;
   statsStatus: MatchStatsReviewStatus;
   receivedFiles: string[];
+  scoreboard?: ScoreboardExtractionPayload;
+  unrecognisedFiles?: string[];
 }
 
 export async function uploadMatchTrackerBundle(
   matchId: string,
-  files: Partial<Record<'scoreboard' | 'rounds' | 'duels' | 'economy' | 'performance', File>>,
+  files: File[] | FileList,
 ): Promise<UploadTrackerBundleResponse> {
   const token = getToken();
   const formData = new FormData();
+  const fileArray = files instanceof FileList ? Array.from(files) : files;
 
-  let appendedCount = 0;
-  Object.entries(files).forEach(([key, value]) => {
-    if (value) {
-      formData.append(key, value);
-      appendedCount += 1;
-    }
-  });
-
-  if (appendedCount === 0) {
-    throw new Error('At least one tracker HTML file must be provided');
+  if (fileArray.length === 0) {
+    throw new Error('Select at least one tracker HTML export to upload.');
   }
+
+  fileArray.forEach((file) => {
+    formData.append('files', file, file.name);
+  });
 
   const response = await fetch(
     `${API_URL}/api/matches/${matchId}/stats/tracker`,
