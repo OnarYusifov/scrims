@@ -827,6 +827,112 @@ export default async function matchRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // Move player between teams (admin/root only). Omit teamId to move to Player Pool.
+  fastify.post('/:id/move-player', {
+    onRequest: [fastify.authenticate],
+  }, async (request: FastifyRequest<{
+    Params: { id: string };
+    Body: {
+      userId: string;
+      teamId?: string | null;
+    };
+  }>, reply: FastifyReply) => {
+    try {
+      const currentUser = (request as any).user;
+      const { id: matchId } = request.params;
+      const { userId, teamId } = request.body;
+
+      if (!userId) {
+        return reply.code(400).send({ error: 'userId is required' });
+      }
+
+      if (!['ADMIN', 'ROOT'].includes(currentUser.role)) {
+        return reply.code(403).send({ error: 'Only admins can move players' });
+      }
+
+      const match = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teams: {
+            include: {
+              members: true,
+            },
+          },
+        },
+      });
+
+      if (!match) {
+        return reply.code(404).send({ error: 'Match not found' });
+      }
+
+      let currentMembership: { id: string; teamId: string } | null = null;
+      let currentTeam: (typeof match.teams)[number] | undefined;
+
+      for (const team of match.teams) {
+        const member = team.members.find((m) => m.userId === userId);
+        if (member) {
+          currentMembership = { id: member.id, teamId: team.id };
+          currentTeam = team;
+          break;
+        }
+      }
+
+      if (!currentMembership || !currentTeam) {
+        return reply.code(404).send({ error: 'Player not part of this match' });
+      }
+
+      let targetTeamId: string;
+      if (teamId) {
+        const targetTeam = match.teams.find((team) => team.id === teamId);
+        if (!targetTeam) {
+          return reply.code(404).send({ error: 'Target team not found' });
+        }
+        targetTeamId = targetTeam.id;
+      } else {
+        let poolTeam = match.teams.find((team) => team.name === 'Player Pool');
+        if (!poolTeam) {
+          poolTeam = await prisma.team.create({
+            data: {
+              matchId,
+              name: 'Player Pool',
+              side: 'ATTACKER',
+            },
+            include: {
+              members: true,
+            },
+          });
+        }
+        targetTeamId = poolTeam.id;
+      }
+
+      if (currentMembership.teamId === targetTeamId) {
+        return { message: 'Player already assigned to target team', targetTeamId };
+      }
+
+      if (currentTeam.captainId === userId) {
+        await prisma.team.update({
+          where: { id: currentTeam.id },
+          data: { captainId: null },
+        });
+      }
+
+      await prisma.teamMember.update({
+        where: { id: currentMembership.id },
+        data: { teamId: targetTeamId },
+      });
+
+      fastify.log.info(
+        { matchId, userId, targetTeamId },
+        'Moved player to new team',
+      );
+
+      return { message: 'Player reassigned successfully', targetTeamId };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
   // Update match status (admin/root only)
   fastify.patch('/:id', {
     onRequest: [fastify.authenticate],

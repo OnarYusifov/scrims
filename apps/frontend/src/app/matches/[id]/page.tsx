@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react"
 import { Match, MatchStatus } from "@/types"
-import { fetchMatch, joinMatch, leaveMatch, deleteMatch, addRandomPlayersToMatch, submitMatchStats, MatchStatsSubmission, addUserToMatchManually, fetchUsers, removePlayerFromMatch, updateMatchStatus, setTeamCaptain } from "@/lib/api"
+import { fetchMatch, joinMatch, leaveMatch, deleteMatch, addRandomPlayersToMatch, submitMatchStats, MatchStatsSubmission, addUserToMatchManually, fetchUsers, removePlayerFromMatch, updateMatchStatus, setTeamCaptain, movePlayerToTeam } from "@/lib/api"
 import { formatTimestamp } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { TeamSelection } from "@/components/match/team-selection"
@@ -209,6 +209,21 @@ export default function MatchDetailPage() {
     } catch (error: any) {
       console.error("Failed to set captain:", error)
       alert(error.message || "Failed to set captain")
+    } finally {
+      setPlayerActionLoading((current) => (current === actionKey ? null : current))
+    }
+  }
+
+  async function handleMovePlayerToPool(userId: string) {
+    if (!isAdminUser) return
+    const actionKey = `pool:${userId}`
+    setPlayerActionLoading(actionKey)
+    try {
+      await movePlayerToTeam(matchId, userId, null)
+      await loadMatch()
+    } catch (error: any) {
+      console.error("Failed to unassign player:", error)
+      alert(error.message || "Failed to move player to pool")
     } finally {
       setPlayerActionLoading((current) => (current === actionKey ? null : current))
     }
@@ -777,16 +792,16 @@ export default function MatchDetailPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card className="border-matrix-500/50 bg-terminal-panel/50">
+          <Card className="border-matrix-500/40 bg-white dark:bg-terminal-panel/50">
             <CardHeader>
               <CardTitle className="font-mono uppercase text-matrix-500">PLAYER MANAGEMENT</CardTitle>
-              <CardDescription className="font-mono text-terminal-muted">
+              <CardDescription className="font-mono text-gray-600 dark:text-terminal-muted">
                 Manage all players in this match. Remove players from the lobby or assign captains for each team.
               </CardDescription>
             </CardHeader>
             <CardContent>
               {playerGroups.length === 0 ? (
-                <p className="font-mono text-xs text-terminal-muted italic">No players have joined this match yet.</p>
+                <p className="font-mono text-xs text-gray-500 dark:text-terminal-muted italic">No players have joined this match yet.</p>
               ) : (
                 <div className="grid gap-4 md:grid-cols-3">
                   {playerGroups.map((group) => {
@@ -794,30 +809,33 @@ export default function MatchDetailPage() {
                     return (
                       <div
                         key={group.id || group.name}
-                        className="border border-terminal-border rounded-lg bg-terminal-panel/60 p-3 space-y-2"
+                        className="border border-terminal-border rounded-lg bg-white dark:bg-terminal-panel/60 p-3 space-y-2"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-mono uppercase text-xs text-terminal-muted">{group.name}</span>
-                          <span className="font-mono text-xs text-terminal-muted">
+                          <span className="font-mono uppercase text-xs text-gray-600 dark:text-terminal-muted">{group.name}</span>
+                          <span className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
                             {group.members.length}{isPlayableTeam ? '/5' : ''}
                           </span>
                         </div>
                         <div className="space-y-2">
                           {group.members.length === 0 ? (
-                            <p className="font-mono text-xs text-terminal-muted italic">No players assigned.</p>
+                            <p className="font-mono text-xs text-gray-500 dark:text-terminal-muted italic">No players assigned.</p>
                           ) : (
                             group.members.map((member) => {
                               const removeKey = `remove:${member.userId}`
                               const captainKey = `captain:${group.id}:${member.userId}`
+                              const poolKey = `pool:${member.userId}`
                               const removeLoading = playerActionLoading === removeKey
                               const captainLoading = playerActionLoading === captainKey
+                              const poolLoading = playerActionLoading === poolKey
                               const isCaptain = group.captainId === member.userId
                               const canSetCaptain = isPlayableTeam && !!group.id && !isCaptain
+                              const canUnassign = group.name !== 'Player Pool'
 
                               return (
                                 <div
                                   key={member.id}
-                                  className="flex items-center gap-3 border border-terminal-border/70 rounded-lg bg-black/30 p-3"
+                                  className="flex items-center gap-3 border border-terminal-border/70 rounded-lg bg-white dark:bg-black/30 p-3"
                                 >
                                   <Avatar className="h-9 w-9">
                                     {member.user.avatar ? (
@@ -832,8 +850,8 @@ export default function MatchDetailPage() {
                                     )}
                                   </Avatar>
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-mono text-sm text-gray-200 truncate">{member.user.username}</p>
-                                    <p className="font-mono text-[11px] text-terminal-muted truncate">
+                                    <p className="font-mono text-sm text-gray-900 dark:text-gray-200 truncate">{member.user.username}</p>
+                                    <p className="font-mono text-[11px] text-gray-600 dark:text-terminal-muted truncate">
                                       ELO {member.user.elo ?? 800}
                                     </p>
                                   </div>
@@ -858,6 +876,21 @@ export default function MatchDetailPage() {
                                           )}
                                         </Button>
                                       )
+                                    )}
+                                    {canUnassign && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleMovePlayerToPool(member.userId)}
+                                        disabled={poolLoading}
+                                        className="font-mono text-[11px] h-7 px-2 border-yellow-500 text-yellow-600 hover:bg-yellow-500/10"
+                                      >
+                                        {poolLoading ? (
+                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                          'UNASSIGN'
+                                        )}
+                                      </Button>
                                     )}
                                     <Button
                                       variant="outline"

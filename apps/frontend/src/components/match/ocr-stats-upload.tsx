@@ -271,16 +271,27 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
                     const selectedUserId = playerMatches.get(index)
                     const isMatched = !!selectedUserId
                     const expectedTeamName = player.team === 'alpha' ? 'Team Alpha' : 'Team Bravo'
-                    const eligiblePlayers = matchPlayers.filter(p => p.teamName === expectedTeamName)
-                    const candidateOptions = eligiblePlayers.length ? eligiblePlayers : matchPlayers
+                    const takenUserIds = new Set(
+                      Array.from(playerMatches.entries())
+                        .filter(([i]) => i !== index)
+                        .map(([, id]) => id),
+                    )
+                    const candidateOptions = [...matchPlayers]
+                      .filter((p) => !takenUserIds.has(p.userId))
+                      .sort((a, b) => {
+                        const aPriority = a.teamName === expectedTeamName ? 0 : 1
+                        const bPriority = b.teamName === expectedTeamName ? 0 : 1
+                        if (aPriority !== bPriority) return aPriority - bPriority
+                        return a.username.localeCompare(b.username)
+                      })
 
                     return (
                       <div
                         key={index}
-                        className={`p-3 border rounded ${
+                        className={`p-3 border rounded transition-colors ${
                           isMatched
-                            ? 'border-matrix-500 bg-matrix-500/5'
-                            : 'border-terminal-border bg-terminal-panel'
+                            ? 'border-matrix-500 bg-matrix-500/5 dark:bg-matrix-500/10'
+                            : 'border-terminal-border bg-white dark:bg-terminal-panel'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -291,7 +302,7 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
                           )}
                           
                           <div className="flex-1 min-w-0">
-                            <p className="font-mono text-sm text-matrix-400 truncate">
+                            <p className="font-mono text-sm text-gray-900 dark:text-matrix-400 truncate">
                               Detected: {player.username}
                             </p>
                             <p className="font-mono text-xs text-terminal-muted">
@@ -302,13 +313,13 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
                           <select
                             value={selectedUserId || ''}
                             onChange={(e) => handlePlayerMatch(index, e.target.value)}
-                            className="font-mono text-xs bg-terminal-bg border border-terminal-border rounded px-2 py-1.5 text-matrix-500"
+                            className="font-mono text-xs bg-white dark:bg-terminal-bg border border-terminal-border rounded px-2 py-1.5 text-gray-900 dark:text-matrix-500"
                             style={{ pointerEvents: 'auto' }}
                           >
                             <option value="">Select player...</option>
                             {candidateOptions.map((p) => (
                               <option key={p.userId} value={p.userId}>
-                                {p.username}
+                                {p.username} {p.teamName ? `(${p.teamName})` : ''}
                               </option>
                             ))}
                           </select>

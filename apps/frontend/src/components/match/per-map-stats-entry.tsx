@@ -111,6 +111,33 @@ export function PerMapStatsEntry({ match, onMatchUpdate, onMatchCompleted }: Per
     })
   }
 
+  const determineWinnerFromScore = (score: { alpha: number; bravo: number }): string | null => {
+    if (!teamAlpha || !teamBravo) return null
+    if (score.alpha >= 13 && score.alpha > score.bravo) {
+      return teamAlpha.id
+    }
+    if (score.bravo >= 13 && score.bravo > score.alpha) {
+      return teamBravo.id
+    }
+    return null
+  }
+
+  const updateScore = (side: 'alpha' | 'bravo', rawValue: string) => {
+    const value = Math.max(0, Math.min(24, Number.parseInt(rawValue, 10) || 0))
+    setMapStats(prev => {
+      const nextScore = {
+        ...prev.score,
+        [side]: value,
+      }
+      const autoWinner = determineWinnerFromScore(nextScore)
+      return {
+        ...prev,
+        score: nextScore,
+        winnerTeamId: autoWinner ?? '',
+      }
+    })
+  }
+
   // Check if user can submit (all stats filled and winner selected)
   const canSubmit = () => {
     if (!currentMap || !teamAlpha || !teamBravo) return false
@@ -260,19 +287,7 @@ export function PerMapStatsEntry({ match, onMatchUpdate, onMatchCompleted }: Per
               min="0"
               max="15"
               value={mapStats.score.alpha}
-              onChange={(e) => {
-                const score = parseInt(e.target.value) || 0
-                setMapStats({
-                  ...mapStats,
-                  score: { ...mapStats.score, alpha: score },
-                })
-                // Auto-select winner if score is 13+
-                if (score >= 13 && score > mapStats.score.bravo) {
-                  setMapStats(prev => ({ ...prev, winnerTeamId: teamAlpha.id }))
-                } else if (mapStats.score.bravo >= 13 && mapStats.score.bravo > score) {
-                  setMapStats(prev => ({ ...prev, winnerTeamId: teamBravo.id }))
-                }
-              }}
+              onChange={(e) => updateScore('alpha', e.target.value)}
               className="font-mono text-lg"
             />
           </div>
@@ -285,19 +300,7 @@ export function PerMapStatsEntry({ match, onMatchUpdate, onMatchCompleted }: Per
               min="0"
               max="15"
               value={mapStats.score.bravo}
-              onChange={(e) => {
-                const score = parseInt(e.target.value) || 0
-                setMapStats({
-                  ...mapStats,
-                  score: { ...mapStats.score, bravo: score },
-                })
-                // Auto-select winner if score is 13+
-                if (score >= 13 && score > mapStats.score.alpha) {
-                  setMapStats(prev => ({ ...prev, winnerTeamId: teamBravo.id }))
-                } else if (mapStats.score.alpha >= 13 && mapStats.score.alpha > score) {
-                  setMapStats(prev => ({ ...prev, winnerTeamId: teamAlpha.id }))
-                }
-              }}
+              onChange={(e) => updateScore('bravo', e.target.value)}
               className="font-mono text-lg"
             />
           </div>

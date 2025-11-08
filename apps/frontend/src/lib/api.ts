@@ -165,6 +165,17 @@ export async function setTeamCaptain(
   });
 }
 
+export async function movePlayerToTeam(
+  matchId: string,
+  userId: string,
+  teamId?: string | null,
+): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/api/matches/${matchId}/move-player`, {
+    method: 'POST',
+    body: JSON.stringify({ userId, teamId: teamId ?? null }),
+  });
+}
+
 export async function deleteMatch(matchId: string): Promise<{ message: string }> {
   return apiRequest<{ message: string }>(`/api/matches/${matchId}`, {
     method: 'DELETE',
