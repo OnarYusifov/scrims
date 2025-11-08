@@ -34,6 +34,7 @@ interface AggregatedPlayerStats {
   assists: number;
   acs: number;
   adr: number;
+  headshotPercent?: number;
   firstKills?: number;
   firstDeaths?: number;
   kast?: number;
@@ -150,10 +151,10 @@ const createMatchResultPayload = ({
     scoreBravo: map.score?.bravo ?? 0,
     winner:
       map.winnerTeamId === teamAlpha?.id
-        ? 'ALPHA'
+        ? ('ALPHA' as const)
         : map.winnerTeamId === teamBravo?.id
-        ? 'BRAVO'
-        : 'TIE',
+        ? ('BRAVO' as const)
+        : ('TIE' as const),
   }));
 
   const teamAlphaSummary = summarizeTeam(teamAlpha, 'ALPHA');

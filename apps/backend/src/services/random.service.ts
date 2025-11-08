@@ -72,7 +72,7 @@ class RandomService {
         }),
       });
 
-      const data: RandomOrgResponse = await response.json();
+      const data = await response.json() as RandomOrgResponse;
 
       if (data.error) {
         console.error('[RandomService] API error:', data.error);
