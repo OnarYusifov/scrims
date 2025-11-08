@@ -186,3 +186,35 @@ export interface ApiResponse<T> {
   message?: string
 }
 
+export interface OcrPlayerRow {
+  team: 'alpha' | 'bravo'
+  position: number
+  playerName: string
+  acs: number | null
+  kills: number | null
+  deaths: number | null
+  assists: number | null
+  plusMinus: number | null
+  kd: number | null
+  damageDelta: number | null
+  adr: number | null
+  hsPercent: number | null
+  kastPercent: number | null
+  firstKills: number | null
+  firstDeaths: number | null
+  multiKills: number | null
+}
+
+export interface OcrExtractionPayload {
+  alpha: OcrPlayerRow[]
+  bravo: OcrPlayerRow[]
+  width: number
+  height: number
+}
+
+export interface UploadMatchOcrResponse {
+  message: string
+  submissionId: string
+  statsStatus: MatchStatsReviewStatus
+  ocr: OcrExtractionPayload
+}

@@ -1,5 +1,5 @@
 import { getToken } from './auth';
-import { Match, MatchStatus, SeriesType, MatchStatsSource } from '@/types';
+import { Match, MatchStatus, SeriesType, MatchStatsSource, MatchStatsReviewStatus, UploadMatchOcrResponse } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
@@ -583,6 +583,54 @@ export interface MapStatsSubmission {
   }>;
 }
 
+export interface UploadMatchScoreboardPayload {
+  message: string;
+  submissionId: string;
+  statsStatus: MatchStatsReviewStatus;
+  ocr: UploadMatchOcrResponse['ocr'];
+}
+
+export async function uploadMatchScoreboard(
+  matchId: string,
+  file: File,
+): Promise<UploadMatchScoreboardPayload> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('scoreboard', file);
+
+  const response = await fetch(
+    `${API_URL}/api/matches/${matchId}/stats/ocr`,
+    {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : undefined,
+    },
+  );
+
+  if (!response.ok) {
+    let message = 'Failed to process scoreboard image';
+    try {
+      const errorData = await response.json();
+      message = errorData?.error || errorData?.message || message;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  const payload = (await response.json()) as UploadMatchOcrResponse;
+  return {
+    message: payload.message,
+    submissionId: payload.submissionId,
+    statsStatus: payload.statsStatus,
+    ocr: payload.ocr,
+  };
+}
 export async function submitMapStats(
   matchId: string,
   stats: MapStatsSubmission

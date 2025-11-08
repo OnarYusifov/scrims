@@ -2,16 +2,19 @@
 
 import { useState, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import type { MatchStatsReviewStatus } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Upload, X, Loader2, CheckCircle2, AlertCircle, Image as ImageIcon } from "lucide-react"
 import { extractStatsFromImage, ExtractedPlayerStats, fuzzyMatchUsername } from "@/lib/ocr"
 
 interface OCRStatsUploadProps {
+  matchId: string
   matchPlayers: Array<{
     userId: string
     username: string
     teamId: string
+    teamName: string
   }>
   onStatsExtracted: (stats: Array<{
     userId: string
@@ -21,11 +24,13 @@ interface OCRStatsUploadProps {
   onClose: () => void
 }
 
-export function OCRStatsUpload({ matchPlayers, onStatsExtracted, onClose }: OCRStatsUploadProps) {
+export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClose }: OCRStatsUploadProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [extractedPlayers, setExtractedPlayers] = useState<ExtractedPlayerStats[]>([])
   const [playerMatches, setPlayerMatches] = useState<Map<number, string>>(new Map())
+  const [submissionId, setSubmissionId] = useState<string | null>(null)
+  const [statsReviewStatus, setStatsReviewStatus] = useState<MatchStatsReviewStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -43,35 +48,48 @@ export function OCRStatsUpload({ matchPlayers, onStatsExtracted, onClose }: OCRS
         setUploadedImage(e.target?.result as string)
       }
       reader.readAsDataURL(file)
+    // Process with OCR via backend
+    const { players, submissionId: newSubmissionId, statsStatus } = await extractStatsFromImage(matchId, file)
 
-      // Process with OCR
-      const { players } = await extractStatsFromImage(file)
-      
-      if (players.length === 0) {
-        throw new Error('No players detected in the image. Please ensure the image is clear and contains the stats table.')
-      }
+    if (players.length === 0) {
+      throw new Error('No players detected in the image. Please ensure the image is clear and contains the stats table.')
+    }
 
-      setExtractedPlayers(players)
+    setSubmissionId(newSubmissionId)
+    setStatsReviewStatus(statsStatus)
+    setExtractedPlayers(players)
 
       // Try to auto-match players
-      const matches = new Map<number, string>()
-      const matchPlayerUsernames = matchPlayers.map(p => p.username)
-      
-      players.forEach((player, index) => {
-        const matched = fuzzyMatchUsername(player.username, matchPlayerUsernames)
-        if (matched) {
-          const matchPlayer = matchPlayers.find(p => p.username === matched)
-          if (matchPlayer) {
-            matches.set(index, matchPlayer.userId)
-          }
+    const matches = new Map<number, string>()
+
+    players.forEach((player, index) => {
+      const expectedTeamName = player.team === 'alpha' ? 'Team Alpha' : 'Team Bravo'
+      const teamCandidates = matchPlayers.filter(p => p.teamName === expectedTeamName)
+      const candidateUsernames = teamCandidates.map(p => p.username)
+      let matched = candidateUsernames.length
+        ? fuzzyMatchUsername(player.username, candidateUsernames)
+        : null
+
+      if (!matched) {
+        matched = fuzzyMatchUsername(player.username, matchPlayers.map(p => p.username))
+      }
+
+      if (matched) {
+        const matchPlayer = matchPlayers.find(p => p.username === matched)
+        if (matchPlayer) {
+          matches.set(index, matchPlayer.userId)
         }
-      })
+      }
+    })
 
       setPlayerMatches(matches)
     } catch (err: any) {
       console.error('OCR Error:', err)
       setError(err.message || 'Failed to process image')
       setExtractedPlayers([])
+      setSubmissionId(null)
+      setStatsReviewStatus(null)
+      setPlayerMatches(new Map())
     } finally {
       setIsProcessing(false)
     }
@@ -211,6 +229,15 @@ export function OCRStatsUpload({ matchPlayers, onStatsExtracted, onClose }: OCRS
             </motion.div>
           )}
 
+          {submissionId && (
+            <div className="p-3 border border-matrix-500/50 bg-matrix-500/5 rounded font-mono text-xs text-matrix-400">
+              Pending review for submission <span className="font-semibold">{submissionId}</span>
+              {statsReviewStatus && (
+                <span className="ml-2 uppercase tracking-wide text-matrix-500">[{statsReviewStatus}]</span>
+              )}
+            </div>
+          )}
+
           {/* Preview and Matching */}
           {uploadedImage && extractedPlayers.length > 0 && (
             <motion.div
@@ -236,6 +263,9 @@ export function OCRStatsUpload({ matchPlayers, onStatsExtracted, onClose }: OCRS
                   {extractedPlayers.map((player, index) => {
                     const selectedUserId = playerMatches.get(index)
                     const isMatched = !!selectedUserId
+                    const expectedTeamName = player.team === 'alpha' ? 'Team Alpha' : 'Team Bravo'
+                    const eligiblePlayers = matchPlayers.filter(p => p.teamName === expectedTeamName)
+                    const candidateOptions = eligiblePlayers.length ? eligiblePlayers : matchPlayers
 
                     return (
                       <div
@@ -258,7 +288,7 @@ export function OCRStatsUpload({ matchPlayers, onStatsExtracted, onClose }: OCRS
                               Detected: {player.username}
                             </p>
                             <p className="font-mono text-xs text-terminal-muted">
-                              ACS {player.acs} • K{player.kills} D{player.deaths} A{player.assists}
+                              ACS {player.acs} • K{player.kills} D{player.deaths} A{player.assists} • {expectedTeamName}
                             </p>
                           </div>
 
@@ -269,7 +299,7 @@ export function OCRStatsUpload({ matchPlayers, onStatsExtracted, onClose }: OCRS
                             style={{ pointerEvents: 'auto' }}
                           >
                             <option value="">Select player...</option>
-                            {matchPlayers.map((p) => (
+                            {candidateOptions.map((p) => (
                               <option key={p.userId} value={p.userId}>
                                 {p.username}
                               </option>
@@ -290,6 +320,8 @@ export function OCRStatsUpload({ matchPlayers, onStatsExtracted, onClose }: OCRS
                     setUploadedImage(null)
                     setExtractedPlayers([])
                     setPlayerMatches(new Map())
+                    setSubmissionId(null)
+                    setStatsReviewStatus(null)
                     setError(null)
                   }}
                   style={{ pointerEvents: 'auto' }}

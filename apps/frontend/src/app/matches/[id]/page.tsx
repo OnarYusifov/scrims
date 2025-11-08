@@ -1536,11 +1536,13 @@ export default function MatchDetailPage() {
       {/* OCR Stats Upload Modal */}
       {showOCRUpload && match && (
         <OCRStatsUpload
+          matchId={match.id}
           matchPlayers={match.teams.flatMap(team => 
             team.members.map(member => ({
               userId: member.userId,
               username: member.user.username,
               teamId: team.id,
+              teamName: team.name,
             }))
           )}
           onStatsExtracted={handleOCRStatsImported}

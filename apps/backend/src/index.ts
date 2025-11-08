@@ -63,6 +63,11 @@ async function buildServer(): Promise<FastifyInstance> {
     },
   });
 
+  await fastify.register((await import('@fastify/multipart')).default, {
+    attachFieldsToBody: false,
+    limits: { fileSize: 8 * 1024 * 1024 },
+  });
+
   await fastify.register(import('./plugins/discord-bot'));
 
   // Register CORS

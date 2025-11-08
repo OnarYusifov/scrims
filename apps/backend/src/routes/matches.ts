@@ -1,7 +1,14 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import fs from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { pipeline } from 'node:stream/promises';
 import { prisma } from '../index';
 import { EloService } from '../services/elo.service';
 import { randomService } from '../services/random.service';
+import { extractScoreboard } from '../services/ocr.service';
 import { MatchStatus, MatchStatsReviewStatus, MatchStatsSource, Prisma } from '@prisma/client';
 import {
   DiscordIdentity,
@@ -2365,6 +2372,100 @@ export default async function matchRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Upload scoreboard image for OCR stats extraction
+  fastify.post('/:id/stats/ocr', {
+    onRequest: [fastify.authenticate],
+  }, async (request: FastifyRequest<{
+    Params: { id: string };
+  }>, reply: FastifyReply) => {
+    const currentUser = (request as any).user;
+    const userId = currentUser?.userId;
+    const userRole = currentUser?.role;
+    const matchId = request.params.id;
+
+    if (!userId) {
+      return reply.code(401).send({ error: 'Unauthorized' });
+    }
+
+    const file = await (request as any).file();
+    if (!file) {
+      return reply.code(400).send({ error: 'Scoreboard image is required' });
+    }
+
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: {
+        teams: {
+          include: { members: true },
+        },
+      },
+    });
+
+    if (!match) {
+      return reply.code(404).send({ error: 'Match not found' });
+    }
+
+    const isParticipant = match.teams.some(team =>
+      team.members.some(member => member.userId === userId)
+    );
+    const isAdmin = ['ADMIN', 'ROOT'].includes(userRole);
+    if (!isParticipant && !isAdmin) {
+      return reply.code(403).send({ error: 'Only match participants or admins can upload stats' });
+    }
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ocr-'));
+    const ext = file.filename ? path.extname(file.filename) : ".png";
+    const tempPath = path.join(tempDir, `${randomUUID()}${ext || ""}`);
+
+    try {
+      await pipeline(file.file, createWriteStream(tempPath));
+      const ocrResult = await extractScoreboard(tempPath);
+
+      const submission = await prisma.matchStatsSubmission.create({
+        data: {
+          matchId,
+          uploaderId: userId,
+          source: MatchStatsSource.OCR,
+          status: MatchStatsReviewStatus.PENDING_REVIEW,
+          payload: ocrResult,
+        },
+      });
+
+      await prisma.match.update({
+        where: { id: matchId },
+        data: { statsStatus: MatchStatsReviewStatus.PENDING_REVIEW },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          action: 'MATCH_STATS_SUBMITTED',
+          entity: 'Match',
+          entityId: matchId,
+          matchId,
+          userId,
+          details: {
+            submissionId: submission.id,
+            source: MatchStatsSource.OCR,
+            status: submission.status,
+          },
+        },
+      });
+
+      return {
+        message: 'OCR stats submitted for review',
+        submissionId: submission.id,
+        statsStatus: submission.status,
+        ocr: ocrResult,
+      };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Failed to process scoreboard image' });
+    } finally {
+      await fs.rm(tempPath, { force: true });
+      await fs.rm(tempDir, { recursive: true, force: true });
     }
   });
 
