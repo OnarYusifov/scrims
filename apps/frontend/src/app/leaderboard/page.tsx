@@ -3,20 +3,96 @@
 import { motion } from "framer-motion"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Search, Trophy, AlertCircle } from "lucide-react"
-import { useState } from "react"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Search, Trophy, Crown, TrendingUp, TrendingDown, AlertCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 
-// Empty leaderboard - will be populated from API
-const mockLeaderboard: any[] = []
+interface LeaderboardEntry {
+  rank: number
+  id: string
+  username: string
+  discordId: string
+  avatar: string | null
+  elo: number
+  peakElo: number
+  matchesPlayed: number
+  isCalibrating: boolean
+  avgKD: number
+  avgACS: number
+  avgADR: number
+}
 
 export default function LeaderboardPage() {
+  const router = useRouter()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const filteredLeaderboard = mockLeaderboard.filter((player) =>
+  useEffect(() => {
+    if (authLoading) return
+
+    if (!isAuthenticated) {
+      router.push("/login")
+      return
+    }
+
+    loadLeaderboard()
+  }, [isAuthenticated, authLoading, router])
+
+  async function loadLeaderboard() {
+    try {
+      setIsLoading(true)
+      setError(null)
+      const response = await fetch('/api/leaderboard', {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to load leaderboard')
+      }
+
+      const data = await response.json()
+      setLeaderboard(data.leaderboard || [])
+    } catch (err: any) {
+      console.error('Failed to load leaderboard:', err)
+      setError(err.message || 'Failed to load leaderboard data')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const filteredLeaderboard = leaderboard.filter((player) =>
     player.username.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const hasPlayers = mockLeaderboard.length > 0
+  if (authLoading || isLoading) {
+    return (
+      <div className="container relative py-10">
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center"
+          >
+            <div className="h-12 w-12 border-2 border-matrix-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-lg font-mono text-matrix-500">
+              LOADING_LEADERBOARD<span className="animate-terminal-blink">_</span>
+            </p>
+          </motion.div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return null
+  }
+
+  const hasPlayers = leaderboard.length > 0
 
   return (
     <div className="container relative py-10 space-y-8">
@@ -32,7 +108,7 @@ export default function LeaderboardPage() {
             <h1 className="text-3xl font-bold font-mono uppercase text-gray-900 dark:text-matrix-500">
               LEADERBOARD
             </h1>
-            <p className="text-terminal-muted font-mono mt-1">
+            <p className="text-gray-600 dark:text-terminal-muted font-mono mt-1">
               Top players ranked by Elo<span className="animate-terminal-blink">_</span>
             </p>
           </div>
@@ -41,7 +117,7 @@ export default function LeaderboardPage() {
         {/* Search */}
         <div className="max-w-md">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-terminal-muted" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-terminal-muted" />
             <Input
               placeholder="Search players..."
               value={searchQuery}
@@ -52,6 +128,19 @@ export default function LeaderboardPage() {
         </div>
       </motion.div>
 
+      {/* Error State */}
+      {error && (
+        <Card className="border-red-500 bg-red-500/10 p-6">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-6 w-6 text-red-500" />
+            <div>
+              <p className="font-mono text-red-500 font-bold">Error Loading Leaderboard</p>
+              <p className="font-mono text-sm text-red-400 mt-1">{error}</p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Leaderboard Table or Empty State */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -59,16 +148,16 @@ export default function LeaderboardPage() {
         transition={{ delay: 0.2 }}
       >
         {!hasPlayers ? (
-          <Card className="p-12">
+          <Card className="p-12 border-gray-200 dark:border-terminal-border bg-white dark:bg-terminal-panel">
             <div className="flex flex-col items-center justify-center text-center">
-              <Trophy className="h-16 w-16 text-terminal-muted mb-6 opacity-30" />
-              <h3 className="text-xl font-bold font-mono uppercase text-matrix-500 mb-2">
+              <Trophy className="h-16 w-16 text-gray-300 dark:text-terminal-muted mb-6 opacity-30" />
+              <h3 className="text-xl font-bold font-mono uppercase text-gray-900 dark:text-matrix-500 mb-2">
                 NO RANKINGS YET
               </h3>
-              <p className="text-terminal-muted font-mono max-w-md">
+              <p className="text-gray-600 dark:text-terminal-muted font-mono max-w-md">
                 The leaderboard is empty. Complete matches to start climbing the ranks!
               </p>
-              <div className="mt-8 space-y-2 text-sm text-terminal-muted font-mono">
+              <div className="mt-8 space-y-2 text-sm text-gray-600 dark:text-terminal-muted font-mono">
                 <p className="flex items-center gap-2">
                   <span className="text-matrix-500">&gt;</span> Play matches to earn Elo
                 </p>
@@ -82,36 +171,118 @@ export default function LeaderboardPage() {
             </div>
           </Card>
         ) : (
-          <Card>
+          <Card className="border-gray-200 dark:border-terminal-border bg-white dark:bg-terminal-panel">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b-2 border-terminal-border">
-                    <th className="px-6 py-4 text-left text-xs font-bold font-mono uppercase text-matrix-500">
+                  <tr className="border-b-2 border-gray-200 dark:border-terminal-border">
+                    <th className="px-6 py-4 text-left text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
                       Rank
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold font-mono uppercase text-matrix-500">
+                    <th className="px-6 py-4 text-left text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
                       Player
                     </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-matrix-500">
+                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
                       Elo
                     </th>
-                    <th className="px-6 py-4 text-center text-xs font-bold font-mono uppercase text-matrix-500">
-                      Change
+                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
+                      Peak
                     </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-matrix-500">
+                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
                       Matches
                     </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-matrix-500">
+                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
                       K/D
                     </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-matrix-500">
+                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
                       Avg ACS
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Player rows will appear here */}
+                  {filteredLeaderboard.map((player, index) => {
+                    const eloChange = player.elo - 800 // Simple calculation from starting Elo
+                    const isTop3 = player.rank <= 3
+
+                    return (
+                      <motion.tr
+                        key={player.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="border-b border-gray-100 dark:border-terminal-border hover:bg-gray-50 dark:hover:bg-terminal-panel/50 cursor-pointer transition-colors"
+                        onClick={() => router.push(`/profile/${player.id}`)}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            {isTop3 && (
+                              <Crown className={`h-4 w-4 ${
+                                player.rank === 1 ? 'text-yellow-500' :
+                                player.rank === 2 ? 'text-gray-400' :
+                                'text-amber-700'
+                              }`} />
+                            )}
+                            <span className="font-mono font-bold text-gray-900 dark:text-matrix-500">
+                              #{player.rank}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              {player.avatar ? (
+                                <AvatarImage
+                                  src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar}.png?size=64`}
+                                  alt={player.username}
+                                />
+                              ) : (
+                                <AvatarFallback className="bg-gray-200 dark:bg-terminal-panel text-gray-700 dark:text-matrix-500">
+                                  {player.username.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <div>
+                              <p className="font-mono font-semibold text-gray-900 dark:text-matrix-400">
+                                {player.username}
+                              </p>
+                              {player.isCalibrating && (
+                                <span className="text-xs font-mono text-yellow-600 dark:text-yellow-500">
+                                  CALIBRATING
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="font-mono font-bold text-lg text-gray-900 dark:text-matrix-500">
+                            {player.elo}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="font-mono text-sm text-gray-600 dark:text-terminal-muted">
+                            {player.peakElo}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="font-mono text-gray-700 dark:text-matrix-400">
+                            {player.matchesPlayed}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className={`font-mono font-semibold ${
+                            player.avgKD >= 1.0 ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-terminal-muted'
+                          }`}>
+                            {player.avgKD.toFixed(2)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="font-mono text-gray-700 dark:text-cyber-400">
+                            {Math.round(player.avgACS)}
+                          </span>
+                        </td>
+                      </motion.tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -124,7 +295,7 @@ export default function LeaderboardPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center py-12 text-terminal-muted font-mono"
+          className="text-center py-12 text-gray-600 dark:text-terminal-muted font-mono"
         >
           <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
           <p className="text-lg">No players found</p>

@@ -723,7 +723,7 @@ export default function MatchDetailPage() {
               {isFull ? "FULL" : "LOCKED"}
             </Button>
           )}
-          {user && (user.role === "ADMIN" || user.role === "ROOT") && !isCancelled && (
+          {user && (user.role === "ADMIN" || user.role === "ROOT") && !isCancelled && match.status !== 'COMPLETED' && (
             <Button
               variant="outline"
               onClick={handleAddRandomPlayers}
@@ -734,7 +734,7 @@ export default function MatchDetailPage() {
               ADD RANDOM PLAYERS
             </Button>
           )}
-          {user && (user.role === "ADMIN" || user.role === "ROOT") && !isCancelled && (
+          {user && (user.role === "ADMIN" || user.role === "ROOT") && !isCancelled && match.status !== 'COMPLETED' && (
             <Button
               variant="outline"
               onClick={() => {
@@ -813,8 +813,8 @@ export default function MatchDetailPage() {
         </Card>
       </motion.div>
 
-      {/* Admin Player Management */}
-      {isAdminUser && (
+      {/* Admin Player Management - Only show for non-completed matches */}
+      {isAdminUser && match.status !== 'COMPLETED' && match.status !== 'CANCELLED' && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

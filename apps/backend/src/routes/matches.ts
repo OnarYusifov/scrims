@@ -737,6 +737,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'Match not found' });
       }
 
+      // Prevent modification of completed or cancelled matches
+      if (['COMPLETED', 'CANCELLED'].includes(match.status)) {
+        return reply.code(400).send({ error: 'Cannot modify players in a completed or cancelled match' });
+      }
+
       // Find team member and remove captain if needed
       let teamMember = null;
       let teamWithMember = null;
@@ -799,6 +804,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
 
       if (!match) {
         return reply.code(404).send({ error: 'Match not found' });
+      }
+
+      // Prevent modification of completed or cancelled matches
+      if (['COMPLETED', 'CANCELLED'].includes(match.status)) {
+        return reply.code(400).send({ error: 'Cannot modify teams in a completed or cancelled match' });
       }
 
       const team = match.teams.find(t => t.id === teamId);
@@ -879,6 +889,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
 
       if (!currentMembership || !currentTeam) {
         return reply.code(404).send({ error: 'Player not part of this match' });
+      }
+
+      // Prevent modification of completed or cancelled matches
+      if (['COMPLETED', 'CANCELLED'].includes(match.status)) {
+        return reply.code(400).send({ error: 'Cannot move players in a completed or cancelled match' });
       }
 
       let targetTeamId: string;

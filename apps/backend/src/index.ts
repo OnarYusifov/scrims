@@ -124,6 +124,7 @@ async function buildServer(): Promise<FastifyInstance> {
   await fastify.register(import('./routes/matches'), { prefix: '/api/matches' });
   await fastify.register(import('./routes/admin'), { prefix: '/api/admin' });
   await fastify.register(import('./routes/import'), { prefix: '/api/import' });
+  await fastify.register(import('./routes/leaderboard'), { prefix: '/api/leaderboard' });
   await fastify.register(import('./routes/random'), { prefix: '/api' });
 
   // Global error handler
