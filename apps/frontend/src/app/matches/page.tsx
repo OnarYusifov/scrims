@@ -356,7 +356,7 @@ export default function MatchesPage() {
                               <div className="flex items-center gap-2">
                                 <Users className="h-3 w-3 text-gray-600 dark:text-terminal-muted" />
                                 <span className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
-                                  {team.members.length}/5
+                                  {team.members.length}/{team.name === 'Player Pool' ? 10 : 5}
                                 </span>
                               </div>
                             </div>
