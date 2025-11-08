@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -35,6 +35,7 @@ import { TeamSelection } from "@/components/match/team-selection"
 import { MapPickBan } from "@/components/match/map-pick-ban"
 import { PerMapStatsEntry } from "@/components/match/per-map-stats-entry"
 import { OCRStatsUpload } from "@/components/match/ocr-stats-upload"
+import { TrackerHtmlUpload } from "@/components/match/tracker-html-upload"
 import { Users2 } from "lucide-react"
 
 const STATUS_COLORS: Record<MatchStatus, string> = {
@@ -59,6 +60,58 @@ const STATUS_LABELS: Record<MatchStatus, string> = {
   CANCELLED: "CANCELLED",
 }
 
+type PlayerEditableField =
+  | "acs"
+  | "kills"
+  | "deaths"
+  | "assists"
+  | "damageDelta"
+  | "adr"
+  | "headshotPercent"
+  | "kast"
+  | "firstKills"
+  | "firstDeaths"
+  | "multiKills"
+
+type MapPlayerStat = {
+  userId: string
+  teamId: string
+} & Record<PlayerEditableField, number | null>
+
+type MapStatsEntry = {
+  mapName: string
+  winnerTeamId: string
+  score: { alpha: number; bravo: number }
+  playerStats: MapPlayerStat[]
+}
+
+const EDITABLE_STAT_FIELDS: Array<{ key: PlayerEditableField; label: string; allowNegative?: boolean }> = [
+  { key: "acs", label: "ACS" },
+  { key: "kills", label: "K" },
+  { key: "deaths", label: "D" },
+  { key: "assists", label: "A" },
+  { key: "damageDelta", label: "DDΔ", allowNegative: true },
+  { key: "adr", label: "ADR" },
+  { key: "headshotPercent", label: "HS%" },
+  { key: "kast", label: "KAST%" },
+  { key: "firstKills", label: "FK" },
+  { key: "firstDeaths", label: "FD" },
+  { key: "multiKills", label: "MK" },
+]
+
+const createEmptyPlayerStat = (userId: string, teamId: string): MapPlayerStat => {
+  const defaults = EDITABLE_STAT_FIELDS.reduce((acc, { key }) => {
+    acc[key] = 0
+    return acc
+  }, {} as Record<PlayerEditableField, number | null>)
+
+  return {
+    userId,
+    teamId,
+    ...defaults,
+  }
+}
+
 export default function MatchDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -72,33 +125,25 @@ export default function MatchDetailPage() {
   const [showStatsEntry, setShowStatsEntry] = useState(false)
   const [showOCRUpload, setShowOCRUpload] = useState(false)
   const [isSubmittingStats, setIsSubmittingStats] = useState(false)
-  const [eloResults, setEloResults] = useState<Array<{ userId: string; oldElo: number; newElo: number; change: number }> | null>(null)
+  const [eloResults, setEloResults] = useState<
+    Array<{
+      userId: string
+      oldElo: number
+      newElo: number
+      change: number
+      performanceMultiplier?: number
+      teamMultiplier?: number
+      rawPerformance?: number
+      rating20?: number
+    }> | null
+  >(null)
   
   // Manual user add state
   const [showAddUserManual, setShowAddUserManual] = useState(false)
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; username: string; discordId: string; elo: number }>>([])
   const [selectedUserId, setSelectedUserId] = useState('')
   
-  const [mapsStats, setMapsStats] = useState<Array<{
-    mapName: string;
-    winnerTeamId: string;
-    score: { alpha: number; bravo: number };
-    playerStats: Array<{
-      userId: string;
-      teamId: string;
-      kills: number | null;
-      deaths: number | null;
-      assists: number | null;
-      acs: number | null;
-      adr: number | null;
-      headshotPercent: number | null;
-      firstKills: number | null;
-      firstDeaths: number | null;
-      kast: number | null;
-      multiKills: number | null;
-      damageDelta: number | null;
-    }>;
-  }>>([])
+  const [mapsStats, setMapsStats] = useState<MapStatsEntry[]>([])
   const [playerActionLoading, setPlayerActionLoading] = useState<string | null>(null)
   const isAdminUser = !!user && (user.role === 'ADMIN' || user.role === 'ROOT')
 
@@ -336,19 +381,7 @@ export default function MatchDetailPage() {
     stats: Array<{
       userId: string
       teamId: string
-      stats: {
-        acs: number | null
-        kills: number | null
-        deaths: number | null
-        assists: number | null
-        adr: number | null
-        headshotPercent: number | null
-        kast: number | null
-        firstKills: number | null
-        firstDeaths: number | null
-        multiKills: number | null
-        damageDelta: number | null
-      }
+      stats: Partial<Record<PlayerEditableField, number | null>>
     }>
   ) {
     console.log('OCR Stats Import - Received stats for', stats.length, 'players')
@@ -374,19 +407,11 @@ export default function MatchDetailPage() {
       
       if (playerIndex !== -1) {
         updated[0].playerStats[playerIndex] = {
-          userId: updated[0].playerStats[playerIndex].userId,
-          teamId: updated[0].playerStats[playerIndex].teamId,
-          kills: playerStats.kills ?? 0,
-          deaths: playerStats.deaths ?? 0,
-          assists: playerStats.assists ?? 0,
-          acs: playerStats.acs ?? 0,
-          adr: playerStats.adr ?? 0,
-          headshotPercent: playerStats.headshotPercent ?? 0,
-          firstKills: playerStats.firstKills ?? 0,
-          firstDeaths: playerStats.firstDeaths ?? 0,
-          kast: playerStats.kast ?? 0,
-          multiKills: playerStats.multiKills ?? 0,
-          damageDelta: playerStats.damageDelta ?? 0,
+          ...updated[0].playerStats[playerIndex],
+          ...EDITABLE_STAT_FIELDS.reduce((acc, { key }) => {
+            acc[key] = playerStats[key] ?? 0
+            return acc
+          }, {} as Record<PlayerEditableField, number | null>),
         }
         updatedCount++
       }
@@ -423,37 +448,9 @@ export default function MatchDetailPage() {
         
         if (!teamAlpha || !teamBravo) continue
         
-        const playerStats = [
-          ...teamAlpha.members.map(m => ({
-            userId: m.userId,
-            teamId: teamAlpha.id,
-            kills: null as number | null,
-            deaths: null,
-            assists: null,
-            acs: null,
-            adr: null,
-            headshotPercent: null,
-            firstKills: null,
-            firstDeaths: null,
-            kast: null,
-            multiKills: null,
-            damageDelta: null,
-          })),
-          ...teamBravo.members.map(m => ({
-            userId: m.userId,
-            teamId: teamBravo.id,
-            kills: null as number | null,
-            deaths: null,
-            assists: null,
-            acs: null,
-            adr: null,
-            headshotPercent: null,
-            firstKills: null,
-            firstDeaths: null,
-            kast: null,
-            multiKills: null,
-            damageDelta: null,
-          })),
+        const playerStats: MapPlayerStat[] = [
+          ...teamAlpha.members.map(m => createEmptyPlayerStat(m.userId, teamAlpha.id)),
+          ...teamBravo.members.map(m => createEmptyPlayerStat(m.userId, teamBravo.id)),
         ]
         
         initialMaps.push({
@@ -595,7 +592,7 @@ export default function MatchDetailPage() {
   function updateMapStat(
     mapIndex: number,
     playerIndex: number,
-    field: string,
+    field: PlayerEditableField,
     value: number | null
   ) {
     const updated = [...mapsStats]
@@ -604,6 +601,36 @@ export default function MatchDetailPage() {
       [field]: value === null || value === undefined ? null : value,
     }
     setMapsStats(updated)
+  }
+
+  const handleStatChange = (
+    mapIndex: number,
+    playerIndex: number,
+    field: PlayerEditableField,
+    allowNegative = false,
+  ) => (event: ChangeEvent<HTMLInputElement>) => {
+    const raw = event.target.value
+    const trimmed = raw.trim()
+
+    if (trimmed === "") {
+      updateMapStat(mapIndex, playerIndex, field, null)
+      return
+    }
+
+    if (allowNegative && trimmed === "-") {
+      return
+    }
+
+    const numeric = Number.parseFloat(trimmed)
+    if (Number.isNaN(numeric)) {
+      return
+    }
+
+    if (!allowNegative && numeric < 0) {
+      return
+    }
+
+    updateMapStat(mapIndex, playerIndex, field, numeric)
   }
 
   // Show loading state while checking auth
@@ -1257,406 +1284,97 @@ export default function MatchDetailPage() {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="grid grid-cols-2 gap-4">
-                          {/* Team Alpha */}
-                          <div className="space-y-3">
-                            <p className="font-mono text-sm uppercase text-matrix-400 border-b border-terminal-border pb-2">
-                              TEAM ALPHA
-                            </p>
-                            {alphaPlayers.map((player, playerIndex) => {
-                              const globalIndex = mapData.playerStats.findIndex(p => p.userId === player.userId)
-                              const playerUser = teamAlpha.members.find(m => m.userId === player.userId)?.user
-                              
-                              return (
-                                <Card key={playerIndex} className="border-terminal-border bg-terminal-panel/30">
-                                  <CardHeader className="pb-2">
-                                    <CardTitle className="font-mono text-sm text-matrix-400">
-                                      {playerUser?.username || 'Unknown'}
-                                    </CardTitle>
-                                  </CardHeader>
-                                  <CardContent className="space-y-2">
-                                    <div className="grid grid-cols-3 gap-1">
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">K</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.kills === null ? '' : player.kills.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'kills', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">D</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.deaths === null ? '' : player.deaths.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'deaths', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">A</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.assists === null ? '' : player.assists.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'assists', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-1">
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">ACS</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.acs === null ? '' : player.acs.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'acs', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">ADR</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.adr === null ? '' : player.adr.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'adr', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-1">
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">HS%</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.headshotPercent === null ? '' : player.headshotPercent.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'headshotPercent', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">KAST%</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.kast === null ? '' : player.kast.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'kast', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-1">
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">FK</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.firstKills === null ? '' : player.firstKills.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'firstKills', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">FD</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.firstDeaths === null ? '' : player.firstDeaths.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'firstDeaths', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">MK</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.multiKills === null ? '' : player.multiKills.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'multiKills', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                      <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">DDΔ</Label>
-                                      <Input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={player.damageDelta === null ? '' : player.damageDelta.toString()}
-                                        onChange={(e) => {
-                                          const value = e.target.value.trim()
-                                          if (value === '' || value === '-') {
-                                            updateMapStat(mapIndex, globalIndex, 'damageDelta', null)
-                                          } else if (/^-?\d*\.?\d*$/.test(value)) {
-                                            updateMapStat(mapIndex, globalIndex, 'damageDelta', parseFloat(value) || null)
-                                          }
-                                        }}
-                                        placeholder="0"
-                                        className="font-mono text-xs h-7"
-                                        style={{ pointerEvents: 'auto' }}
-                                      />
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              )
-                            })}
-                          </div>
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                          {[
+                            {
+                              label: "TEAM ALPHA",
+                              accent: "text-matrix-400",
+                              players: alphaPlayers,
+                              members: teamAlpha.members,
+                            },
+                            {
+                              label: "TEAM BRAVO",
+                              accent: "text-cyber-400",
+                              players: bravoPlayers,
+                              members: teamBravo.members,
+                            },
+                          ].map((teamInfo) => (
+                            <div key={teamInfo.label} className="space-y-3">
+                              <p
+                                className={`font-mono text-sm uppercase border-b border-terminal-border pb-2 ${teamInfo.accent}`}
+                              >
+                                {teamInfo.label}
+                              </p>
+                              {teamInfo.players.map((player) => {
+                                const globalIndex = mapData.playerStats.findIndex(
+                                  (p) => p.userId === player.userId,
+                                )
+                                if (globalIndex === -1) return null
 
-                          {/* Team Bravo */}
-                          <div className="space-y-3">
-                            <p className="font-mono text-sm uppercase text-cyber-400 border-b border-terminal-border pb-2">
-                              TEAM BRAVO
-                            </p>
-                            {bravoPlayers.map((player, playerIndex) => {
-                              const globalIndex = mapData.playerStats.findIndex(p => p.userId === player.userId)
-                              const playerUser = teamBravo.members.find(m => m.userId === player.userId)?.user
-                              
-                              return (
-                                <Card key={playerIndex} className="border-terminal-border bg-terminal-panel/30">
-                                  <CardHeader className="pb-2">
-                                    <CardTitle className="font-mono text-sm text-cyber-400">
-                                      {playerUser?.username || 'Unknown'}
-                                    </CardTitle>
-                                  </CardHeader>
-                                  <CardContent className="space-y-2">
-                                    <div className="grid grid-cols-3 gap-1">
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">K</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.kills === null ? '' : player.kills.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'kills', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
+                                const playerUser = teamInfo.members.find(
+                                  (member) => member.userId === player.userId,
+                                )?.user
+
+                                const kills = player.kills ?? 0
+                                const deaths = player.deaths ?? 0
+                                const plusMinus = kills - deaths
+                                const kdValue = deaths > 0 ? kills / deaths : kills
+                                const kdDisplay = Number.isFinite(kdValue) ? kdValue.toFixed(2) : "0.00"
+
+                                return (
+                                  <Card
+                                    key={player.userId}
+                                    className="border-terminal-border bg-terminal-panel/30"
+                                  >
+                                    <CardHeader className="pb-2">
+                                      <CardTitle className={`font-mono text-sm ${teamInfo.accent}`}>
+                                        {playerUser?.username || "Unknown"}
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                                        {EDITABLE_STAT_FIELDS.map(({ key, label, allowNegative }) => (
+                                          <div key={key} className="space-y-1">
+                                            <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
+                                              {label}
+                                            </Label>
+                                            <Input
+                                              type="text"
+                                              inputMode="decimal"
+                                              value={player[key] ?? ""}
+                                              onChange={handleStatChange(
+                                                mapIndex,
+                                                globalIndex,
+                                                key,
+                                                allowNegative,
+                                              )}
+                                              placeholder="0"
+                                              className="font-mono text-xs h-8"
+                                              style={{ pointerEvents: "auto" }}
+                                            />
+                                          </div>
+                                        ))}
                                       </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">D</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.deaths === null ? '' : player.deaths.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'deaths', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
+                                      <div className="flex items-center justify-between text-[11px] font-mono text-terminal-muted">
+                                        <span>
+                                          +/-{" "}
+                                          <span className="text-gray-900 dark:text-white">
+                                            {plusMinus >= 0 ? `+${plusMinus}` : plusMinus}
+                                          </span>
+                                        </span>
+                                        <span>
+                                          K/D{" "}
+                                          <span className="text-gray-900 dark:text-white">
+                                            {kdDisplay}
+                                          </span>
+                                        </span>
                                       </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">A</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.assists === null ? '' : player.assists.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'assists', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-1">
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">ACS</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.acs === null ? '' : player.acs.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'acs', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">ADR</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.adr === null ? '' : player.adr.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'adr', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-1">
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">HS%</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.headshotPercent === null ? '' : player.headshotPercent.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'headshotPercent', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">KAST%</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.kast === null ? '' : player.kast.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'kast', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-1">
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">FK</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.firstKills === null ? '' : player.firstKills.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'firstKills', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">FD</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.firstDeaths === null ? '' : player.firstDeaths.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'firstDeaths', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">MK</Label>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          value={player.multiKills === null ? '' : player.multiKills.toString()}
-                                          onChange={(e) => {
-                                            const value = e.target.value.trim()
-                                            updateMapStat(mapIndex, globalIndex, 'multiKills', value === '' ? null : parseFloat(value) || null)
-                                          }}
-                                          placeholder="0"
-                                          className="font-mono text-xs h-7"
-                                          style={{ pointerEvents: 'auto' }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                      <Label className="font-mono text-xs text-gray-600 dark:text-terminal-muted">DDΔ</Label>
-                                      <Input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={player.damageDelta === null ? '' : player.damageDelta.toString()}
-                                        onChange={(e) => {
-                                          const value = e.target.value.trim()
-                                          if (value === '' || value === '-') {
-                                            updateMapStat(mapIndex, globalIndex, 'damageDelta', null)
-                                          } else if (/^-?\d*\.?\d*$/.test(value)) {
-                                            updateMapStat(mapIndex, globalIndex, 'damageDelta', parseFloat(value) || null)
-                                          }
-                                        }}
-                                        placeholder="0"
-                                        className="font-mono text-xs h-7"
-                                        style={{ pointerEvents: 'auto' }}
-                                      />
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              )
-                            })}
-                          </div>
+                                    </CardContent>
+                                  </Card>
+                                )
+                              })}
+                            </div>
+                          ))}
                         </div>
                       </CardContent>
                     </Card>
@@ -1706,6 +1424,11 @@ export default function MatchDetailPage() {
                                 <p className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
                                   {result.oldElo} → {result.newElo}
                                 </p>
+                              {typeof result.rating20 === "number" && (
+                                <p className="font-mono text-xs text-matrix-400">
+                                  Rating 2.0: {result.rating20.toFixed(2)}
+                                </p>
+                              )}
                               </div>
                             )
                           })}
@@ -1714,6 +1437,18 @@ export default function MatchDetailPage() {
                     </Card>
                   </motion.div>
                 )}
+
+                <div className="mt-6">
+                  <TrackerHtmlUpload
+                    matchId={match.id}
+                    onUploaded={(result) =>
+                      toast({
+                        title: "Tracker data staged",
+                        description: `Submitted ${result.receivedFiles.length} file(s) for review.`,
+                      })
+                    }
+                  />
+                </div>
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 pt-4 border-t border-terminal-border">

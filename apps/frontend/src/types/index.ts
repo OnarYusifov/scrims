@@ -16,7 +16,7 @@ export type TeamSide = 'ATTACKER' | 'DEFENDER'
 
 export type MapAction = 'PICK' | 'BAN' | 'DECIDER'
 
-export type MatchStatsSource = 'MANUAL' | 'OCR'
+export type MatchStatsSource = 'MANUAL' | 'OCR' | 'TRACKER'
 
 export type MatchStatsReviewStatus =
   | 'NOT_STARTED'
@@ -117,6 +117,8 @@ export interface PlayerMatchStats {
   kd: number
   plusMinus: number
   wpr: number
+  damageDelta: number
+  rating20: number
   createdAt: Date
   updatedAt: Date
 }

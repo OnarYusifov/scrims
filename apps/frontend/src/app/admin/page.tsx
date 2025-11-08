@@ -8,7 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 import {
   Shield,
   Users,
@@ -38,11 +40,12 @@ import {
   createWeightProfile,
   updateWeightProfile,
   activateWeightProfile,
+  resetApplicationData,
   User,
   AuditLog,
   WeightProfile,
 } from "@/lib/api"
-import { formatTimestamp } from "@/lib/utils"
+import { cn, formatTimestamp } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 type AdminTab = "users" | "weights" | "audit"
@@ -50,6 +53,7 @@ type AdminTab = "users" | "weights" | "audit"
 export default function AdminPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<AdminTab>("users")
   
   // Users tab state
@@ -60,6 +64,7 @@ export default function AdminPage() {
   const [showRoleDialog, setShowRoleDialog] = useState(false)
   const [showWhitelistDialog, setShowWhitelistDialog] = useState(false)
   const [whitelistDiscordId, setWhitelistDiscordId] = useState("")
+  const [isResetting, setIsResetting] = useState(false)
   
   // Weight profiles tab state
   const [weightProfiles, setWeightProfiles] = useState<WeightProfile[]>([])
@@ -194,6 +199,42 @@ export default function AdminPage() {
       loadUsers()
     } catch (error: any) {
       console.error("Failed to whitelist user:", error)
+    }
+  }
+
+  async function handleApplicationReset() {
+    if (isResetting) return
+    const confirmed = window.confirm(
+      "This will delete all matches, stats, map history, and reset every player's Elo back to 800 while preserving account information.\n\nAre you absolutely sure you want to continue?",
+    )
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      setIsResetting(true)
+      const result = await resetApplicationData()
+      toast({
+        title: "Application data reset",
+        description: `Removed ${result.matchCount} matches and recalibrated ${result.usersUpdated} users.`,
+      })
+
+      // Refresh relevant data in the background
+      if (activeTab === "users") {
+        loadUsers()
+      }
+      loadAuditLogs()
+    } catch (error: any) {
+      const message =
+        error?.message || "Failed to reset application data. Please check server logs."
+      console.error("Failed to reset application data:", error)
+      toast({
+        title: "Reset failed",
+        description: message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsResetting(false)
     }
   }
 
@@ -354,6 +395,44 @@ export default function AdminPage() {
         </div>
       </motion.div>
 
+      {user?.role === "ROOT" && (
+        <Card className="border-red-500 bg-red-500/10 dark:border-red-500/40">
+          <CardHeader>
+            <CardTitle className="font-mono text-lg text-red-600 dark:text-red-400 flex items-center gap-2">
+              <Power className="h-4 w-4" />
+              Global Data Reset
+            </CardTitle>
+            <CardDescription className="font-mono text-sm text-red-600/80 dark:text-red-300/80">
+              Deletes every match, stat line, map selection, and Elo history. User accounts remain intact but are reset to fresh calibration.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <p className="font-mono text-xs text-red-700 dark:text-red-300">
+              This action cannot be undone. Run it only on empty queues or before a new season launch.
+            </p>
+            <Button
+              variant="destructive"
+              className="font-mono uppercase"
+              onClick={handleApplicationReset}
+              disabled={isResetting}
+              style={{ pointerEvents: 'auto' }}
+            >
+              {isResetting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                <>
+                  <Power className="mr-2 h-4 w-4" />
+                  RESET APP DATA
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabs */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -479,22 +558,22 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-terminal-border">
-                        <th className="text-left p-2 font-mono text-sm uppercase text-terminal-muted">User</th>
-                        <th className="text-left p-2 font-mono text-sm uppercase text-terminal-muted">Role</th>
-                        <th className="text-left p-2 font-mono text-sm uppercase text-terminal-muted">Elo</th>
-                        <th className="text-left p-2 font-mono text-sm uppercase text-terminal-muted">Status</th>
-                        <th className="text-left p-2 font-mono text-sm uppercase text-terminal-muted">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Elo</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {users.map((u) => (
-                        <tr key={u.id} className="border-b border-terminal-border/50 hover:bg-terminal-panel/50">
-                          <td className="p-2">
+                        <TableRow key={u.id} className="hover:bg-terminal-panel/40">
+                          <TableCell>
                             <div className="flex items-center gap-2">
-                              <Avatar className="h-8 w-8">
+                              <Avatar className="h-8 w-8 border border-terminal-border/70">
                                 {u.avatar ? (
                                   <AvatarImage
                                     src={`https://cdn.discordapp.com/avatars/${u.discordId}/${u.avatar}.png?size=64`}
@@ -502,39 +581,39 @@ export default function AdminPage() {
                                   />
                                 ) : (
                                   <AvatarFallback className="bg-terminal-panel text-matrix-500 text-xs">
-                                    {u.username?.charAt(0).toUpperCase() || 'U'}
+                                    {u.username?.charAt(0).toUpperCase() || "U"}
                                   </AvatarFallback>
                                 )}
                               </Avatar>
                               <div>
-                                <p className="font-mono text-sm text-matrix-500">{u.username}</p>
-                                <p className="font-mono text-xs text-terminal-muted">{u.discordId}</p>
+                                <p className="text-sm text-matrix-500">{u.username}</p>
+                                <p className="text-xs text-terminal-muted">{u.discordId}</p>
                               </div>
                             </div>
-                          </td>
-                          <td className="p-2">
-                            <span className={`font-mono text-xs ${roleColors[u.role] || roleColors.USER}`}>
+                          </TableCell>
+                          <TableCell>
+                            <span className={cn("text-xs", roleColors[u.role] || roleColors.USER)}>
                               {u.role}
                             </span>
-                          </td>
-                          <td className="p-2">
-                            <span className="font-mono text-sm text-matrix-500">{u.elo}</span>
-                          </td>
-                          <td className="p-2">
-                            <div className="flex gap-1">
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-matrix-500">{u.elo}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
                               {u.isBanned && (
-                                <span className="px-2 py-1 text-xs font-mono bg-red-500/20 text-red-500 rounded">
+                                <span className="rounded bg-red-500/20 px-2 py-1 text-xs text-red-500">
                                   BANNED
                                 </span>
                               )}
                               {u.isWhitelisted && (
-                                <span className="px-2 py-1 text-xs font-mono bg-green-500/20 text-green-500 rounded">
+                                <span className="rounded bg-green-500/20 px-2 py-1 text-xs text-green-500">
                                   WHITELISTED
                                 </span>
                               )}
                             </div>
-                          </td>
-                          <td className="p-2">
+                          </TableCell>
+                          <TableCell>
                             <div className="flex gap-2">
                               <Button
                                 variant="outline"
@@ -543,8 +622,8 @@ export default function AdminPage() {
                                   setSelectedUser(u)
                                   setShowRoleDialog(true)
                                 }}
-                                className="font-mono text-xs relative z-10"
-                                style={{ pointerEvents: 'auto' }}
+                                className="font-mono text-xs"
+                                style={{ pointerEvents: "auto" }}
                                 title="Change Role"
                               >
                                 <UserCog className="h-3 w-3" />
@@ -553,8 +632,8 @@ export default function AdminPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleBanUser(u.id, !u.isBanned)}
-                                className="font-mono text-xs relative z-10"
-                                style={{ pointerEvents: 'auto' }}
+                                className="font-mono text-xs"
+                                style={{ pointerEvents: "auto" }}
                                 title={u.isBanned ? "Unban User" : "Ban User"}
                               >
                                 {u.isBanned ? (
@@ -568,8 +647,8 @@ export default function AdminPage() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleRemoveFromWhitelist(u.id)}
-                                  className="font-mono text-xs text-red-500 hover:text-red-400 relative z-10"
-                                  style={{ pointerEvents: 'auto' }}
+                                  className="font-mono text-xs text-red-500 hover:text-red-400"
+                                  style={{ pointerEvents: "auto" }}
                                   title="Remove from Whitelist"
                                 >
                                   <UserX className="h-3 w-3" />
@@ -579,19 +658,19 @@ export default function AdminPage() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleAddUserToWhitelist(u.discordId)}
-                                  className="font-mono text-xs text-green-500 hover:text-green-400 relative z-10"
-                                  style={{ pointerEvents: 'auto' }}
+                                  className="font-mono text-xs text-green-500 hover:text-green-400"
+                                  style={{ pointerEvents: "auto" }}
                                   title="Add to Whitelist"
                                 >
                                   <UserCheck className="h-3 w-3" />
                                 </Button>
                               )}
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>

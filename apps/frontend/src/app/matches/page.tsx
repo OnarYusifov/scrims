@@ -173,12 +173,6 @@ export default function MatchesPage() {
     return match.teams.reduce((sum, team) => sum + team.members.length, 0)
   }
 
-  function getTeamCapacity(match: Match): { team1: number; team2: number } {
-    const team1 = match.teams[0]?.members.length || 0
-    const team2 = match.teams[1]?.members.length || 0
-    return { team1, team2 }
-  }
-
   const statusFilters: Array<{ value: MatchStatus | "ALL"; label: string }> = [
     { value: "ALL", label: "ALL" },
     { value: "DRAFT", label: "DRAFT" },
@@ -306,9 +300,39 @@ export default function MatchesPage() {
             {matches.map((match) => {
               const userInMatch = isUserInMatch(match)
               const totalPlayers = getTotalPlayers(match)
-              const capacity = getTeamCapacity(match)
               const isFull = totalPlayers >= 10
               const canJoin = match.status === "DRAFT" || match.status === "TEAM_SELECTION"
+
+              const playerPoolTeam = match.teams.find(team => team.name === "Player Pool")
+              const teamAlpha = match.teams.find(team => team.name === "Team Alpha")
+              const teamBravo = match.teams.find(team => team.name === "Team Bravo")
+
+              const teamSummaries = [
+                {
+                  key: "pool",
+                  name: "Player Pool",
+                  capacity: 10,
+                  team: playerPoolTeam,
+                  count: playerPoolTeam?.members.length ?? 0,
+                  showCaptain: false,
+                },
+                {
+                  key: "alpha",
+                  name: "Team Alpha",
+                  capacity: 5,
+                  team: teamAlpha,
+                  count: teamAlpha?.members.length ?? 0,
+                  showCaptain: true,
+                },
+                {
+                  key: "bravo",
+                  name: "Team Bravo",
+                  capacity: 5,
+                  team: teamBravo,
+                  count: teamBravo?.members.length ?? 0,
+                  showCaptain: true,
+                },
+              ]
 
               return (
                 <motion.div
@@ -339,33 +363,35 @@ export default function MatchesPage() {
                     <CardContent className="space-y-4">
                       {/* Teams */}
                       <div className="space-y-2">
-                        {match.teams.length > 0 ? (
-                          match.teams.map((team, idx) => (
+                        {teamSummaries.map((summary) => {
+                          const hasCaptain =
+                            summary.showCaptain &&
+                            !!(
+                              summary.team?.captainId ||
+                              summary.team?.captain
+                            )
+                          return (
                             <div
-                              key={team.id}
+                              key={summary.key}
                               className="flex items-center justify-between p-2 rounded border border-gray-200 dark:border-terminal-border bg-gray-50 dark:bg-terminal-panel/50"
                             >
                               <div className="flex items-center gap-2">
                                 <span className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
-                                  {team.name}
+                                  {summary.name}
                                 </span>
-                                {team.captain && (
+                                {hasCaptain && (
                                   <span className="text-xs text-matrix-500">👑</span>
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
                                 <Users className="h-3 w-3 text-gray-600 dark:text-terminal-muted" />
                                 <span className="font-mono text-xs text-gray-600 dark:text-terminal-muted">
-                                  {team.members.length}/{team.name === 'Player Pool' ? 10 : 5}
+                                  {summary.count}/{summary.capacity}
                                 </span>
                               </div>
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-center py-4 text-gray-600 dark:text-terminal-muted font-mono text-sm">
-                            No teams yet
-                          </div>
-                        )}
+                          )
+                        })}
                       </div>
 
                       {/* Player Count */}

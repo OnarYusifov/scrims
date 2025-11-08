@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
 import { prisma } from '../index';
+import { eloService } from '../services/elo.service';
 
 export default async function leaderboardRoutes(fastify: FastifyInstance) {
   // Get leaderboard (top 100 players by Elo)
@@ -33,6 +34,7 @@ export default async function leaderboardRoutes(fastify: FastifyInstance) {
       });
 
       const leaderboard = users.map((user, index) => {
+        const badge = eloService.getRankBadge(user.elo);
         const avgKD = user.totalDeaths > 0 ? user.totalKills / user.totalDeaths : 0;
         const avgACS = user.matchesPlayed > 0 ? user.totalACS / user.matchesPlayed : 0;
         const avgADR = user.matchesPlayed > 0 ? user.totalADR / user.matchesPlayed : 0;
@@ -47,6 +49,7 @@ export default async function leaderboardRoutes(fastify: FastifyInstance) {
           peakElo: user.peakElo,
           matchesPlayed: user.matchesPlayed,
           isCalibrating: user.isCalibrating,
+          rankName: badge.name,
           avgKD,
           avgACS,
           avgADR,

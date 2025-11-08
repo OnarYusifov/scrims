@@ -122,6 +122,7 @@ enum MatchStatsReviewStatus {
 enum MatchStatsSource {
   MANUAL
   OCR
+  TRACKER
 }
 
 // Team model - represents one team in a match
@@ -227,6 +228,7 @@ model PlayerMatchStats {
   
   // Weighted Performance Rating
   wpr             Float  @default(0) // Calculated using WeightProfile
+  rating20        Float  @default(1)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -249,6 +251,11 @@ model EloHistory {
   newElo   Int
   change   Int      // Can be positive or negative
   kFactor  Int      // K-factor used for this calculation
+  expectedScore Float @default(0)
+  actualScore   Float @default(0)
+  performanceMultiplier Float @default(1)
+  teamMultiplier Float @default(1)
+  rawPerformance Float @default(0)
   
   // Match context
   won      Boolean
@@ -370,6 +377,7 @@ enum AuditAction {
   STATS_UPDATED
   STATS_DELETED
   MATCH_STATS_SUBMITTED
+  MATCH_TRACKER_STATS_UPLOADED
   
   // Vote actions
   VOTE_CAST
@@ -385,6 +393,7 @@ enum AuditAction {
   WEIGHT_PROFILE_UPDATED
   WEIGHT_PROFILE_ACTIVATED
   ADMIN_OVERRIDE
+  APP_DATA_RESET
   
   // System actions
   SYSTEM_INIT

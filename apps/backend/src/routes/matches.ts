@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../index';
-import { EloService } from '../services/elo.service';
+import { eloService, PerformanceEvaluation } from '../services/elo.service';
 import { randomService } from '../services/random.service';
 import { parseScoreboardFromHtml } from '../services/scoreboard-html.service';
 import { MatchStatus, MatchStatsReviewStatus, MatchStatsSource, SeriesType, Prisma } from '@prisma/client';
@@ -50,7 +50,10 @@ interface TeamMemberWithUser {
     username: string | null;
     discordId: string | null;
     avatar: string | null;
-    elo: number | null;
+    elo: number;
+    matchesPlayed?: number;
+    isCalibrating?: boolean;
+    peakElo?: number;
   };
 }
 
@@ -189,6 +192,309 @@ const createMatchResultPayload = ({
   };
 };
 
+const getUniqueUserIds = (stats: Array<{ userId: string }>): string[] =>
+  Array.from(new Set(stats.map((stat) => stat.userId)));
+
+async function applyEloAdjustments({
+  fastify,
+  match,
+  aggregatedStats,
+  winnerTeamId,
+}: {
+  fastify: FastifyInstance;
+  match: {
+    id: string;
+    seriesType: SeriesType;
+    teams: TeamWithMembers[];
+  };
+  aggregatedStats: Map<string, AggregatedPlayerStats>;
+  winnerTeamId: string;
+}) {
+  const memberByUserId = new Map<
+    string,
+    { teamId: string; member: TeamMemberWithUser }
+  >();
+
+  for (const team of match.teams) {
+    for (const member of team.members) {
+      memberByUserId.set(member.userId, { teamId: team.id, member });
+    }
+  }
+
+  const teamStats = new Map<string, AggregatedPlayerStats[]>();
+  for (const stat of aggregatedStats.values()) {
+    if (!stat.teamId) continue;
+    const existing = teamStats.get(stat.teamId) ?? [];
+    existing.push(stat);
+    teamStats.set(stat.teamId, existing);
+  }
+
+  const acsRankByUser = new Map<string, number>();
+  for (const [teamId, statsList] of teamStats.entries()) {
+    const sorted = [...statsList].sort(
+      (a, b) => (b.acs ?? 0) - (a.acs ?? 0),
+    );
+    sorted.forEach((stat, index) => {
+      acsRankByUser.set(stat.userId, index + 1);
+    });
+  }
+
+  const teamAverageElo = new Map<string, number>();
+  for (const team of match.teams) {
+    if (!team.members.length) continue;
+    const total = team.members.reduce(
+      (sum, member) => sum + (member.user.elo ?? 0),
+      0,
+    );
+    teamAverageElo.set(
+      team.id,
+      Math.round(total / Math.max(1, team.members.length)),
+    );
+  }
+
+  const performanceByUser = new Map<string, PerformanceEvaluation>();
+
+  for (const stat of aggregatedStats.values()) {
+    const entry = memberByUserId.get(stat.userId);
+    if (!entry) continue;
+
+    const playerElo = entry.member.user.elo ?? 0;
+    const bandMetrics = await eloService.getBandMetrics(playerElo);
+    const isTopTwo = (acsRankByUser.get(stat.userId) ?? 3) <= 2;
+    const performance = eloService.evaluatePerformance(
+      stat,
+      bandMetrics,
+      isTopTwo,
+    );
+
+    performanceByUser.set(stat.userId, performance);
+  }
+
+  const winningTeam = match.teams.find((team) => team.id === winnerTeamId);
+  if (winningTeam) {
+    let topPerformerId: string | null = null;
+    let topScore = -Infinity;
+    let bottomPerformerId: string | null = null;
+    let bottomScore = Infinity;
+
+    for (const member of winningTeam.members) {
+      const performance = performanceByUser.get(member.userId);
+      if (!performance) continue;
+
+      if (performance.rawPerformance > topScore) {
+        topScore = performance.rawPerformance;
+        topPerformerId = member.userId;
+      }
+
+      if (performance.rawPerformance < bottomScore) {
+        bottomScore = performance.rawPerformance;
+        bottomPerformerId = member.userId;
+      }
+    }
+
+    if (topPerformerId) {
+      const performance = performanceByUser.get(topPerformerId);
+      if (performance) {
+        performance.multiplier = Math.max(performance.multiplier, 1.1);
+      }
+    }
+
+    if (bottomPerformerId) {
+      const performance = performanceByUser.get(bottomPerformerId);
+      if (performance) {
+        performance.multiplier = Math.min(performance.multiplier, 0.9);
+      }
+    }
+  }
+
+  const eloResults: Array<{
+    userId: string;
+    oldElo: number;
+    newElo: number;
+    change: number;
+    performanceMultiplier: number;
+    teamMultiplier: number;
+    rawPerformance: number;
+    rating20: number;
+  }> = [];
+  const affectedUserIds = new Set<string>();
+
+  for (const stat of aggregatedStats.values()) {
+    const entry = memberByUserId.get(stat.userId);
+    if (!entry) continue;
+
+    const { teamId, member } = entry;
+    const performance = performanceByUser.get(stat.userId);
+    if (!performance) continue;
+
+    const teamAverage = teamAverageElo.get(teamId) ?? 0;
+    const opponentTeam = match.teams.find(
+      (team) => team.id !== teamId && team.name !== 'Player Pool',
+    );
+    const opponentAverage = opponentTeam
+      ? teamAverageElo.get(opponentTeam.id) ?? teamAverage
+      : teamAverage;
+    const teamDiff = teamAverage - opponentAverage;
+    const teamMultiplier = eloService.getTeamMultiplier(
+      teamDiff,
+      winnerTeamId === teamId,
+    );
+
+    const result = await eloService.calculateEloChange({
+      player: {
+        id: member.user.id,
+        elo: member.user.elo ?? 0,
+        matchesPlayed: member.user.matchesPlayed ?? 0,
+        isCalibrating: member.user.isCalibrating ?? true,
+        peakElo: member.user.peakElo ?? member.user.elo ?? 0,
+      },
+      matchId: match.id,
+      seriesType: match.seriesType,
+      won: winnerTeamId === teamId,
+      opponentAverageElo: opponentAverage,
+      teamAverageElo: teamAverage,
+      teamEloDiff: teamDiff,
+      performanceMultiplier: performance.multiplier,
+      rawPerformance: performance.rawPerformance,
+      teamMultiplier,
+    });
+
+    const rating20 = eloService.calculateRating(
+      performance.rawPerformance,
+      performance.multiplier,
+      result.teamMultiplier,
+      result.change,
+    );
+
+    await prisma.playerMatchStats.upsert({
+      where: {
+        matchId_userId: {
+          matchId: match.id,
+          userId: stat.userId,
+        },
+      },
+      create: {
+        matchId: match.id,
+        userId: stat.userId,
+        teamId,
+        kills: stat.kills,
+        deaths: stat.deaths,
+        assists: stat.assists,
+        acs: stat.acs,
+        adr: stat.adr,
+        headshotPercent: stat.headshotPercent ?? 0,
+        firstKills: stat.firstKills ?? 0,
+        firstDeaths: stat.firstDeaths ?? 0,
+        kast: stat.kast ?? 0,
+        multiKills: stat.multiKills ?? 0,
+        damageDelta: stat.damageDelta ?? 0,
+        kd: stat.deaths > 0 ? stat.kills / stat.deaths : stat.kills,
+        plusMinus: stat.kills - stat.deaths,
+        wpr: performance.rawPerformance,
+        rating20,
+      },
+      update: {
+        teamId,
+        kills: stat.kills,
+        deaths: stat.deaths,
+        assists: stat.assists,
+        acs: stat.acs,
+        adr: stat.adr,
+        headshotPercent: stat.headshotPercent ?? 0,
+        firstKills: stat.firstKills ?? 0,
+        firstDeaths: stat.firstDeaths ?? 0,
+        kast: stat.kast ?? 0,
+        multiKills: stat.multiKills ?? 0,
+        damageDelta: stat.damageDelta ?? 0,
+        kd: stat.deaths > 0 ? stat.kills / stat.deaths : stat.kills,
+        plusMinus: stat.kills - stat.deaths,
+        wpr: performance.rawPerformance,
+        rating20,
+      },
+    });
+
+    eloResults.push({
+      userId: member.user.id,
+      oldElo: result.oldElo,
+      newElo: result.newElo,
+      change: result.change,
+      performanceMultiplier: result.performanceMultiplier,
+      teamMultiplier: result.teamMultiplier,
+      rawPerformance: result.rawPerformance,
+      rating20,
+    });
+
+    affectedUserIds.add(member.user.id);
+
+    if (fastify.discordBot && member.user.discordId) {
+      fastify.discordBot
+        .updateRankRole({
+          discordId: member.user.discordId,
+          elo: result.newElo,
+          isCalibrating: result.matchesPlayed < 10,
+        })
+        .catch((err) => {
+          fastify.log.error(
+            { err, userId: member.user.id },
+            'Failed to update Discord rank role',
+          );
+        });
+    }
+  }
+
+  await recalculateUserTotals(Array.from(affectedUserIds));
+
+  return {
+    eloResults,
+    affectedUserIds: Array.from(affectedUserIds),
+  };
+}
+
+async function recalculateUserTotals(userIds: string[]): Promise<void> {
+  if (userIds.length === 0) return;
+
+  await prisma.$transaction(async (tx) => {
+    const totals = await tx.playerMatchStats.groupBy({
+      by: ['userId'],
+      where: { userId: { in: userIds } },
+      _sum: {
+        kills: true,
+        deaths: true,
+        assists: true,
+        acs: true,
+        adr: true,
+      },
+    });
+
+    const totalsMap = new Map<string, {
+      kills?: number | null;
+      deaths?: number | null;
+      assists?: number | null;
+      acs?: number | null;
+      adr?: number | null;
+    }>();
+
+    for (const total of totals) {
+      totalsMap.set(total.userId, total._sum);
+    }
+
+    for (const userId of userIds) {
+      const sum = totalsMap.get(userId) ?? {};
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          totalKills: sum.kills ?? 0,
+          totalDeaths: sum.deaths ?? 0,
+          totalAssists: sum.assists ?? 0,
+          totalACS: sum.acs ?? 0,
+          totalADR: sum.adr ?? 0,
+        },
+      });
+    }
+  });
+}
+
 export default async function matchRoutes(fastify: FastifyInstance) {
   // Get all matches (paginated)
   fastify.get('/', {
@@ -277,6 +583,111 @@ export default async function matchRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  fastify.post('/:id/stats/tracker', {
+    onRequest: [fastify.authenticate],
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const currentUser = (request as any).user;
+    const userId = currentUser?.userId;
+    const userRole = currentUser?.role;
+    const matchId = request.params.id;
+
+    if (!userId) {
+      return reply.code(401).send({ error: 'Unauthorized' });
+    }
+
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: {
+        teams: {
+          include: { members: true },
+        },
+      },
+    });
+
+    if (!match) {
+      return reply.code(404).send({ error: 'Match not found' });
+    }
+
+    const isParticipant = match.teams.some((team) =>
+      team.members.some((member) => member.userId === userId),
+    );
+    const isAdmin = ['ADMIN', 'ROOT'].includes(userRole);
+    if (!isParticipant && !isAdmin) {
+      return reply
+        .code(403)
+        .send({ error: 'Only match participants or admins can upload tracker stats' });
+    }
+
+    const acceptedFields = new Set(['scoreboard', 'rounds', 'duels', 'economy', 'performance']);
+    const files: Record<string, string> = {};
+
+    try {
+      const parts = (request as any).parts?.();
+      if (!parts || typeof parts[Symbol.asyncIterator] !== 'function') {
+        return reply.code(400).send({ error: 'Multipart form data is required' });
+      }
+
+      for await (const part of parts) {
+        if (part.type === 'file' && acceptedFields.has(part.fieldname)) {
+          const buffer = await part.toBuffer();
+          files[part.fieldname] = buffer.toString('utf-8');
+        } else if (part.type === 'file') {
+          await part.toBuffer().catch(() => undefined);
+        }
+      }
+
+      if (!files.scoreboard) {
+        return reply.code(400).send({ error: 'Scoreboard HTML file is required' });
+      }
+
+      const submission = await prisma.matchStatsSubmission.create({
+        data: {
+          matchId,
+          uploaderId: userId,
+          source: MatchStatsSource.TRACKER,
+          status: MatchStatsReviewStatus.PENDING_REVIEW,
+          payload: {
+            files,
+            metadata: {
+              uploadedAt: new Date().toISOString(),
+              providedFiles: Object.keys(files),
+            },
+          } satisfies Prisma.JsonObject,
+        },
+      });
+
+      await prisma.match.update({
+        where: { id: matchId },
+        data: { statsStatus: MatchStatsReviewStatus.PENDING_REVIEW },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          action: 'MATCH_TRACKER_STATS_UPLOADED',
+          entity: 'Match',
+          entityId: matchId,
+          matchId,
+          userId,
+          details: {
+            submissionId: submission.id,
+            source: MatchStatsSource.TRACKER,
+            providedFiles: Object.keys(files),
+          },
+        },
+      });
+
+      return {
+        message: 'Tracker HTML bundle submitted for review',
+        submissionId: submission.id,
+        statsStatus: submission.status,
+        receivedFiles: Object.keys(files),
+      };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Failed to process tracker HTML bundle' });
     }
   });
 
@@ -1021,6 +1432,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'Match not found' });
       }
 
+      const userIds = getUniqueUserIds(match.playerStats);
+
       // If match was completed, reverse all Elo changes and user stats
       if (match.status === 'COMPLETED' && match.eloChanges.length > 0) {
         fastify.log.info(`Reversing Elo changes for match ${matchId}`);
@@ -1037,32 +1450,6 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             },
           });
         }
-
-        // Reverse aggregated user stats (totalKills, totalDeaths, etc.)
-        for (const playerStat of match.playerStats) {
-          await prisma.user.update({
-            where: { id: playerStat.userId },
-            data: {
-              totalKills: {
-                decrement: playerStat.kills,
-              },
-              totalDeaths: {
-                decrement: playerStat.deaths,
-              },
-              totalAssists: {
-                decrement: playerStat.assists,
-              },
-              totalACS: {
-                decrement: playerStat.acs,
-              },
-              totalADR: {
-                decrement: playerStat.adr,
-              },
-            },
-          });
-        }
-
-        fastify.log.info(`Reversed stats for ${match.playerStats.length} players in match ${matchId}`);
       }
 
       // Delete the match (cascade will handle related records)
@@ -1070,7 +1457,9 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         where: { id: matchId },
       });
 
-      return { message: 'Match deleted successfully. Elo and stats have been reversed.' };
+      await recalculateUserTotals(userIds);
+
+      return { message: 'Match deleted successfully. Elo and aggregated stats recalculated.' };
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
@@ -2016,9 +2405,9 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           isBanned: false,
           discordId: {
             not: {
-              startsWith: '10000000000000000',
-            },
+            startsWith: '10000000000000000',
           },
+        },
         },
         orderBy: {
           createdAt: 'desc',
@@ -3001,15 +3390,6 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         };
       }
 
-      // Save player stats
-      const eloService = new EloService();
-      const eloResults: Array<{
-        userId: string;
-        oldElo: number;
-        newElo: number;
-        change: number;
-      }> = [];
-
       // Update team scores
       const mapsWon = {
         alpha: maps.filter(m => {
@@ -3032,85 +3412,16 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         data: { mapsWon: mapsWon.bravo },
       });
 
-      // Calculate average Elos for Elo calculation
-      const winnerTeam = match.teams.find(t => t.id === winnerTeamId);
-      const loserTeam = match.teams.find(t => t.id !== winnerTeamId);
-
-      if (!winnerTeam || !loserTeam) {
-        return reply.code(400).send({ error: 'Invalid winner team' });
-      }
-
-      const winnerAvgElo = await eloService.getTeamAverageElo(winnerTeam.members.map(m => m.userId));
-      const loserAvgElo = await eloService.getTeamAverageElo(loserTeam.members.map(m => m.userId));
-
-      // Save stats and calculate Elo for each player
-      for (const [playerId, stats] of aggregatedStats.entries()) {
-        const playerTeam = match.teams.find(t => t.id === stats.teamId);
-        if (!playerTeam) continue;
-
-        // Calculate derived stats
-        const kd = stats.deaths > 0 ? stats.kills / stats.deaths : stats.kills;
-        const plusMinus = stats.kills - stats.deaths;
-
-        // Save/update player stats
-        await prisma.playerMatchStats.upsert({
-          where: {
-            matchId_userId: {
-              matchId,
-              userId: playerId,
-            },
-          },
-          create: {
-            matchId,
-            userId: playerId,
-            teamId: stats.teamId,
-            kills: stats.kills,
-            deaths: stats.deaths,
-            assists: stats.assists,
-            acs: stats.acs,
-            adr: stats.adr,
-            headshotPercent: stats.headshotPercent,
-            firstKills: stats.firstKills,
-            firstDeaths: stats.firstDeaths,
-            kast: stats.kast,
-            multiKills: stats.multiKills,
-            kd,
-            plusMinus,
-            wpr: 0, // TODO: Calculate WPR using WeightProfile
-          },
-          update: {
-            kills: stats.kills,
-            deaths: stats.deaths,
-            assists: stats.assists,
-            acs: stats.acs,
-            adr: stats.adr,
-            headshotPercent: stats.headshotPercent,
-            firstKills: stats.firstKills,
-            firstDeaths: stats.firstDeaths,
-            kast: stats.kast,
-            multiKills: stats.multiKills,
-            kd,
-            plusMinus,
-          },
-        });
-
-        // Calculate Elo
-        const won = playerTeam.id === winnerTeamId;
-        const eloResult = await eloService.calculateElo({
-          userId: playerId,
-          matchId,
-          won,
+      const { eloResults } = await applyEloAdjustments({
+        fastify,
+        match: {
+          id: match.id,
           seriesType: match.seriesType,
-          opponentAvgElo: won ? loserAvgElo : winnerAvgElo,
-        });
-
-        eloResults.push({
-          userId: playerId,
-          oldElo: eloResult.oldElo,
-          newElo: eloResult.newElo,
-          change: eloResult.change,
-        });
-      }
+          teams: match.teams as TeamWithMembers[],
+        },
+        aggregatedStats,
+        winnerTeamId,
+      });
 
       // Update match status
       const completedAt = new Date();
@@ -3355,89 +3666,46 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         }
       }
 
-      // Calculate and save Elo (reuse EloService logic)
-      const eloService = new EloService();
-      const eloResults: Array<{
-        userId: string;
-        oldElo: number;
-        newElo: number;
-        change: number;
-      }> = [];
-
-      const winnerTeamMembers = await prisma.teamMember.findMany({
-        where: { teamId: winnerTeam.id },
-      });
-      const loserTeamMembers = await prisma.teamMember.findMany({
-        where: { teamId: createdTeams.find(t => t.id !== winnerTeam.id)?.id },
-      });
-
-      const winnerAvgElo = await eloService.getTeamAverageElo(winnerTeamMembers.map(m => m.userId));
-      const loserAvgElo = await eloService.getTeamAverageElo(loserTeamMembers.map(m => m.userId));
-
-      for (const [playerId, stats] of aggregatedStats.entries()) {
-        const playerTeam = createdTeams.find(t => t.id === stats.teamId);
-        if (!playerTeam) continue;
-
-        const kd = stats.deaths > 0 ? stats.kills / stats.deaths : stats.kills;
-        const plusMinus = stats.kills - stats.deaths;
-
-        await prisma.playerMatchStats.upsert({
-          where: {
-            matchId_userId: {
-              matchId,
-              userId: playerId,
+      const matchWithUsers = await prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          teams: {
+            include: {
+              members: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      username: true,
+                      discordId: true,
+                      avatar: true,
+                      elo: true,
+                      matchesPlayed: true,
+                      isCalibrating: true,
+                      peakElo: true,
+                    },
+                  },
+                },
+              },
             },
           },
-          create: {
-            matchId,
-            userId: playerId,
-            teamId: stats.teamId,
-            kills: stats.kills,
-            deaths: stats.deaths,
-            assists: stats.assists,
-            acs: stats.acs,
-            adr: stats.adr,
-            headshotPercent: stats.headshotPercent,
-            firstKills: stats.firstKills,
-            firstDeaths: stats.firstDeaths,
-            kast: stats.kast,
-            multiKills: stats.multiKills,
-            kd,
-            plusMinus,
-            wpr: 0,
-          },
-          update: {
-            kills: stats.kills,
-            deaths: stats.deaths,
-            assists: stats.assists,
-            acs: stats.acs,
-            adr: stats.adr,
-            headshotPercent: stats.headshotPercent,
-            firstKills: stats.firstKills,
-            firstDeaths: stats.firstDeaths,
-            kast: stats.kast,
-            multiKills: stats.multiKills,
-            kd,
-            plusMinus,
-          },
-        });
+        },
+      });
 
-        const won = playerTeam.id === winnerTeam.id;
-        const eloResult = await eloService.calculateElo({
-          userId: playerId,
-          matchId,
-          won,
-          seriesType: match.seriesType,
-          opponentAvgElo: won ? loserAvgElo : winnerAvgElo,
-        });
-
-        eloResults.push({
-          userId: playerId,
-          oldElo: eloResult.oldElo,
-          newElo: eloResult.newElo,
-          change: eloResult.change,
-        });
+      if (!matchWithUsers) {
+        return reply.code(404).send({ error: 'Match not found after import' });
       }
+
+      const { eloResults } = await applyEloAdjustments({
+        fastify,
+        match: {
+          id: matchWithUsers.id,
+          seriesType: matchWithUsers.seriesType,
+          teams: matchWithUsers.teams as TeamWithMembers[],
+        },
+        aggregatedStats,
+        winnerTeamId: winnerTeam.id,
+      });
 
       // Update match
       await prisma.match.update({
@@ -3499,7 +3767,22 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         include: {
           teams: {
             include: {
-              members: true,
+              members: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      username: true,
+                      discordId: true,
+                      avatar: true,
+                      elo: true,
+                      matchesPlayed: true,
+                      isCalibrating: true,
+                      peakElo: true,
+                    },
+                  },
+                },
+              },
             },
           },
           maps: {
@@ -3650,26 +3933,30 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       let message = 'Map stats submitted successfully';
 
       if (totalPlayedAfterUpdate < mapsNeeded) {
-        // More maps needed - return to pick/ban phase
         nextStatus = 'MAP_PICK_BAN';
         message = 'Map stats submitted. Moving to next map pick/ban phase.';
       } else {
-        // All maps played - complete match and calculate Elo
-        const eloService = new EloService();
-        const eloResults: Array<{
-          userId: string;
-          oldElo: number;
-          newElo: number;
-          change: number;
-        }> = [];
-
-        // Reload match to get updated mapsWon counts and team members
         const updatedMatch = await prisma.match.findUnique({
           where: { id: matchId },
           include: {
             teams: {
               include: {
-                members: true,
+                members: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        username: true,
+                        discordId: true,
+                        avatar: true,
+                        elo: true,
+                        matchesPlayed: true,
+                        isCalibrating: true,
+                        peakElo: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -3679,62 +3966,76 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           return reply.code(404).send({ error: 'Match not found after update' });
         }
 
-        const updatedTeamAlpha = updatedMatch.teams.find(t => t.name === 'Team Alpha');
-        const updatedTeamBravo = updatedMatch.teams.find(t => t.name === 'Team Bravo');
+        const updatedTeamAlpha = updatedMatch.teams.find(
+          (t) => t.name === 'Team Alpha',
+        );
+        const updatedTeamBravo = updatedMatch.teams.find(
+          (t) => t.name === 'Team Bravo',
+        );
 
         if (!updatedTeamAlpha || !updatedTeamBravo) {
           return reply.code(400).send({ error: 'Teams not found' });
         }
 
-        // Determine overall winner
         const finalMapsWon = {
           alpha: updatedTeamAlpha.mapsWon || 0,
           bravo: updatedTeamBravo.mapsWon || 0,
         };
 
-        const overallWinnerTeamId = finalMapsWon.alpha > finalMapsWon.bravo 
-          ? updatedTeamAlpha.id 
-          : updatedTeamBravo.id;
+        const overallWinnerTeamId =
+          finalMapsWon.alpha > finalMapsWon.bravo
+            ? updatedTeamAlpha.id
+            : updatedTeamBravo.id;
 
-        // Calculate average Elos
-        const winnerTeam = updatedMatch.teams.find(t => t.id === overallWinnerTeamId);
-        const loserTeam = updatedMatch.teams.find(t => t.id !== overallWinnerTeamId);
+        const statsRecords = await prisma.playerMatchStats.findMany({
+          where: { matchId },
+          select: {
+            userId: true,
+            teamId: true,
+            kills: true,
+            deaths: true,
+            assists: true,
+            acs: true,
+            adr: true,
+            headshotPercent: true,
+            firstKills: true,
+            firstDeaths: true,
+            kast: true,
+            multiKills: true,
+            damageDelta: true,
+          },
+        });
 
-        if (winnerTeam && loserTeam) {
-          const winnerAvgElo = await eloService.getTeamAverageElo(winnerTeam.members.map(m => m.userId));
-          const loserAvgElo = await eloService.getTeamAverageElo(loserTeam.members.map(m => m.userId));
-
-          // Calculate Elo for ALL players in the match (not just the last map)
-          const allPlayerIds = new Set([
-            ...updatedTeamAlpha.members.map(m => m.userId),
-            ...updatedTeamBravo.members.map(m => m.userId),
-          ]);
-
-          for (const playerId of allPlayerIds) {
-            const playerTeam = updatedMatch.teams.find(t => 
-              t.members.some(m => m.userId === playerId)
-            );
-            if (!playerTeam) continue;
-
-            const won = playerTeam.id === overallWinnerTeamId;
-            const eloResult = await eloService.calculateElo({
-              userId: playerId,
-              matchId,
-              won,
-              seriesType: match.seriesType,
-              opponentAvgElo: won ? loserAvgElo : winnerAvgElo,
-            });
-
-            eloResults.push({
-              userId: playerId,
-              oldElo: eloResult.oldElo,
-              newElo: eloResult.newElo,
-              change: eloResult.change,
-            });
-          }
+        const aggregatedFinalStats = new Map<string, AggregatedPlayerStats>();
+        for (const record of statsRecords) {
+          aggregatedFinalStats.set(record.userId, {
+            userId: record.userId,
+            teamId: record.teamId ?? undefined,
+            kills: record.kills,
+            deaths: record.deaths,
+            assists: record.assists,
+            acs: record.acs,
+            adr: record.adr,
+            headshotPercent: record.headshotPercent ?? 0,
+            firstKills: record.firstKills ?? 0,
+            firstDeaths: record.firstDeaths ?? 0,
+            kast: record.kast ?? 0,
+            multiKills: record.multiKills ?? 0,
+            damageDelta: record.damageDelta ?? 0,
+          });
         }
 
-        // Update match status
+        const { eloResults } = await applyEloAdjustments({
+          fastify,
+          match: {
+            id: updatedMatch.id,
+            seriesType: updatedMatch.seriesType,
+            teams: updatedMatch.teams as TeamWithMembers[],
+          },
+          aggregatedStats: aggregatedFinalStats,
+          winnerTeamId: overallWinnerTeamId,
+        });
+
         await prisma.match.update({
           where: { id: matchId },
           data: {

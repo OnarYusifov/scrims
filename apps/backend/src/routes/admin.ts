@@ -10,6 +10,13 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     }
   };
 
+  const requireRoot = async (request: FastifyRequest, reply: FastifyReply) => {
+    const userRole = (request as any).user?.role;
+    if (userRole !== 'ROOT') {
+      return reply.code(403).send({ error: 'Root permissions required' });
+    }
+  };
+
   // Get all users (admin only)
   fastify.get('/users', {
     onRequest: [fastify.authenticate, requireAdmin],
@@ -74,6 +81,99 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  fastify.post('/reset', {
+    onRequest: [fastify.authenticate, requireRoot],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const adminUserId = (request as any).user.userId;
+
+      const result = await prisma.$transaction(async (tx) => {
+        const [
+          matchCount,
+          playerStatsCount,
+          submissionCount,
+          eloCount,
+          voteCount,
+          mapCount,
+          teamCount,
+          teamMemberCount,
+        ] = await Promise.all([
+          tx.match.count(),
+          tx.playerMatchStats.count(),
+          tx.matchStatsSubmission.count(),
+          tx.eloHistory.count(),
+          tx.matchVote.count(),
+          tx.mapSelection.count(),
+          tx.team.count(),
+          tx.teamMember.count(),
+        ]);
+
+        await tx.matchStatsSubmission.deleteMany({});
+        await tx.matchVote.deleteMany({});
+        await tx.playerMatchStats.deleteMany({});
+        await tx.mapSelection.deleteMany({});
+        await tx.teamMember.deleteMany({});
+        await tx.team.deleteMany({});
+        await tx.eloHistory.deleteMany({});
+        await tx.match.deleteMany({});
+
+        const usersUpdated = await tx.user.updateMany({
+          data: {
+            elo: 800,
+            peakElo: 800,
+            matchesPlayed: 0,
+            isCalibrating: true,
+            totalKills: 0,
+            totalDeaths: 0,
+            totalAssists: 0,
+            totalACS: 0,
+            totalADR: 0,
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: adminUserId,
+            action: 'APP_DATA_RESET',
+            entity: 'System',
+            entityId: 'global',
+            details: {
+              matchCount,
+              playerStatsCount,
+              submissionCount,
+              eloCount,
+              voteCount,
+              mapCount,
+              teamCount,
+              teamMemberCount,
+              usersUpdated: usersUpdated.count,
+            },
+          },
+        });
+
+        return {
+          matchCount,
+          playerStatsCount,
+          submissionCount,
+          eloCount,
+          voteCount,
+          mapCount,
+          teamCount,
+          teamMemberCount,
+          usersUpdated: usersUpdated.count,
+        };
+      });
+
+      return {
+        message: 'Application data has been reset to baseline.',
+        ...result,
+      };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Failed to reset application data' });
     }
   });
 

@@ -8,6 +8,8 @@ import { Search, Trophy, Crown, TrendingUp, TrendingDown, AlertCircle } from "lu
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 
 interface LeaderboardEntry {
   rank: number
@@ -22,6 +24,7 @@ interface LeaderboardEntry {
   avgKD: number
   avgACS: number
   avgADR: number
+  rankName: string
 }
 
 export default function LeaderboardPage() {
@@ -173,118 +176,126 @@ export default function LeaderboardPage() {
         ) : (
           <Card className="border-gray-200 dark:border-terminal-border bg-white dark:bg-terminal-panel">
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-gray-200 dark:border-terminal-border">
-                    <th className="px-6 py-4 text-left text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
-                      Rank
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
-                      Player
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
-                      Elo
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
-                      Peak
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
-                      Matches
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
-                      K/D
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold font-mono uppercase text-gray-700 dark:text-matrix-500">
-                      Avg ACS
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Rank</TableHead>
+                    <TableHead>Player</TableHead>
+                    <TableHead className="text-right">Elo</TableHead>
+                    <TableHead className="text-right">Peak</TableHead>
+                    <TableHead className="text-right">Matches</TableHead>
+                    <TableHead className="text-right">K/D</TableHead>
+                    <TableHead className="text-right">Avg ACS</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {filteredLeaderboard.map((player, index) => {
                     const eloChange = player.elo - 800 // Simple calculation from starting Elo
                     const isTop3 = player.rank <= 3
 
                     return (
-                      <motion.tr
+                      <TableRow
+                        asChild
                         key={player.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="border-b border-gray-100 dark:border-terminal-border hover:bg-gray-50 dark:hover:bg-terminal-panel/50 cursor-pointer transition-colors"
-                        onClick={() => router.push(`/profile/${player.id}`)}
+                        onClick={() => router.push(`/profile/${player.discordId}`)}
                       >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            {isTop3 && (
-                              <Crown className={`h-4 w-4 ${
-                                player.rank === 1 ? 'text-yellow-500' :
-                                player.rank === 2 ? 'text-gray-400' :
-                                'text-amber-700'
-                              }`} />
-                            )}
-                            <span className="font-mono font-bold text-gray-900 dark:text-matrix-500">
-                              #{player.rank}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10">
-                              {player.avatar ? (
-                                <AvatarImage
-                                  src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar}.png?size=64`}
-                                  alt={player.username}
+                        <motion.tr
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="cursor-pointer"
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {isTop3 && (
+                                <Crown
+                                  className={cn(
+                                    "h-4 w-4",
+                                    player.rank === 1
+                                      ? "text-yellow-500"
+                                      : player.rank === 2
+                                        ? "text-gray-400"
+                                        : "text-amber-700",
+                                  )}
                                 />
-                              ) : (
-                                <AvatarFallback className="bg-gray-200 dark:bg-terminal-panel text-gray-700 dark:text-matrix-500">
-                                  {player.username.charAt(0).toUpperCase()}
-                                </AvatarFallback>
                               )}
-                            </Avatar>
-                            <div>
-                              <p className="font-mono font-semibold text-gray-900 dark:text-matrix-400">
-                                {player.username}
-                              </p>
-                              {player.isCalibrating && (
-                                <span className="text-xs font-mono text-yellow-600 dark:text-yellow-500">
-                                  CALIBRATING
+                              <div className="flex flex-col leading-tight">
+                                <span className="font-bold text-gray-900 dark:text-matrix-500">
+                                  {player.rankName}
                                 </span>
-                              )}
+                                <span className="text-xs text-gray-500 dark:text-terminal-muted">
+                                  #{player.rank}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="font-mono font-bold text-lg text-gray-900 dark:text-matrix-500">
-                            {player.elo}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="font-mono text-sm text-gray-600 dark:text-terminal-muted">
-                            {player.peakElo}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="font-mono text-gray-700 dark:text-matrix-400">
-                            {player.matchesPlayed}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className={`font-mono font-semibold ${
-                            player.avgKD >= 1.0 ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-terminal-muted'
-                          }`}>
-                            {player.avgKD.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="font-mono text-gray-700 dark:text-cyber-400">
-                            {Math.round(player.avgACS)}
-                          </span>
-                        </td>
-                      </motion.tr>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10 border border-terminal-border/70">
+                                {player.avatar ? (
+                                  <AvatarImage
+                                    src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar}.png?size=64`}
+                                    alt={player.username}
+                                  />
+                                ) : (
+                                  <AvatarFallback className="bg-gray-200 dark:bg-terminal-panel text-gray-700 dark:text-matrix-500">
+                                    {player.username.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                )}
+                              </Avatar>
+                              <div>
+                                <p className="font-semibold text-gray-900 dark:text-matrix-400">
+                                  {player.username}
+                                </p>
+                                {player.isCalibrating && (
+                                  <span className="text-xs text-yellow-600 dark:text-yellow-500">
+                                    CALIBRATING
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="font-bold text-lg text-gray-900 dark:text-matrix-500">
+                              {player.elo}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-sm text-gray-600 dark:text-terminal-muted">
+                              {player.peakElo}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-gray-700 dark:text-matrix-400">
+                              {player.matchesPlayed}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span
+                              className={cn(
+                                "font-semibold",
+                                player.avgKD >= 1
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-gray-600 dark:text-terminal-muted",
+                              )}
+                            >
+                              {player.avgKD.toFixed(2)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-sm text-gray-700 dark:text-cyber-400">
+                              {Math.round(player.avgACS)}
+                            </span>
+                          </TableCell>
+                        </motion.tr>
+                      </TableRow>
                     )
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+                <TableCaption className="font-mono">
+                  Elo change shown relative to the default starting rating (800 Elo).
+                </TableCaption>
+              </Table>
             </div>
           </Card>
         )}

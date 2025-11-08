@@ -28,6 +28,8 @@ interface DiscordBotConfig {
   teamAlphaChannelId: string;
   teamBravoChannelId: string;
   resultsChannelId: string;
+  rankRoles: Array<{ roleId: string; minElo: number; maxElo?: number }>;
+  unrankedRoleId?: string;
   logger?: FastifyBaseLogger;
 }
 
@@ -45,6 +47,8 @@ export class DiscordBot {
   private guild: Guild | null = null;
   private readyPromise: Promise<void> | null = null;
   private channels: ChannelState = {};
+  private readonly rankRoles: Array<{ roleId: string; minElo: number; maxElo?: number }>;
+  private readonly unrankedRoleId?: string;
 
   constructor(config: DiscordBotConfig) {
     this.config = config;
@@ -65,6 +69,9 @@ export class DiscordBot {
     this.client.on('warn', (message) => {
       this.logger?.warn({ message }, 'Discord client warning');
     });
+
+    this.rankRoles = [...config.rankRoles].sort((a, b) => a.minElo - b.minElo);
+    this.unrankedRoleId = config.unrankedRoleId;
   }
 
   async init(): Promise<void> {
@@ -149,6 +156,68 @@ export class DiscordBot {
     this.readyPromise = null;
     this.guild = null;
     this.channels = {};
+  }
+
+  async updateRankRole({
+    discordId,
+    elo,
+    isCalibrating,
+  }: {
+    discordId: string;
+    elo: number;
+    isCalibrating: boolean;
+  }): Promise<void> {
+    if (!this.guild) {
+      return;
+    }
+
+    try {
+      await this.ensureReady();
+    } catch (err) {
+      this.logger?.error({ err }, 'Discord bot not ready for rank role update');
+      return;
+    }
+
+    try {
+      const member = await this.guild.members.fetch(discordId);
+
+      const roleIdsToConsider = [
+        ...this.rankRoles.map((role) => role.roleId),
+        ...(this.unrankedRoleId ? [this.unrankedRoleId] : []),
+      ];
+
+      const rolesToRemove = member.roles.cache.filter((role) =>
+        roleIdsToConsider.includes(role.id),
+      );
+
+      if (rolesToRemove.size > 0) {
+        await member.roles.remove(
+          Array.from(rolesToRemove.keys()),
+          'TrayB Customs rank role update - cleanup',
+        );
+      }
+
+      let targetRoleId: string | undefined;
+      if (isCalibrating) {
+        targetRoleId = this.unrankedRoleId;
+      } else {
+        const role = this.rankRoles.find(
+          (entry) =>
+            elo >= entry.minElo &&
+            (entry.maxElo === undefined || elo <= entry.maxElo),
+        );
+        targetRoleId = role?.roleId ?? this.rankRoles[this.rankRoles.length - 1]?.roleId;
+      }
+
+      if (targetRoleId && !member.roles.cache.has(targetRoleId)) {
+        await member.roles.add(targetRoleId, 'TrayB Customs rank role update');
+      }
+    } catch (err) {
+      this.logger?.error(
+        { err, discordId },
+        'Failed to update Discord rank role',
+      );
+    }
   }
 
   async syncLobby(payload: LobbySyncPayload): Promise<void> {

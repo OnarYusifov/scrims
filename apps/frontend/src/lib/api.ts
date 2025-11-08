@@ -3,6 +3,16 @@ import { Match, MatchStatus, SeriesType, MatchStatsSource, MatchStatsReviewStatu
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 export async function apiRequest<T>(
   endpoint: string,
   options?: RequestInit
@@ -28,7 +38,7 @@ export async function apiRequest<T>(
 
     if (!response.ok) {
       if (response.status === 401) {
-        throw new Error('Unauthorized');
+        throw new ApiError('Unauthorized', response.status);
       }
       // Try to get error message from response
       let errorMessage = `API error: ${response.status}`;
@@ -38,17 +48,56 @@ export async function apiRequest<T>(
       } catch {
         // If response is not JSON, use default message
       }
-      throw new Error(errorMessage);
+      throw new ApiError(errorMessage, response.status);
     }
 
     return response.json();
   } catch (error) {
     // Handle network errors
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error(`Cannot connect to server. Make sure the backend is running on ${API_URL}`);
+      throw new ApiError(
+        `Cannot connect to server. Make sure the backend is running on ${API_URL}`,
+        0,
+      );
     }
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(
+      error instanceof Error ? error.message : 'Unknown API error',
+      0,
+    );
   }
+}
+
+export interface ProfileMatchSummary {
+  id: string;
+  createdAt: string;
+  status: MatchStatus;
+  seriesType: SeriesType;
+  result: 'WIN' | 'LOSS' | 'PENDING';
+  score: {
+    user: number;
+    opponent: number;
+  };
+  userTeamName: string;
+  opponentTeamName: string;
+  userStats: {
+    kills: number;
+    deaths: number;
+    assists: number;
+    acs: number;
+    adr: number;
+    kast: number | null;
+    firstKills: number | null;
+    headshotPercent: number | null;
+    multiKills: number | null;
+    wpr: number | null;
+    damageDelta: number | null;
+    rating20: number | null;
+  };
+  eloChange: number | null;
+  newElo: number | null;
 }
 
 export interface ProfileData {
@@ -70,9 +119,11 @@ export interface ProfileData {
     avgADR: number;
     createdAt: string;
     lastLogin?: string;
+    rankName: string;
   };
   eloHistory: Array<{
     id: string;
+    matchId: string;
     oldElo: number;
     newElo: number;
     change: number;
@@ -80,6 +131,8 @@ export interface ProfileData {
     seriesType: string;
     createdAt: string;
   }>;
+  matchHistory: ProfileMatchSummary[];
+  matchHistoryCount: number;
   recentStats: {
     acs: number;
     adr: number;
@@ -87,15 +140,76 @@ export interface ProfileData {
     headshotPercent: number;
     kd: number;
     wpr: number;
+    rating20: number;
+  };
+  summary: {
+    wins: number;
+    losses: number;
+    winRate: number;
+    completedMatches: number;
+    currentStreak: { type: 'WIN' | 'LOSS'; length: number } | null;
+    longestWinStreak: number;
+    longestLossStreak: number;
+  };
+  careerStats: {
+    matchesRecorded: number;
+    kills: number;
+    deaths: number;
+    assists: number;
+    damageDelta: number;
+    kd: number;
+    rating20: number;
+    acs: number;
+    adr: number;
+    kast: number;
+    headshotPercent: number;
+    wpr: number;
   };
 }
 
-export async function fetchProfile(): Promise<ProfileData> {
-  return apiRequest<ProfileData>('/api/users/profile');
+export type ProfileRequestOptions = {
+  fullHistory?: boolean;
+};
+
+function buildProfileEndpoint(base: string, options?: ProfileRequestOptions): string {
+  if (!options?.fullHistory) {
+    return base;
+  }
+  const params = new URLSearchParams({ fullHistory: 'true' });
+  return `${base}?${params.toString()}`;
 }
 
-export async function fetchUserProfile(userId: string): Promise<ProfileData> {
-  return apiRequest<ProfileData>(`/api/users/${userId}`);
+export async function fetchProfile(options?: ProfileRequestOptions): Promise<ProfileData | null> {
+  try {
+    return await apiRequest<ProfileData>(buildProfileEndpoint('/api/users/profile', options));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function fetchUserProfile(userId: string, options?: ProfileRequestOptions): Promise<ProfileData | null> {
+  try {
+    return await apiRequest<ProfileData>(buildProfileEndpoint(`/api/users/${userId}`, options));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function fetchProfileByDiscordId(discordId: string, options?: ProfileRequestOptions): Promise<ProfileData | null> {
+  try {
+    return await apiRequest<ProfileData>(buildProfileEndpoint(`/api/users/discord/${discordId}`, options));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 // Match API functions
@@ -249,6 +363,25 @@ export async function addToWhitelist(discordId: string): Promise<User> {
 export async function removeFromWhitelist(userId: string): Promise<User> {
   return apiRequest<User>(`/api/admin/whitelist/${userId}`, {
     method: 'DELETE',
+  });
+}
+
+export interface ResetApplicationDataResponse {
+  message: string;
+  matchCount: number;
+  playerStatsCount: number;
+  submissionCount: number;
+  eloCount: number;
+  voteCount: number;
+  mapCount: number;
+  teamCount: number;
+  teamMemberCount: number;
+  usersUpdated: number;
+}
+
+export async function resetApplicationData(): Promise<ResetApplicationDataResponse> {
+  return apiRequest<ResetApplicationDataResponse>('/api/admin/reset', {
+    method: 'POST',
   });
 }
 
@@ -552,6 +685,10 @@ export interface EloChangeResult {
   oldElo: number;
   newElo: number;
   change: number;
+  performanceMultiplier?: number;
+  teamMultiplier?: number;
+  rawPerformance?: number;
+  rating20?: number;
 }
 
 export async function submitMatchStats(
@@ -639,6 +776,60 @@ export async function uploadMatchScoreboard(
   }
 
   return (await response.json()) as UploadMatchScoreboardResponse;
+}
+
+export interface UploadTrackerBundleResponse {
+  message: string;
+  submissionId: string;
+  statsStatus: MatchStatsReviewStatus;
+  receivedFiles: string[];
+}
+
+export async function uploadMatchTrackerBundle(
+  matchId: string,
+  files: Partial<Record<'scoreboard' | 'rounds' | 'duels' | 'economy' | 'performance', File>>,
+): Promise<UploadTrackerBundleResponse> {
+  const token = getToken();
+  const formData = new FormData();
+
+  let appendedCount = 0;
+  Object.entries(files).forEach(([key, value]) => {
+    if (value) {
+      formData.append(key, value);
+      appendedCount += 1;
+    }
+  });
+
+  if (appendedCount === 0) {
+    throw new Error('At least one tracker HTML file must be provided');
+  }
+
+  const response = await fetch(
+    `${API_URL}/api/matches/${matchId}/stats/tracker`,
+    {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : undefined,
+    },
+  );
+
+  if (!response.ok) {
+    let message = 'Failed to upload tracker HTML bundle';
+    try {
+      const errorData = await response.json();
+      message = errorData?.error || errorData?.message || message;
+    } catch {
+      // ignore parsing errors
+    }
+    throw new Error(message);
+  }
+
+  return (await response.json()) as UploadTrackerBundleResponse;
 }
 export async function submitMapStats(
   matchId: string,

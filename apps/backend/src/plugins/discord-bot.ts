@@ -19,6 +19,54 @@ export default fp(async (fastify: FastifyInstance) => {
     process.env.DISCORD_TEAM_BRAVO_CHANNEL_ID || '1426995070590255186';
   const resultsChannelId =
     process.env.DISCORD_RESULTS_CHANNEL_ID || '1436464923365605426';
+  const unrankedRoleId =
+    process.env.DISCORD_ROLE_UNRANKED || '1436586571590533281';
+  const rankRoles = [
+    {
+      roleId: process.env.DISCORD_ROLE_WOOD || '1436456144737407046',
+      minElo: 0,
+      maxElo: 499,
+    },
+    {
+      roleId: process.env.DISCORD_ROLE_BRONZE || '1436456904728641606',
+      minElo: 500,
+      maxElo: 799,
+    },
+    {
+      roleId: process.env.DISCORD_ROLE_SILVER || '1436457063935901706',
+      minElo: 800,
+      maxElo: 1099,
+    },
+    {
+      roleId: process.env.DISCORD_ROLE_GOLD || '1436457209994285218',
+      minElo: 1100,
+      maxElo: 1299,
+    },
+    {
+      roleId: process.env.DISCORD_ROLE_PLATINUM || '1436457318911836210',
+      minElo: 1300,
+      maxElo: 1499,
+    },
+    {
+      roleId: process.env.DISCORD_ROLE_DIAMOND || '1436457405977460786',
+      minElo: 1500,
+      maxElo: 1699,
+    },
+    {
+      roleId: process.env.DISCORD_ROLE_EMERALD || '1436457518938324992',
+      minElo: 1700,
+      maxElo: 1849,
+    },
+    {
+      roleId: process.env.DISCORD_ROLE_RUBY || '1436457553885270218',
+      minElo: 1850,
+      maxElo: 1999,
+    },
+    {
+      roleId: process.env.DISCORD_ROLE_GOD || '1436457820609450125',
+      minElo: 2000,
+    },
+  ];
 
   if (!token || !guildId) {
     fastify.log.warn(
@@ -34,6 +82,8 @@ export default fp(async (fastify: FastifyInstance) => {
     teamAlphaChannelId,
     teamBravoChannelId,
     resultsChannelId,
+    rankRoles,
+    unrankedRoleId,
     logger: fastify.log,
   });
 

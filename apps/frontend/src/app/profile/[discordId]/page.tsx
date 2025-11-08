@@ -1,29 +1,40 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useAuth } from "@/hooks/use-auth"
-import { fetchProfile, ProfileData } from "@/lib/api"
-import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
+import { fetchProfileByDiscordId, ProfileData } from "@/lib/api"
 import { UserProfileView } from "@/components/profile/user-profile-view"
 
-export default function ProfilePage() {
-  const { user: currentUser, isAuthenticated, isLoading: authLoading } = useAuth()
+export default function UserProfileByDiscordIdPage() {
+  const params = useParams<{ discordId: string }>()
   const router = useRouter()
+  const { user: currentUser, isAuthenticated, isLoading: authLoading } = useAuth()
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isFullHistory, setIsFullHistory] = useState(false)
 
+  const discordId = params?.discordId
+
+  useEffect(() => {
+    setIsFullHistory(false)
+  }, [discordId])
+
   const loadProfile = useCallback(
     async (fullHistory = false) => {
+      if (!discordId) return
       try {
-        setError(null)
         setIsLoading(true)
-        const data = await fetchProfile(fullHistory ? { fullHistory: true } : undefined)
+        setError(null)
+        const data = await fetchProfileByDiscordId(
+          discordId,
+          fullHistory ? { fullHistory: true } : undefined
+        )
         if (!data) {
           setError("Profile not found")
           setProfileData(null)
@@ -37,7 +48,7 @@ export default function ProfilePage() {
         setIsLoading(false)
       }
     },
-    []
+    [discordId]
   )
 
   useEffect(() => {
@@ -45,40 +56,27 @@ export default function ProfilePage() {
       return
     }
 
-    if (!isAuthenticated || !currentUser) {
+    if (!isAuthenticated) {
       router.push("/login")
       return
     }
 
+    if (!discordId) {
+      setError("Invalid profile ID")
+      setIsLoading(false)
+      return
+    }
+
+    // Redirect to own profile route for consistency
+    if (currentUser?.discordId === discordId) {
+      router.replace("/profile")
+      return
+    }
+
     loadProfile(isFullHistory)
-  }, [isAuthenticated, authLoading, currentUser, router, loadProfile, isFullHistory])
+  }, [authLoading, isAuthenticated, discordId, router, currentUser, loadProfile, isFullHistory])
 
-  // Show loading state while auth is being checked
-  if (authLoading) {
-    return (
-      <div className="container relative py-10">
-        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center"
-          >
-            <div className="h-12 w-12 border-2 border-matrix-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-lg font-mono text-matrix-500">
-              CHECKING_AUTH<span className="animate-terminal-blink">_</span>
-            </p>
-          </motion.div>
-        </div>
-      </div>
-    )
-  }
-
-  // Redirect if not authenticated (handled by useEffect, but show loading during redirect)
-  if (!isAuthenticated || !currentUser) {
-    return null
-  }
-
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="container relative py-10">
         <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
@@ -97,23 +95,27 @@ export default function ProfilePage() {
     )
   }
 
+  if (!isAuthenticated) {
+    return null
+  }
+
   if (error || !profileData) {
     return (
       <div className="container relative py-10">
         <Card className="border-terminal-border bg-white/80 dark:bg-terminal-panel">
           <CardHeader className="space-y-3">
-            <CardTitle className="flex items-center justify-between font-mono text-lg text-gray-900 dark:text-matrix-500">
-              PROFILE UNAVAILABLE
+            <CardTitle className="font-mono text-lg text-gray-900 dark:text-matrix-500">
+              PROFILE NOT AVAILABLE
             </CardTitle>
             <CardDescription className="font-mono text-sm text-terminal-muted">
-              {error || "We couldn't load your profile right now. Please check your connection or try again later."}
+              {error || "The requested player profile could not be found or is no longer accessible."}
             </CardDescription>
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="outline" className="font-mono">
-                <Link href="/dashboard">Go to Dashboard</Link>
+                <Link href="/leaderboard">Back to Leaderboard</Link>
               </Button>
               <Button asChild variant="terminal" className="font-mono">
-                <Link href="/matches">View Matches</Link>
+                <Link href="/matches">Browse Matches</Link>
               </Button>
             </div>
           </CardHeader>
@@ -136,10 +138,11 @@ export default function ProfilePage() {
   return (
     <UserProfileView
       profile={profileData}
-      isOwnProfile
       onViewAllMatches={canViewAllMatches ? handleViewAllMatches : undefined}
       canViewAll={canViewAllMatches}
       isViewingAll={isFullHistory}
     />
   )
 }
+
+
