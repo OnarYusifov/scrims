@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import type { MatchStatsReviewStatus } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Upload, X, Loader2, CheckCircle2, AlertCircle, Image as ImageIcon } from "lucide-react"
-import { extractStatsFromImage, ExtractedPlayerStats, fuzzyMatchUsername } from "@/lib/ocr"
+import { Upload, X, Loader2, CheckCircle2, AlertCircle, FileText } from "lucide-react"
+import { extractStatsFromHtml, ExtractedPlayerStats, fuzzyMatchUsername } from "@/lib/ocr"
 
 interface OCRStatsUploadProps {
   matchId: string
@@ -26,7 +26,7 @@ interface OCRStatsUploadProps {
 
 export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClose }: OCRStatsUploadProps) {
   const [isProcessing, setIsProcessing] = useState(false)
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
   const [extractedPlayers, setExtractedPlayers] = useState<ExtractedPlayerStats[]>([])
   const [playerMatches, setPlayerMatches] = useState<Map<number, string>>(new Map())
   const [submissionId, setSubmissionId] = useState<string | null>(null)
@@ -42,54 +42,49 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
     setIsProcessing(true)
 
     try {
-      // Show preview
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setUploadedImage(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-    // Process with OCR via backend
-    const { players, submissionId: newSubmissionId, statsStatus } = await extractStatsFromImage(matchId, file)
+      setUploadedFileName(file.name)
 
-    if (players.length === 0) {
-      throw new Error('No players detected in the image. Please ensure the image is clear and contains the stats table.')
-    }
+      const { players, submissionId: newSubmissionId, statsStatus } = await extractStatsFromHtml(matchId, file)
 
-    setSubmissionId(newSubmissionId)
-    setStatsReviewStatus(statsStatus)
-    setExtractedPlayers(players)
-
-      // Try to auto-match players
-    const matches = new Map<number, string>()
-
-    players.forEach((player, index) => {
-      const expectedTeamName = player.team === 'alpha' ? 'Team Alpha' : 'Team Bravo'
-      const teamCandidates = matchPlayers.filter(p => p.teamName === expectedTeamName)
-      const candidateUsernames = teamCandidates.map(p => p.username)
-      let matched = candidateUsernames.length
-        ? fuzzyMatchUsername(player.username, candidateUsernames)
-        : null
-
-      if (!matched) {
-        matched = fuzzyMatchUsername(player.username, matchPlayers.map(p => p.username))
+      if (players.length === 0) {
+        throw new Error('No players detected in the uploaded HTML file.')
       }
 
-      if (matched) {
-        const matchPlayer = matchPlayers.find(p => p.username === matched)
-        if (matchPlayer) {
-          matches.set(index, matchPlayer.userId)
+      setSubmissionId(newSubmissionId)
+      setStatsReviewStatus(statsStatus)
+      setExtractedPlayers(players)
+
+      const matches = new Map<number, string>()
+
+      players.forEach((player, index) => {
+        const expectedTeamName = player.team === 'alpha' ? 'Team Alpha' : 'Team Bravo'
+        const teamCandidates = matchPlayers.filter(p => p.teamName === expectedTeamName)
+        const candidateUsernames = teamCandidates.map(p => p.username)
+        let matched = candidateUsernames.length
+          ? fuzzyMatchUsername(player.username, candidateUsernames)
+          : null
+
+        if (!matched) {
+          matched = fuzzyMatchUsername(player.username, matchPlayers.map(p => p.username))
         }
-      }
-    })
+
+        if (matched) {
+          const matchPlayer = matchPlayers.find(p => p.username === matched)
+          if (matchPlayer) {
+            matches.set(index, matchPlayer.userId)
+          }
+        }
+      })
 
       setPlayerMatches(matches)
     } catch (err: any) {
-      console.error('OCR Error:', err)
-      setError(err.message || 'Failed to process image')
+      console.error('Scoreboard import error:', err)
+      setError(err.message || 'Failed to process scoreboard HTML')
       setExtractedPlayers([])
       setSubmissionId(null)
       setStatsReviewStatus(null)
       setPlayerMatches(new Map())
+      setUploadedFileName(null)
     } finally {
       setIsProcessing(false)
     }
@@ -154,7 +149,7 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
           <div className="flex items-center justify-between">
             <CardTitle className="font-mono uppercase text-matrix-500 flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              OCR STATS IMPORT
+              SCOREBOARD HTML IMPORT
             </CardTitle>
             <Button
               variant="outline"
@@ -170,12 +165,12 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
 
         <CardContent className="pt-6 space-y-6">
           {/* Upload Section */}
-          {!uploadedImage && (
+          {!uploadedFileName && (
             <div className="relative z-10" style={{ pointerEvents: 'auto' }}>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept=".html,text/html"
                 onChange={handleFileSelect}
                 className="hidden"
               />
@@ -187,13 +182,16 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
                 {isProcessing ? (
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="h-8 w-8 animate-spin text-matrix-500" />
-                    <span className="font-mono text-sm text-matrix-500">PROCESSING OCR...</span>
+                    <span className="font-mono text-sm text-matrix-500">PROCESSING...</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2">
-                    <ImageIcon className="h-8 w-8 text-matrix-500" />
+                    <FileText className="h-8 w-8 text-matrix-500" />
                     <span className="font-mono text-sm text-matrix-500">
-                      CLICK TO UPLOAD STATS SCREENSHOT
+                      CLICK TO UPLOAD SCOREBOARD HTML
+                    </span>
+                    <span className="font-mono text-[10px] text-terminal-muted">
+                      Export from tracker.gg scoreboard view
                     </span>
                   </div>
                 )}
@@ -217,7 +215,7 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
                   size="sm"
                   onClick={() => {
                     setError(null)
-                    setUploadedImage(null)
+                    setUploadedFileName(null)
                     setExtractedPlayers([])
                     setPlayerMatches(new Map())
                   }}
@@ -238,20 +236,15 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
             </div>
           )}
 
-          {/* Preview and Matching */}
-          {uploadedImage && extractedPlayers.length > 0 && (
+          {/* Uploaded file summary and matching */}
+          {uploadedFileName && extractedPlayers.length > 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="space-y-4"
             >
-              {/* Image Preview */}
-              <div className="border border-terminal-border rounded-lg overflow-hidden">
-                <img
-                  src={uploadedImage}
-                  alt="Uploaded stats"
-                  className="w-full h-auto max-h-64 object-contain bg-black"
-                />
+              <div className="border border-terminal-border rounded p-3 bg-terminal-panel/60 font-mono text-xs text-terminal-muted">
+                Uploaded file: <span className="text-matrix-500 font-semibold">{uploadedFileName}</span>
               </div>
 
               {/* Player Matching */}
@@ -288,7 +281,7 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
                               Detected: {player.username}
                             </p>
                             <p className="font-mono text-xs text-terminal-muted">
-                              ACS {player.acs} • K{player.kills} D{player.deaths} A{player.assists} • {expectedTeamName}
+                              Rank {player.rank || '—'} • ACS {player.acs ?? '—'} • K{player.kills ?? '—'} D{player.deaths ?? '—'} A{player.assists ?? '—'} • {expectedTeamName}
                             </p>
                           </div>
 
@@ -317,7 +310,7 @@ export function OCRStatsUpload({ matchId, matchPlayers, onStatsExtracted, onClos
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setUploadedImage(null)
+                    setUploadedFileName(null)
                     setExtractedPlayers([])
                     setPlayerMatches(new Map())
                     setSubmissionId(null)

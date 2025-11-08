@@ -8,7 +8,6 @@ nixPkgs = [
   'pixman',
   'libpng',
   'jpeg',
-  'vips',
   'giflib',
   'freetype',
   'librsvg'

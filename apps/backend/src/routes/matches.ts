@@ -1,14 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import fs from 'node:fs/promises';
-import { createWriteStream } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { randomUUID } from 'node:crypto';
-import { pipeline } from 'node:stream/promises';
 import { prisma } from '../index';
 import { EloService } from '../services/elo.service';
 import { randomService } from '../services/random.service';
-import { extractScoreboard } from '../services/ocr.service';
+import { parseScoreboardFromHtml } from '../services/scoreboard-html.service';
 import { MatchStatus, MatchStatsReviewStatus, MatchStatsSource, Prisma } from '@prisma/client';
 import {
   DiscordIdentity,
@@ -2392,7 +2386,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
 
     const file = await (request as any).file();
     if (!file) {
-      return reply.code(400).send({ error: 'Scoreboard image is required' });
+      return reply.code(400).send({ error: 'Scoreboard HTML file is required' });
     }
 
     const match = await prisma.match.findUnique({
@@ -2416,13 +2410,16 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       return reply.code(403).send({ error: 'Only match participants or admins can upload stats' });
     }
 
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ocr-'));
-    const ext = file.filename ? path.extname(file.filename) : ".png";
-    const tempPath = path.join(tempDir, `${randomUUID()}${ext || ""}`);
-
     try {
-      await pipeline(file.file, createWriteStream(tempPath));
-      const ocrResult = await extractScoreboard(tempPath);
+      const buffer = await file.toBuffer();
+      const html = buffer.toString('utf-8');
+      const parsed = parseScoreboardFromHtml(html);
+
+      if (!parsed.rawPlayerCount) {
+        return reply.code(400).send({ error: 'No scoreboard data detected in the uploaded file.' });
+      }
+
+      const submissionPayload = parsed as unknown as Prisma.JsonValue;
 
       const submission = await prisma.matchStatsSubmission.create({
         data: {
@@ -2430,7 +2427,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           uploaderId: userId,
           source: MatchStatsSource.OCR,
           status: MatchStatsReviewStatus.PENDING_REVIEW,
-          payload: ocrResult,
+          payload: submissionPayload,
         },
       });
 
@@ -2450,22 +2447,68 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             submissionId: submission.id,
             source: MatchStatsSource.OCR,
             status: submission.status,
+            rawPlayerCount: parsed.rawPlayerCount,
           },
         },
       });
 
+      const alphaTeam = parsed.teams.find((team) => /team\\s*a/i.test(team.name)) || parsed.teams[0];
+      const bravoTeam = parsed.teams.find((team) => /team\\s*b/i.test(team.name)) || parsed.teams[1] || {
+        name: 'Team B',
+        players: [],
+      };
+
+      const scoreboard = {
+        alpha: (alphaTeam?.players || []).map((player, index) => ({
+          team: 'alpha',
+          position: index + 1,
+          playerName: player.playerId,
+          rank: player.rank,
+          acs: player.acs,
+          kills: player.kills,
+          deaths: player.deaths,
+          assists: player.assists,
+          plusMinus: player.plusMinus,
+          kd: player.kd,
+          damageDelta: player.damageDelta,
+          adr: player.adr,
+          hsPercent: player.headshotPercent,
+          kastPercent: player.kast,
+          firstKills: player.firstKills,
+          firstDeaths: player.firstDeaths,
+          multiKills: player.multiKills,
+        })),
+        bravo: (bravoTeam?.players || []).map((player, index) => ({
+          team: 'bravo',
+          position: index + 1,
+          playerName: player.playerId,
+          rank: player.rank,
+          acs: player.acs,
+          kills: player.kills,
+          deaths: player.deaths,
+          assists: player.assists,
+          plusMinus: player.plusMinus,
+          kd: player.kd,
+          damageDelta: player.damageDelta,
+          adr: player.adr,
+          hsPercent: player.headshotPercent,
+          kastPercent: player.kast,
+          firstKills: player.firstKills,
+          firstDeaths: player.firstDeaths,
+          multiKills: player.multiKills,
+        })),
+        teams: parsed.teams,
+      };
+
       return {
-        message: 'OCR stats submitted for review',
+        message: 'Scoreboard HTML submitted for review',
         submissionId: submission.id,
         statsStatus: submission.status,
-        ocr: ocrResult,
+        scoreboard,
       };
     } catch (error) {
       fastify.log.error(error);
-      return reply.code(500).send({ error: 'Failed to process scoreboard image' });
-    } finally {
-      await fs.rm(tempPath, { force: true });
-      await fs.rm(tempDir, { recursive: true, force: true });
+      return reply.code(500).send({ error: 'Failed to process scoreboard HTML file' });
     }
   });
 

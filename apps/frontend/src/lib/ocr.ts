@@ -1,10 +1,11 @@
 import { uploadMatchScoreboard } from '@/lib/api'
-import type { MatchStatsReviewStatus, OcrPlayerRow } from '@/types'
+import type { MatchStatsReviewStatus, ScoreboardPlayerRow } from '@/types'
 
 export interface ExtractedPlayerStats {
   team: 'alpha' | 'bravo'
   position: number
   username: string
+  rank: string
   acs: number | null
   kills: number | null
   deaths: number | null
@@ -26,33 +27,42 @@ export interface ServerOcrResult {
   players: ExtractedPlayerStats[]
 }
 
-function mapRowToPlayer(row: OcrPlayerRow): ExtractedPlayerStats {
+function parseNumeric(value: string): number | null {
+  if (value === undefined || value === null) return null
+  const cleaned = value.replace(/[%+]/g, '')
+  if (cleaned.length === 0) return null
+  const asNumber = Number.parseFloat(cleaned)
+  return Number.isFinite(asNumber) ? asNumber : null
+}
+
+function mapRowToPlayer(row: ScoreboardPlayerRow): ExtractedPlayerStats {
   return {
     team: row.team,
     position: row.position,
     username: row.playerName,
-    acs: row.acs,
-    kills: row.kills,
-    deaths: row.deaths,
-    assists: row.assists,
-    plusMinus: row.plusMinus,
-    kd: row.kd,
-    damageDelta: row.damageDelta,
-    adr: row.adr,
-    headshotPercent: row.hsPercent,
-    kast: row.kastPercent,
-    firstKills: row.firstKills,
-    firstDeaths: row.firstDeaths,
-    multiKills: row.multiKills,
+    rank: row.rank,
+    acs: parseNumeric(row.acs),
+    kills: parseNumeric(row.kills),
+    deaths: parseNumeric(row.deaths),
+    assists: parseNumeric(row.assists),
+    plusMinus: parseNumeric(row.plusMinus),
+    kd: parseNumeric(row.kd),
+    damageDelta: parseNumeric(row.damageDelta),
+    adr: parseNumeric(row.adr),
+    headshotPercent: parseNumeric(row.hsPercent),
+    kast: parseNumeric(row.kastPercent),
+    firstKills: parseNumeric(row.firstKills),
+    firstDeaths: parseNumeric(row.firstDeaths),
+    multiKills: parseNumeric(row.multiKills),
   }
 }
 
-export async function extractStatsFromImage(
+export async function extractStatsFromHtml(
   matchId: string,
   file: File,
 ): Promise<ServerOcrResult> {
   const response = await uploadMatchScoreboard(matchId, file)
-  const players = [...response.ocr.alpha, ...response.ocr.bravo]
+  const players = [...response.scoreboard.alpha, ...response.scoreboard.bravo]
     .map(mapRowToPlayer)
     .sort((a, b) => {
       if (a.team === b.team) return a.position - b.position
