@@ -20,9 +20,9 @@ const MAP_POOL = [
   "Bind",
   "Haven",
   "Split",
-  "Lotus",
+  "Pearl",
   "Sunset",
-  "Breeze",
+  "Abyss",
 ]
 
 // Pick/ban order for BO1, BO3, BO5
