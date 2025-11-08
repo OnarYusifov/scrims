@@ -49,6 +49,7 @@ model User {
   captainedTeams Team[] @relation("CaptainTeams")
   teamMembers   TeamMember[]
   auditLogs     AuditLog[]
+  statsSubmissions MatchStatsSubmission[]
   
   @@index([discordId])
   @@index([elo])
@@ -69,6 +70,7 @@ model Match {
   // Match configuration
   seriesType  SeriesType @default(BO1) // BO1, BO3, BO5
   status      MatchStatus @default(DRAFT)
+  statsStatus MatchStatsReviewStatus @default(NOT_STARTED)
   
   // Match metadata
   createdAt   DateTime @default(now())
@@ -87,6 +89,7 @@ model Match {
   votes       MatchVote[]
   eloChanges  EloHistory[]
   auditLogs   AuditLog[]
+  statsSubmissions MatchStatsSubmission[]
   
   @@index([status])
   @@index([createdAt])
@@ -107,6 +110,18 @@ enum MatchStatus {
   VOTING          // Post-match voting
   COMPLETED       // Finished and finalized
   CANCELLED       // Cancelled/abandoned
+}
+
+enum MatchStatsReviewStatus {
+  NOT_STARTED
+  PENDING_REVIEW
+  CONFIRMED
+  REJECTED
+}
+
+enum MatchStatsSource {
+  MANUAL
+  OCR
 }
 
 // Team model - represents one team in a match
@@ -244,6 +259,24 @@ model EloHistory {
   @@index([userId])
   @@index([matchId])
   @@index([createdAt])
+}
+
+model MatchStatsSubmission {
+  id         String                 @id @default(uuid())
+  matchId    String
+  match      Match                  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  uploaderId String?
+  uploader   User?                  @relation(fields: [uploaderId], references: [id])
+  source     MatchStatsSource       @default(MANUAL)
+  status     MatchStatsReviewStatus @default(PENDING_REVIEW)
+  payload    Json
+  notes      String?
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+
+  @@index([matchId])
+  @@index([status])
+  @@index([source])
 }
 
 // WeightProfile - configurable weights for WPR calculation

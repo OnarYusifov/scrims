@@ -477,13 +477,15 @@ export default function MatchDetailPage() {
         })),
         winnerTeamId: winnerTeam.id,
         adminOverride: true,
+        source: 'MANUAL',
+        autoFinalize: true,
       }
 
       // Submit stats (Elo calculation happens in backend, hidden)
       const result = await submitMatchStats(matchId, statsToSubmit)
       
       // Show Elo results with animation
-      setEloResults(result.eloResults)
+      setEloResults(result.eloResults ?? null)
       
       // Reload match to show updated status
       // Don't auto-close Elo results - user must close manually

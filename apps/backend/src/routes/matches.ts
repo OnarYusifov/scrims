@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../index';
 import { EloService } from '../services/elo.service';
 import { randomService } from '../services/random.service';
-import { MatchStatus } from '@prisma/client';
+import { MatchStatus, MatchStatsReviewStatus, MatchStatsSource, Prisma } from '@prisma/client';
 import {
   DiscordIdentity,
   MatchResultPayload,
@@ -354,6 +354,26 @@ export default async function matchRoutes(fastify: FastifyInstance) {
                 select: {
                   id: true,
                   name: true,
+                },
+              },
+            },
+          },
+          statsSubmissions: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: {
+              id: true,
+              source: true,
+              status: true,
+              createdAt: true,
+              updatedAt: true,
+              notes: true,
+              uploader: {
+                select: {
+                  id: true,
+                  username: true,
+                  discordId: true,
+                  avatar: true,
                 },
               },
             },
@@ -2376,6 +2396,9 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       }>;
       winnerTeamId: string;
       adminOverride?: boolean;
+      source?: MatchStatsSource;
+      autoFinalize?: boolean;
+      notes?: string;
     };
   }>, reply: FastifyReply) => {
     try {
@@ -2392,7 +2415,16 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         return reply.code(403).send({ error: 'Admin access required' });
       }
 
-      const { maps, winnerTeamId, adminOverride } = request.body;
+      const {
+        maps,
+        winnerTeamId,
+        adminOverride,
+        source,
+        autoFinalize,
+        notes,
+      } = request.body;
+      const statsSource = source ?? MatchStatsSource.MANUAL;
+      const shouldAutoFinalize = autoFinalize !== false;
 
       // Get match
       const match = await prisma.match.findUnique({
@@ -2483,6 +2515,55 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         if (!aggregatedStats.has(playerId)) {
           return reply.code(400).send({ error: `Missing stats for player ${playerId}` });
         }
+      }
+
+      const aggregatedStatsArray = Array.from(aggregatedStats.values());
+      const submissionPayload: Prisma.JsonObject = {
+        maps: maps as unknown as Prisma.JsonValue,
+        winnerTeamId,
+        aggregatedStats: aggregatedStatsArray as unknown as Prisma.JsonValue,
+      };
+      const submission = await prisma.matchStatsSubmission.create({
+        data: {
+          matchId,
+          uploaderId: userId,
+          source: statsSource,
+          status: shouldAutoFinalize
+            ? MatchStatsReviewStatus.CONFIRMED
+            : MatchStatsReviewStatus.PENDING_REVIEW,
+          payload: submissionPayload,
+          notes: notes || null,
+        },
+      });
+
+      if (!shouldAutoFinalize) {
+        await prisma.match.update({
+          where: { id: matchId },
+          data: {
+            statsStatus: MatchStatsReviewStatus.PENDING_REVIEW,
+          },
+        });
+
+        await prisma.auditLog.create({
+          data: {
+            action: 'MATCH_STATS_SUBMITTED',
+            entity: 'Match',
+            entityId: matchId,
+            matchId,
+            userId,
+            details: {
+              submissionId: submission.id,
+              source: statsSource,
+              status: submission.status,
+            },
+          },
+        });
+
+        return {
+          message: 'Match stats submitted for review',
+          statsPending: true,
+          submissionId: submission.id,
+        };
       }
 
       // Save player stats
@@ -2604,6 +2685,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           status: 'COMPLETED',
           winnerTeamId,
           completedAt,
+          statsStatus: MatchStatsReviewStatus.CONFIRMED,
         },
       });
 
@@ -2641,6 +2723,9 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             mapsCount: maps.length,
             winnerTeamId,
             adminOverride: adminOverride || false,
+            submissionId: submission.id,
+            source: statsSource,
+            autoFinalize: shouldAutoFinalize,
           },
         },
       });
@@ -2934,6 +3019,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             status: 'COMPLETED',
             winnerTeamId: overallWinnerTeamId,
             completedAt: new Date(),
+            statsStatus: MatchStatsReviewStatus.CONFIRMED,
           },
         });
 

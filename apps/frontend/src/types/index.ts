@@ -16,6 +16,14 @@ export type TeamSide = 'ATTACKER' | 'DEFENDER'
 
 export type MapAction = 'PICK' | 'BAN' | 'DECIDER'
 
+export type MatchStatsSource = 'MANUAL' | 'OCR'
+
+export type MatchStatsReviewStatus =
+  | 'NOT_STARTED'
+  | 'PENDING_REVIEW'
+  | 'CONFIRMED'
+  | 'REJECTED'
+
 export interface User {
   id: string
   discordId: string
@@ -45,6 +53,7 @@ export interface Match {
   id: string
   seriesType: SeriesType
   status: MatchStatus
+  statsStatus: MatchStatsReviewStatus
   createdAt: Date
   updatedAt: Date
   startedAt?: Date
@@ -53,6 +62,7 @@ export interface Match {
   teams: Team[]
   maps: MapSelection[]
   playerStats: PlayerMatchStats[]
+  statsSubmissions?: MatchStatsSubmissionRecord[]
 }
 
 export interface Team {
@@ -129,6 +139,21 @@ export interface LeaderboardEntry extends User {
   avgKD: number
   avgACS: number
   avgWPR: number
+}
+
+export interface MatchStatsSubmissionRecord {
+  id: string
+  source: MatchStatsSource
+  status: MatchStatsReviewStatus
+  createdAt: Date
+  updatedAt: Date
+  notes?: string | null
+  uploader?: {
+    id: string
+    username: string
+    discordId: string
+    avatar?: string | null
+  } | null
 }
 
 export interface ValorantMap {

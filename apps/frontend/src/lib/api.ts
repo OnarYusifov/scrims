@@ -1,5 +1,5 @@
 import { getToken } from './auth';
-import { Match, MatchStatus, SeriesType } from '@/types';
+import { Match, MatchStatus, SeriesType, MatchStatsSource } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
@@ -520,6 +520,9 @@ export interface MatchStatsSubmission {
   }>;
   winnerTeamId: string;
   adminOverride?: boolean;
+  source?: MatchStatsSource;
+  autoFinalize?: boolean;
+  notes?: string;
 }
 
 export interface EloChangeResult {
@@ -532,12 +535,28 @@ export interface EloChangeResult {
 export async function submitMatchStats(
   matchId: string,
   stats: MatchStatsSubmission
-): Promise<{ message: string; eloResults: EloChangeResult[] }> {
-  return apiRequest<{ message: string; eloResults: EloChangeResult[] }>(
+): Promise<{
+  message: string;
+  eloResults?: EloChangeResult[];
+  statsPending?: boolean;
+  submissionId?: string;
+}> {
+  const payload = {
+    ...stats,
+    source: stats.source ?? 'MANUAL',
+    autoFinalize: stats.autoFinalize ?? true,
+  };
+
+  return apiRequest<{
+    message: string;
+    eloResults?: EloChangeResult[];
+    statsPending?: boolean;
+    submissionId?: string;
+  }>(
     `/api/matches/${matchId}/stats`,
     {
       method: 'POST',
-      body: JSON.stringify(stats),
+      body: JSON.stringify(payload),
     }
   );
 }
