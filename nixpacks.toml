@@ -1,17 +1,16 @@
 [phases.setup]
-nixPkgs = [
-  'nodejs_22',
-  'python311',
+aptPkgs = [
+  'build-essential',
+  'python3',
   'pkg-config',
-  'cairo',
-  'pango',
-  'pixman',
-  'pixman.dev',
-  'libpng',
-  'jpeg',
-  'giflib',
-  'freetype',
-  'librsvg'
+  'libcairo2-dev',
+  'libpango1.0-dev',
+  'libjpeg-dev',
+  'libgif-dev',
+  'librsvg2-dev',
+  'libpng-dev',
+  'libpixman-1-dev',
+  'zlib1g-dev'
 ]
 
 [phases.install]
