@@ -597,7 +597,7 @@ export default function AdminPage() {
               />
             </div>
             <Button
-              onClick={loadUsers}
+              onClick={() => loadUsers()}
               variant="outline"
               className="font-mono relative z-10"
               style={{ pointerEvents: 'auto' }}
