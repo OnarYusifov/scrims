@@ -4,6 +4,7 @@ import { eloService, PerformanceEvaluation } from '../services/elo.service';
 import { randomService } from '../services/random.service';
 import { parseScoreboardFromHtml } from '../services/scoreboard-html.service';
 import { MatchStatus, MatchStatsReviewStatus, MatchStatsSource, SeriesType, Prisma } from '@prisma/client';
+import { emitRealtimeEvent } from '../events/app-events';
 import {
   DiscordIdentity,
   MatchResultPayload,
@@ -194,6 +195,37 @@ const createMatchResultPayload = ({
 
 const getUniqueUserIds = (stats: Array<{ userId: string }>): string[] =>
   Array.from(new Set(stats.map((stat) => stat.userId)));
+
+const broadcastMatchUpdate = (
+  matchId: string,
+  action: string,
+  data?: unknown,
+) => {
+  emitRealtimeEvent('match:updated', {
+    matchId,
+    action,
+    data,
+    timestamp: new Date().toISOString(),
+  });
+};
+
+const broadcastMatchCreated = (matchId: string, data?: unknown) => {
+  emitRealtimeEvent('match:created', {
+    matchId,
+    action: 'match:created',
+    data,
+    timestamp: new Date().toISOString(),
+  });
+};
+
+const broadcastMatchDeleted = (matchId: string, data?: unknown) => {
+  emitRealtimeEvent('match:deleted', {
+    matchId,
+    action: 'match:deleted',
+    data,
+    timestamp: new Date().toISOString(),
+  });
+};
 
 async function applyEloAdjustments({
   fastify,
@@ -707,6 +739,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           name: team.name,
           players: team.players,
         })),
+        mapName: parsedScoreboard.mapName ?? null,
       };
 
       const serialisedScoreboard = JSON.parse(JSON.stringify(parsedScoreboard)) as Prisma.JsonValue;
@@ -721,6 +754,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           uploadedAt: new Date().toISOString(),
           providedFiles: bucketKeys.filter((key) => buckets[key]),
           unrecognisedFiles: unrecognised.map((entry) => entry.filename).filter(Boolean),
+          detectedMap: parsedScoreboard.mapName ?? null,
         },
         parsedScoreboard: serialisedScoreboard,
       };
@@ -985,6 +1019,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         },
       });
 
+      broadcastMatchCreated(match.id, {
+        status: match.status,
+        seriesType: match.seriesType,
+      });
+
       return match;
     } catch (error) {
       fastify.log.error(error);
@@ -1051,6 +1090,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             teamId,
             userId,
           },
+        });
+
+        broadcastMatchUpdate(matchId, 'team:joined', {
+          userId,
+          teamId,
         });
 
         const userRecord = await prisma.user.findUnique({
@@ -1121,6 +1165,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         },
       });
 
+      broadcastMatchUpdate(matchId, 'team:joined', {
+        userId,
+        teamId: playerPool.id,
+      });
+
       const userRecord = await prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -1180,6 +1229,10 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         if (teamMember) {
           await prisma.teamMember.delete({
             where: { id: teamMember.id },
+          });
+          broadcastMatchUpdate(matchId, 'team:left', {
+            userId,
+            teamId: team.id,
           });
           return { message: 'Left match successfully' };
         }
@@ -1248,6 +1301,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           }
           await prisma.teamMember.delete({
             where: { id: teamMember.id },
+          });
+          broadcastMatchUpdate(matchId, 'team:removed', {
+            userId,
+            teamId: team.id,
+            removedBy: currentUser.id,
           });
           return { message: 'Player removed successfully' };
         }
@@ -1319,6 +1377,12 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       });
 
       fastify.log.info(`Set captain ${userId} for team ${teamId} in match ${matchId}`);
+
+      broadcastMatchUpdate(matchId, 'team:captain-set', {
+        teamId,
+        userId,
+        setBy: currentUser.id,
+      });
 
       return { message: 'Captain set successfully' };
     } catch (error) {
@@ -1431,6 +1495,13 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         'Moved player to new team',
       );
 
+      broadcastMatchUpdate(matchId, 'team:moved', {
+        userId,
+        fromTeamId: currentMembership.teamId,
+        toTeamId: targetTeamId,
+        movedBy: currentUser.id,
+      });
+
       return { message: 'Player reassigned successfully', targetTeamId };
     } catch (error) {
       fastify.log.error(error);
@@ -1468,6 +1539,10 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         await prisma.match.update({
           where: { id: matchId },
           data: { status },
+        });
+        broadcastMatchUpdate(matchId, `status:${status}`, {
+          status,
+          updatedBy: (request as any).user.userId,
         });
       }
 
@@ -1538,6 +1613,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
 
       await recalculateUserTotals(userIds);
 
+      broadcastMatchDeleted(matchId, { reason: 'manual-delete' });
+
       return { message: 'Match deleted successfully. Elo and aggregated stats recalculated.' };
     } catch (error) {
       fastify.log.error(error);
@@ -1586,6 +1663,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         where: { id: matchId },
         data: { status: 'CAPTAIN_VOTING' },
       });
+
+      broadcastMatchUpdate(matchId, 'status:CAPTAIN_VOTING');
 
       return { message: 'Captain voting phase started' };
     } catch (error) {
@@ -1689,6 +1768,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         data: { status: 'TEAM_SELECTION' },
       });
 
+      broadcastMatchUpdate(matchId, 'status:TEAM_SELECTION');
+
       return { message: 'Captains finalized', captain1Id, captain2Id };
     } catch (error) {
       fastify.log.error(error);
@@ -1737,6 +1818,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         where: { id: matchId },
         data: { status: 'MAP_PICK_BAN' },
       });
+
+      broadcastMatchUpdate(matchId, 'status:MAP_PICK_BAN');
 
       if (fastify.discordBot) {
         const [teamAlphaMembers, teamBravoMembers] = await Promise.all([
@@ -1857,6 +1940,13 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         },
       });
 
+      broadcastMatchUpdate(matchId, 'map:selection', {
+        mapName,
+        action,
+        order,
+        teamId,
+      });
+
       return { message: `Map ${action === 'PICK' ? 'picked' : 'banned'} successfully` };
     } catch (error) {
       fastify.log.error(error);
@@ -1914,6 +2004,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           startedAt: new Date(),
         },
       });
+
+      broadcastMatchUpdate(matchId, 'status:IN_PROGRESS');
 
       return { message: 'Match started successfully' };
     } catch (error) {
@@ -1987,6 +2079,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           },
         },
       });
+
+      broadcastMatchUpdate(matchId, 'status:TEAM_SELECTION');
 
       // If captain method specified, select captains
       if (allocationMethod === 'captain' && captainMethod) {
@@ -2653,6 +2747,12 @@ export default async function matchRoutes(fastify: FastifyInstance) {
 
       fastify.log.info(`Added ${addedUsers.length} random players to match ${matchId}`);
 
+      if (addedUsers.length > 0) {
+        broadcastMatchUpdate(matchId, 'team:random-added', {
+          addedUsers,
+        });
+      }
+
       return {
         message: `Added ${addedUsers.length} random players to match (${currentMembers.length + addedUsers.length}/10 total)`,
         addedUsers,
@@ -2748,6 +2848,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       });
 
       fastify.log.info(`Manually added user ${user.username} to player pool in match ${matchId}`);
+
+      broadcastMatchUpdate(matchId, 'team:manual-add', {
+        userId: user.id,
+        teamId: poolTeam.id,
+      });
 
       if (fastify.discordBot) {
         const identity = buildDiscordIdentity({
@@ -2978,6 +3083,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
 
       fastify.log.info(`ROOT override: Match ${matchId} status set to ${status}`);
 
+      broadcastMatchUpdate(matchId, `status:${status}`, { status, source: 'root-override' });
+
       return {
         message: `Match status set to ${status}`,
         status,
@@ -3044,6 +3151,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       }
 
       fastify.log.info(`ROOT override: Maps set for match ${matchId}`);
+
+      broadcastMatchUpdate(matchId, 'maps:updated', {
+        source: 'root-override',
+        count: validMaps.length,
+      });
 
       return {
         message: 'Maps set successfully',
@@ -3253,6 +3365,7 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           multiKills: player.multiKills,
         })),
         teams: parsed.teams,
+        mapName: parsed.mapName ?? null,
       };
 
       return {
@@ -3520,6 +3633,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           completedAt,
           statsStatus: MatchStatsReviewStatus.CONFIRMED,
         },
+      });
+
+      broadcastMatchUpdate(matchId, 'status:COMPLETED', {
+        winnerTeamId,
+        completedAt,
       });
 
       if (fastify.discordBot) {
@@ -3814,6 +3932,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         },
       });
 
+      broadcastMatchUpdate(matchId, 'status:COMPLETED', {
+        winnerTeamId: winnerTeam.id,
+        source: 'import',
+      });
+
       fastify.log.info(`Imported completed match ${matchId} with ${maps.length} maps`);
 
       return {
@@ -3943,6 +4066,13 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           wasPlayed: true,
           winnerTeamId,
         },
+      });
+
+      broadcastMatchUpdate(matchId, 'map:completed', {
+        mapSelectionId: mapSelection.id,
+        mapName,
+        score,
+        winnerTeamId,
       });
 
       // Update team scores
@@ -4179,6 +4309,12 @@ export default async function matchRoutes(fastify: FastifyInstance) {
           },
         });
 
+        broadcastMatchUpdate(matchId, 'status:COMPLETED', {
+          winnerTeamId: overallWinnerTeamId,
+          mapsWon: finalMapsWon,
+          roundsWon: finalRoundsWon,
+        });
+
         return {
           message: 'Match completed! Elo calculated.',
           eloResults,
@@ -4200,6 +4336,9 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         await prisma.match.update({
           where: { id: matchId },
           data: { status: 'MAP_PICK_BAN' },
+        });
+        broadcastMatchUpdate(matchId, 'status:MAP_PICK_BAN', {
+          nextMapOrder: totalPlayedAfterUpdate,
         });
       }
 

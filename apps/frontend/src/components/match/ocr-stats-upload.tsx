@@ -15,6 +15,7 @@ interface InitialImportData {
   submissionId?: string | null
   statsStatus?: MatchStatsReviewStatus | null
   sourceLabel?: string
+  mapName?: string | null
 }
 
 interface OCRStatsUploadProps {
@@ -39,6 +40,8 @@ interface OCRStatsUploadProps {
       id: string | null
       status: MatchStatsReviewStatus | null
     } | null
+    detectedMapName?: string | null
+    sourceLabel?: string
   }) => void
   onClose: () => void
 }
@@ -98,6 +101,7 @@ export function OCRStatsUpload({
   const [statsReviewStatus, setStatsReviewStatus] = useState<MatchStatsReviewStatus | null>(
     initialData?.statsStatus ?? null,
   )
+  const [detectedMapName, setDetectedMapName] = useState<string | null>(initialData?.mapName ?? null)
   const [error, setError] = useState<string | null>(null)
   const [selectedMapIndex, setSelectedMapIndex] = useState<number>(
     () => defaultMapIndex ?? normalizedMapOptions[0]?.index ?? 0,
@@ -126,6 +130,7 @@ export function OCRStatsUpload({
       setSubmissionId(initialData.submissionId ?? null)
       setStatsReviewStatus(initialData.statsStatus ?? null)
       setPlayerMatches(autoMatchPlayers(initialData.players, matchPlayers))
+      setDetectedMapName(initialData.mapName ?? null)
     }
   }, [initialData, matchPlayers])
 
@@ -136,13 +141,24 @@ export function OCRStatsUpload({
     setSubmissionId(null)
     setStatsReviewStatus(null)
     setError(null)
+    setDetectedMapName(null)
     setSelectedMapIndex(defaultMapIndex ?? normalizedMapOptions[0]?.index ?? 0)
   }
 
-  const ingestPlayers = (players: ExtractedPlayerStats[], sourceLabel: string | null) => {
+  const ingestPlayers = (players: ExtractedPlayerStats[], sourceLabel: string | null, mapName?: string | null) => {
     setExtractedPlayers(players)
     setUploadedFileName(sourceLabel)
     setPlayerMatches(autoMatchPlayers(players, matchPlayers))
+    setDetectedMapName(mapName ?? null)
+    if (mapName) {
+      const normalised = mapName.toLowerCase()
+      const matchedOption = normalizedMapOptions.find((option) =>
+        option.label.toLowerCase().includes(normalised),
+      )
+      if (matchedOption) {
+        setSelectedMapIndex(matchedOption.index)
+      }
+    }
   }
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,7 +169,7 @@ export function OCRStatsUpload({
     setIsProcessing(true)
 
     try {
-      const { players, submissionId: newSubmissionId, statsStatus } = await extractStatsFromHtml(matchId, file)
+      const { players, submissionId: newSubmissionId, statsStatus, mapName } = await extractStatsFromHtml(matchId, file)
 
       if (players.length === 0) {
         throw new Error(
@@ -163,7 +179,7 @@ export function OCRStatsUpload({
 
       setSubmissionId(newSubmissionId)
       setStatsReviewStatus(statsStatus)
-      ingestPlayers(players, file.name)
+      ingestPlayers(players, file.name, mapName ?? null)
     } catch (err: any) {
       console.error("Scoreboard import error:", err)
       setError(err.message || "Failed to process scoreboard HTML")
@@ -226,6 +242,8 @@ export function OCRStatsUpload({
               status: statsReviewStatus ?? null,
             }
           : null,
+      detectedMapName: detectedMapName ?? null,
+      sourceLabel: uploadedFileName ?? undefined,
     })
   }
 
@@ -349,6 +367,34 @@ export function OCRStatsUpload({
                 Source file: <span className="text-matrix-500 font-semibold">{uploadedFileName}</span>
               </div>
 
+              <div className="rounded border border-terminal-border bg-terminal-panel/50 p-3 font-mono text-xs text-terminal-muted space-y-2">
+                <p className="text-matrix-500 font-semibold uppercase text-sm">Assign players</p>
+                <p>
+                  Map each scoreboard row to a player in the match roster. Suggestions are pre-selected, but review every entry before importing.
+                </p>
+                {detectedMapName ? (
+                  <p>
+                    Detected map:{" "}
+                    <span className="text-matrix-500 font-semibold uppercase">{detectedMapName}</span>
+                  </p>
+                ) : (
+                  <p className="text-yellow-500">
+                    Could not detect map name automatically — choose the correct map from the selector below.
+                  </p>
+                )}
+                {extractedPlayers.length - playerMatches.size > 0 ? (
+                  <p className="flex items-center gap-2 text-red-500">
+                    <AlertCircle className="h-4 w-4" />
+                    {extractedPlayers.length - playerMatches.size} player(s) still need assignment.
+                  </p>
+                ) : (
+                  <p className="flex items-center gap-2 text-green-500">
+                    <CheckCircle2 className="h-4 w-4" />
+                    All players assigned. Ready to import.
+                  </p>
+                )}
+              </div>
+
               <div className="flex items-center justify-end gap-3">
                 <span className="font-mono text-xs text-terminal-muted uppercase">Apply to map</span>
                 <select
@@ -394,7 +440,7 @@ export function OCRStatsUpload({
                         className={`p-3 border rounded transition-colors ${
                           isMatched
                             ? "border-matrix-500 bg-matrix-500/5 dark:bg-matrix-500/10"
-                            : "border-terminal-border bg-white dark:bg-terminal-panel"
+                            : "border-red-500/60 bg-red-500/10"
                         }`}
                       >
                         <div className="flex items-center gap-3">

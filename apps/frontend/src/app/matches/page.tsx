@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,7 @@ import { Match, MatchStatus, SeriesType } from "@/types"
 import { fetchMatches, createMatch, joinMatch, leaveMatch, deleteMatch } from "@/lib/api"
 import { formatTimestamp } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useRealtimeStream } from "@/hooks/use-realtime"
 
 const STATUS_COLORS: Record<MatchStatus, string> = {
   DRAFT: "border-gray-400 dark:border-terminal-muted text-gray-700 dark:text-terminal-muted",
@@ -59,31 +60,89 @@ export default function MatchesPage() {
   const [selectedStatus, setSelectedStatus] = useState<MatchStatus | "ALL">("ALL")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [selectedSeriesType, setSelectedSeriesType] = useState<SeriesType>("BO1")
+  const isFetchingRef = useRef(false)
+  const pendingReloadRef = useRef(false)
+
+  const loadMatches = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false
+
+      if (isFetchingRef.current) {
+        if (silent) {
+          pendingReloadRef.current = true
+        }
+        return
+      }
+
+      isFetchingRef.current = true
+
+      if (!silent) {
+        setIsLoading(true)
+      }
+
+      try {
+        const response = await fetchMatches({
+          status: selectedStatus === "ALL" ? undefined : selectedStatus,
+          limit: 50,
+        })
+        setMatches(response.matches)
+      } catch (error) {
+        console.error("Failed to load matches:", error)
+        if (!silent) {
+          toast({
+            title: "Error",
+            description: "Failed to load matches",
+            variant: "destructive",
+          })
+        }
+      } finally {
+        isFetchingRef.current = false
+        if (!silent) {
+          setIsLoading(false)
+        }
+        if (pendingReloadRef.current) {
+          pendingReloadRef.current = false
+          void loadMatches({ silent: true })
+        }
+      }
+    },
+    [selectedStatus, toast],
+  )
 
   useEffect(() => {
     if (!isAuthenticated) return
-    loadMatches()
-  }, [isAuthenticated, selectedStatus])
+    void loadMatches()
+  }, [isAuthenticated, selectedStatus, loadMatches])
 
-  async function loadMatches() {
-    try {
-      setIsLoading(true)
-      const response = await fetchMatches({
-        status: selectedStatus === "ALL" ? undefined : selectedStatus,
-        limit: 50,
-      })
-      setMatches(response.matches)
-    } catch (error) {
-      console.error("Failed to load matches:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load matches",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const realtimeHandlers = useMemo(
+    () => ({
+      "match:created": () => {
+        void loadMatches({ silent: true })
+      },
+      "match:updated": (payload: any) => {
+        if (!payload) return
+        if (payload.action === "match:deleted") {
+          void loadMatches({ silent: true })
+          return
+        }
+        if (typeof payload.matchId === "string") {
+          void loadMatches({ silent: true })
+        }
+      },
+      "match:deleted": () => {
+        void loadMatches({ silent: true })
+      },
+    }),
+    [loadMatches],
+  )
+
+  useRealtimeStream({
+    enabled: isAuthenticated,
+    events: realtimeHandlers,
+    onError: (error) => {
+      console.error("Realtime stream error", error)
+    },
+  })
 
   async function handleCreateMatch() {
     try {
@@ -115,7 +174,7 @@ export default function MatchesPage() {
         title: "Joined Match",
         description: "You've joined the match",
       })
-      loadMatches()
+      await loadMatches()
     } catch (error: any) {
       console.error("Failed to join match:", error)
       toast({
@@ -133,7 +192,7 @@ export default function MatchesPage() {
         title: "Left Match",
         description: "You've left the match",
       })
-      loadMatches()
+      await loadMatches()
     } catch (error) {
       console.error("Failed to leave match:", error)
       toast({
@@ -151,7 +210,7 @@ export default function MatchesPage() {
         title: "Match Deleted",
         description: "Match has been deleted",
       })
-      loadMatches()
+      await loadMatches()
     } catch (error) {
       console.error("Failed to delete match:", error)
       toast({

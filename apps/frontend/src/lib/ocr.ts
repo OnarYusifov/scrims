@@ -25,6 +25,7 @@ export interface ServerOcrResult {
   submissionId: string
   statsStatus: MatchStatsReviewStatus
   players: ExtractedPlayerStats[]
+  mapName?: string | null
 }
 
 function parseNumeric(value: string): number | null {
@@ -73,6 +74,7 @@ export async function extractStatsFromHtml(
     submissionId: response.submissionId,
     statsStatus: response.statsStatus,
     players,
+    mapName: response.scoreboard?.mapName ?? null,
   }
 }
 

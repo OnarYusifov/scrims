@@ -5,6 +5,7 @@ import { MatrixRain } from "@/components/matrix-rain"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { ThemeProvider } from "@/components/theme-provider"
+import { AuthSessionProvider } from "@/components/auth-session-provider"
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -42,19 +43,21 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${jetbrainsMono.variable} ${inter.variable} font-mono antialiased`} suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange={false}
-        >
-          <MatrixRain />
-          <div className="relative z-10 flex min-h-screen flex-col" style={{ pointerEvents: 'auto' }}>
-            <SiteHeader />
-            <main className="flex-1 relative z-10" style={{ pointerEvents: 'auto' }}>{children}</main>
-            <SiteFooter />
-          </div>
-        </ThemeProvider>
+        <AuthSessionProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem={false}
+            disableTransitionOnChange={false}
+          >
+            <MatrixRain />
+            <div className="relative z-10 flex min-h-screen flex-col" style={{ pointerEvents: 'auto' }}>
+              <SiteHeader />
+              <main className="flex-1 relative z-10" style={{ pointerEvents: 'auto' }}>{children}</main>
+              <SiteFooter />
+            </div>
+          </ThemeProvider>
+        </AuthSessionProvider>
       </body>
     </html>
   )

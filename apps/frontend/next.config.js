@@ -31,7 +31,7 @@ const nextConfig = {
     optimizeCss: true,
   },
 
-  // Enable standalone output for Docker deployment
+  // Standalone output for production (Railpack/Nixpacks)
   output: 'standalone',
 };
 

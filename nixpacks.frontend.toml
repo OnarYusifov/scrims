@@ -1,0 +1,18 @@
+[phases.setup]
+nixPkgs = [
+  'nodejs_22'
+]
+
+[phases.install]
+cmds = [
+  'npm ci --workspace=@trayb/frontend'
+]
+
+[phases.build]
+cmds = [
+  'npm run build --workspace=@trayb/frontend'
+]
+
+[start]
+cmd = 'cd apps/frontend && npm run start'
+

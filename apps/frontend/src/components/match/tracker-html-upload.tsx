@@ -16,6 +16,8 @@ interface TrackerHtmlUploadProps {
     submissionId: string
     statsStatus: MatchStatsReviewStatus
     rawScoreboard: ScoreboardExtractionPayload
+    sourceLabel?: string
+    mapName?: string | null
   }) => void
 }
 
@@ -60,7 +62,7 @@ function mapScoreboardToPlayers(scoreboard: ScoreboardExtractionPayload): Extrac
 }
 
 const HINT_TEXT =
-  "Choose the tracker.gg exports you downloaded (Scoreboard, Rounds, Duels, Economy, Performance). The uploader will detect the file role by filename."
+  "Choose the tracker.gg exports you downloaded (Scoreboard, Rounds, Duels, Economy, Performance). Upload one map at a time — after you confirm the assignments you can immediately add the next map."
 
 export function TrackerHtmlUpload({ matchId, onScoreboardReady }: TrackerHtmlUploadProps) {
   const { toast } = useToast()
@@ -118,10 +120,8 @@ export function TrackerHtmlUpload({ matchId, onScoreboardReady }: TrackerHtmlUpl
 
     setIsUploading(true)
     try {
-      const response = await uploadMatchTrackerBundle(
-        matchId,
-        selectedFiles.map((item) => item.file),
-      )
+      const filesToUpload = selectedFiles.map((item) => item.file)
+      const response = await uploadMatchTrackerBundle(matchId, filesToUpload)
       setLastResult(response)
 
       toast({
@@ -131,13 +131,20 @@ export function TrackerHtmlUpload({ matchId, onScoreboardReady }: TrackerHtmlUpl
 
       if (response.scoreboard) {
         const players = mapScoreboardToPlayers(response.scoreboard)
+        const scoreboardFile = selectedFiles.find(({ file }) => /scoreboard/i.test(file.name))?.file
+        const fallbackLabel = filesToUpload[0]?.name ?? "tracker-bundle.html"
         onScoreboardReady?.({
           players,
           submissionId: response.submissionId,
           statsStatus: response.statsStatus,
           rawScoreboard: response.scoreboard,
+          sourceLabel: scoreboardFile?.name ?? fallbackLabel,
+          mapName: response.scoreboard.mapName ?? null,
         })
       }
+
+      // Clear files so the next map bundle can be uploaded without removing manually
+      setSelectedFiles([])
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to upload tracker HTML bundle."
@@ -256,6 +263,7 @@ export function TrackerHtmlUpload({ matchId, onScoreboardReady }: TrackerHtmlUpl
           <div className="space-y-2 rounded border border-terminal-border bg-terminal-panel/50 p-3">
             <p className="font-mono text-xs uppercase text-terminal-muted">
               Preview • {lastResult.scoreboard.alpha.length + lastResult.scoreboard.bravo.length} players
+              {lastResult.scoreboard.mapName ? ` • ${lastResult.scoreboard.mapName}` : ""}
             </p>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-terminal-border text-left text-xs font-mono">

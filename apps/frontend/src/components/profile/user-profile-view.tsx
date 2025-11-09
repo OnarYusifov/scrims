@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -19,8 +19,11 @@ import {
   Clock,
   Shield,
   Gauge,
+  Info,
 } from "lucide-react"
 import { ProfileData } from "@/lib/api"
+import { RadarChart } from "@/components/profile/radar-chart"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 interface UserProfileViewProps {
   profile: ProfileData
@@ -36,6 +39,9 @@ export function UserProfileView({
   canViewAll = false,
   isViewingAll = false,
 }: UserProfileViewProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { user, eloHistory, recentStats, summary, careerStats } = profile
   const matchHistory = profile.matchHistory ?? []
   const [showStatsDialog, setShowStatsDialog] = useState(false)
@@ -90,6 +96,84 @@ export function UserProfileView({
     show: { opacity: 1, y: 0 },
   }
 
+  const radarStats = useMemo(
+    () => ({
+      acs: recentStats.acs ?? user.avgACS ?? 0,
+      adr: recentStats.adr ?? user.avgADR ?? 0,
+      kast: recentStats.kast ?? 0,
+      headshotPercent: recentStats.headshotPercent ?? 0,
+      kd: recentStats.kd ?? (user.avgKD || 0),
+      wpr: recentStats.wpr ?? careerStats.wpr ?? 0,
+    }),
+    [recentStats, user.avgACS, user.avgADR, user.avgKD, careerStats.wpr],
+  )
+
+  const radarLegend = useMemo(
+    () => [
+      {
+        key: "acs",
+        label: "ACS",
+        value: `${Math.round(radarStats.acs)}`,
+        description: "Average Combat Score across your recent matches.",
+      },
+      {
+        key: "adr",
+        label: "ADR",
+        value: `${Math.round(radarStats.adr)}`,
+        description: "Average damage dealt per round in recent play.",
+      },
+      {
+        key: "kast",
+        label: "KAST",
+        value: `${Math.round(radarStats.kast)}%`,
+        description: "Round participation (Kill/Assist/Survive/Trade) percentage.",
+      },
+      {
+        key: "headshotPercent",
+        label: "HS%",
+        value: `${Math.round(radarStats.headshotPercent)}%`,
+        description: "Headshot rate from your recent matches.",
+      },
+      {
+        key: "kd",
+        label: "K/D",
+        value: `${(radarStats.kd || 0).toFixed(2)}`,
+        description: "Recent kill-to-death ratio performance.",
+      },
+      {
+        key: "wpr",
+        label: "WPR",
+        value: `${(radarStats.wpr || 0).toFixed(2)}`,
+        description: "Weighted performance rating (team impact index).",
+      },
+    ],
+    [radarStats],
+  )
+
+  useEffect(() => {
+    const shouldOpen = searchParams.get("view") === "stats"
+    setShowStatsDialog(shouldOpen)
+  }, [searchParams])
+
+  const updateViewParam = useCallback(
+    (open: boolean) => {
+      const params = new URLSearchParams(searchParams)
+      if (open) {
+        params.set("view", "stats")
+      } else {
+        params.delete("view")
+      }
+      const query = params.toString()
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+      setShowStatsDialog(open)
+    },
+    [pathname, router, searchParams],
+  )
+
+  const handleOpenStats = useCallback(() => {
+    updateViewParam(true)
+  }, [updateViewParam])
+
   return (
     <motion.div
       className="container relative py-10"
@@ -131,11 +215,7 @@ export function UserProfileView({
                     </p>
                   </div>
                   <RankBadge elo={user.elo} previousElo={previousElo} isCalibrating={user.isCalibrating} />
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowStatsDialog(true)}
-                    className="font-mono uppercase"
-                  >
+                  <Button variant="outline" onClick={handleOpenStats} className="font-mono uppercase">
                     Stats
                   </Button>
                 </div>
@@ -162,11 +242,7 @@ export function UserProfileView({
                 {summary.completedMatches} completed matches recorded for {user.username}.
               </CardDescription>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setShowStatsDialog(true)}
-              className="font-mono uppercase"
-            >
+            <Button variant="outline" onClick={handleOpenStats} className="font-mono uppercase">
               View Detailed Stats
             </Button>
           </CardHeader>
@@ -289,7 +365,7 @@ export function UserProfileView({
         </Card>
       </motion.div>
 
-      <Dialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
+      <Dialog open={showStatsDialog} onOpenChange={updateViewParam}>
         <DialogContent className="max-w-3xl border-terminal-border bg-terminal-panel text-terminal-foreground">
           <DialogHeader>
             <DialogTitle className="font-mono text-matrix-500">
@@ -341,7 +417,7 @@ export function UserProfileView({
       </Dialog>
 
       {/* Rating & Elo Row */}
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
+      <div className="grid gap-6 lg:grid-cols-3 md:grid-cols-2 mb-8">
         {/* Rating Summary */}
         <motion.div variants={itemVariants}>
           <Card className="border-cyber-500 shadow-neon-cyan h-full">
@@ -393,8 +469,36 @@ export function UserProfileView({
           </Card>
         </motion.div>
 
-        {/* Elo History */}
+        {/* Skill Radar */}
         <motion.div variants={itemVariants}>
+          <Card className="border-cyber-500 shadow-neon-cyan h-full">
+            <CardHeader>
+              <CardTitle className="text-gray-900 dark:text-cyber-500 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Skill Radar
+              </CardTitle>
+              <CardDescription className="font-mono">
+                Recent performance across impact categories (scaled vs goals)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RadarChart stats={radarStats} />
+              <div className="mt-6 grid gap-2 sm:grid-cols-2">
+                {radarLegend.map((metric) => (
+                  <RadarLegendItem
+                    key={metric.key}
+                    label={metric.label}
+                    value={metric.value}
+                    description={metric.description}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Elo History */}
+        <motion.div variants={itemVariants} className="lg:col-span-3">
           <Card className="border-matrix-500 shadow-neon-green h-full">
             <CardHeader>
               <CardTitle className="text-gray-900 dark:text-matrix-500 flex items-center gap-2">
@@ -448,7 +552,7 @@ export function UserProfileView({
             </div>
             <div className="flex justify-between">
               <span className="text-terminal-muted">WPR:</span>
-              <span className="text-cyber-500">{Math.round(recentStats.wpr)}</span>
+              <span className="text-cyber-500">{(recentStats.wpr ?? 0).toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>
@@ -687,6 +791,29 @@ function DetailMetric({
       {helper && (
         <p className="mt-1 text-[11px] font-mono text-terminal-muted leading-tight">{helper}</p>
       )}
+    </div>
+  )
+}
+
+function RadarLegendItem({
+  label,
+  value,
+  description,
+}: {
+  label: string
+  value: string
+  description: string
+}) {
+  return (
+    <div
+      className="flex items-center justify-between rounded border border-terminal-border bg-terminal-panel/40 p-3 font-mono text-xs text-terminal-muted shadow-sm transition-colors hover:border-cyber-500 cursor-help"
+      title={description}
+    >
+      <span className="flex items-center gap-1">
+        <Info className="h-3 w-3 text-cyber-500" aria-hidden="true" />
+        {label}
+      </span>
+      <span className="text-sm text-gray-900 dark:text-white">{value}</span>
     </div>
   )
 }

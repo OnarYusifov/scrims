@@ -21,7 +21,7 @@ const MAX_VALUES = {
   kast: 100,
   headshotPercent: 100,
   kd: 3,
-  wpr: 100,
+  wpr: 2,
 }
 
 export function RadarChart({ stats }: RadarChartProps) {

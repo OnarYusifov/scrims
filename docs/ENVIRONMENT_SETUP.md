@@ -1,253 +1,152 @@
 # 🔐 Environment Variables Setup Guide
 
+This guide explains how environment files are organised for local development and for Railpack production deploys.
+
+---
+
 ## 📁 File Structure
 
 ```
 trayb-customs/
-├── .env.example              # Root config (for Docker Compose)
-├── .env                      # Your root config (create from .env.example)
-├── setup-env.sh              # Auto-setup script
+├── .env.example          # Template used for local + production
+├── .env                  # Your local override (create from .env.example)
 ├── apps/
 │   ├── backend/
-│   │   ├── .env.example      # Backend template
-│   │   └── .env              # Backend config (auto-generated)
+│   │   └── prisma/
 │   └── frontend/
-│       ├── .env.example      # Frontend template
-│       └── .env.local        # Frontend config (auto-generated)
+└── nixpacks*.toml        # Build configuration for Railpack/Nixpacks
 ```
 
-## 🚀 Quick Setup (Recommended)
-
-### Option 1: Automatic Setup (Easiest)
-
-```bash
-# 1. Copy root template
-cp .env.example .env
-
-# 2. Edit .env and fill in your values
-nano .env  # or use your favorite editor
-
-# 3. Run the setup script (auto-creates app .env files)
-npm run setup:env
-
-# Done! ✅
-```
-
-### Option 2: Manual Setup
-
-```bash
-# Backend
-cp apps/backend/.env.example apps/backend/.env
-# Edit apps/backend/.env
-
-# Frontend
-cp apps/frontend/.env.example apps/frontend/.env.local
-# Edit apps/frontend/.env.local
-```
+The project relies on a **single root `.env`** file. Both the backend and frontend read from it (via `process.env`) so you only need to keep one copy in sync.
 
 ---
 
-## 📋 Required Variables
-
-### 🔑 **Must Change These:**
-
-1. **POSTGRES_PASSWORD** - Your database password
-2. **DISCORD_CLIENT_ID** - From Discord Developer Portal
-3. **DISCORD_CLIENT_SECRET** - From Discord Developer Portal
-4. **JWT_SECRET** - Random 32+ character string
-5. **SESSION_SECRET** - Random 32+ character string
-
-### 🔐 **Generating Secrets:**
+## 🚀 Quick Setup
 
 ```bash
-# Option 1: Using OpenSSL (best)
+cp .env.example .env      # 1. Copy the template
+nano .env                 # 2. Fill in your values (or use your editor of choice)
+```
+
+That’s it—no per-app `.env` files are required.
+
+---
+
+## 🔑 Minimum Variables to Change
+
+1. `POSTGRES_PASSWORD`
+2. `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET`
+3. `JWT_SECRET` (generate a long random string)
+4. `SESSION_SECRET` (generate another long random string)
+5. `AUTH_SECRET` (NextAuth secret, generate a long random string)
+
+### Generating secrets
+
+```bash
 openssl rand -base64 32
-
-# Option 2: Using Node.js
+# or
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-
-# Option 3: Online generator
-# Visit: https://www.uuidgenerator.net/
 ```
 
 ---
 
-## 🎯 Environment Files Explained
-
-### **Root `.env` (Docker Compose)**
-
-Used by Docker Compose to set up PostgreSQL and Redis. Also serves as the source for app-specific configs.
-
-**Purpose:**
-- Configure database services
-- Single source of truth for shared variables
-- Used by `setup-env.sh` to generate app configs
-
-### **Backend `apps/backend/.env`**
-
-Used by the Fastify backend server.
-
-**Key Variables:**
-- `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis connection string
-- Discord OAuth credentials
-- JWT & session secrets
-
-### **Frontend `apps/frontend/.env.local`**
-
-Used by Next.js frontend.
-
-**Key Variables:**
-- `NEXT_PUBLIC_API_URL` - Backend API endpoint (must start with `NEXT_PUBLIC_`)
-
-**Note:** Next.js uses `.env.local` for local development (not committed to git)
-
----
-
-## 🌐 Local Development vs Production
-
-### **Local Development (Ports 4000/4001):**
+## 🌐 Local Development Defaults
 
 ```env
-# Backend
-DATABASE_URL=postgresql://trayb:password@localhost:5432/trayb_customs
+DATABASE_URL=postgresql://postgres:password@localhost:5432/trayb_customs?schema=public
 REDIS_URL=redis://localhost:6379
+
+PORT=4001
+NODE_ENV=development
+
 DISCORD_REDIRECT_URI=http://localhost:4001/api/auth/discord/callback
 FRONTEND_URL=http://localhost:4000
 CORS_ORIGIN=http://localhost:4000
 
-# Frontend
 NEXT_PUBLIC_API_URL=http://localhost:4001
+NEXT_PUBLIC_APP_URL=http://localhost:4000
+AUTH_SECRET=change-me-in-development
 ```
 
-### **Production (Dokploy):**
+Adjust hostnames if you run PostgreSQL/Redis elsewhere.
+
+---
+
+## 🚢 Railpack Production Configuration
+
+### Backend service
 
 ```env
-# Backend
-DATABASE_URL=postgresql://trayb:PASSWORD@trayb-postgres:5432/trayb_customs
+NODE_ENV=production
+PORT=4001
+HOST=0.0.0.0
+
+DATABASE_URL=postgresql://trayb:${POSTGRES_PASSWORD}@trayb-postgres:5432/trayb_customs?schema=public
 REDIS_URL=redis://trayb-redis:6379
-DISCORD_REDIRECT_URI=https://customs.trayb.az/api/auth/discord/callback
+
 FRONTEND_URL=https://customs.trayb.az
+DISCORD_REDIRECT_URI=https://customs.trayb.az/api/auth/discord/callback
 CORS_ORIGIN=https://customs.trayb.az
-
-# Frontend
-NEXT_PUBLIC_API_URL=https://api.customs.trayb.az
 ```
 
-**Key Differences:**
-- Use service names (`trayb-postgres`, `trayb-redis`) instead of `localhost`
-- Use HTTPS URLs
-- Use production domain names
+### Frontend service
+
+```env
+NODE_ENV=production
+PORT=4000
+NEXT_PUBLIC_API_URL=https://customs.trayb.az/api
+NEXT_PUBLIC_APP_URL=https://customs.trayb.az
+AUTH_SECRET=${AUTH_SECRET}
+```
+
+Replace `trayb-postgres` / `trayb-redis` with the service names Railpack generates in your environment. If you split the API onto a subdomain (e.g. `api.customs.trayb.az`) remember to update `NEXT_PUBLIC_API_URL`.
 
 ---
 
-## 🔍 Discord OAuth Setup
+## 🔄 Keeping Files in Sync
 
-1. Go to https://discord.com/developers/applications
-2. Create new application or select existing
-3. Go to **OAuth2** section
-4. Copy `CLIENT_ID` and `CLIENT_SECRET`
-5. Add redirect URIs:
-   - Local: `http://localhost:4001/api/auth/discord/callback`
-   - Production: `https://customs.trayb.az/api/auth/discord/callback`
-
----
-
-## 🐳 Docker Compose Variables
-
-The root `.env` is automatically loaded by Docker Compose:
-
-```yaml
-# docker-compose.yml uses these:
-POSTGRES_USER=trayb
-POSTGRES_PASSWORD=your_password
-POSTGRES_DB=trayb_customs
-```
+- The root `.env` is the single source of truth.
+- Commit `.env.example` with placeholder values so teammates know what needs to be set.
+- Never commit `.env`—it stays local.
+- When deploying, copy the values into Railpack’s environment variable UI for each service.
 
 ---
 
 ## ✅ Verification Checklist
 
-After setup, verify everything works:
-
 ```bash
-# 1. Check files exist
-ls -la .env
-ls -la apps/backend/.env
-ls -la apps/frontend/.env.local
-
-# 2. Start database services
-docker-compose up -d postgres redis
-
-# 3. Test backend can connect
-cd apps/backend
-npx prisma migrate dev  # Should succeed
-
-# 4. Start dev servers
-npm run dev
-
-# 5. Check URLs
-# Frontend: http://localhost:4000
-# Backend: http://localhost:4001
-# Backend Health: http://localhost:4001/health
+ls .env                                # file exists
+npx prisma migrate dev --name init     # successfully connects to DB
+npm run dev                            # backend + frontend start locally
+curl http://localhost:4001/api/health  # backend health check passes
 ```
 
 ---
 
-## 🚨 Troubleshooting
+## 🔍 Discord OAuth Redirects
 
-### **Error: Cannot connect to database**
-- Check `DATABASE_URL` is correct
-- Ensure PostgreSQL is running: `docker-compose ps`
-- Check password matches in both `.env` and `DATABASE_URL`
+- **Local:** `http://localhost:4001/api/auth/discord/callback`
+- **Production:** `https://customs.trayb.az/api/auth/discord/callback`
 
-### **Error: Discord OAuth fails**
-- Verify `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET`
-- Check redirect URI matches Discord Developer Portal
-- Ensure `DISCORD_REDIRECT_URI` uses correct port
-
-### **Error: JWT/Session errors**
-- Ensure `JWT_SECRET` and `SESSION_SECRET` are set
-- Must be at least 32 characters
-- Don't use example values
-
-### **Frontend can't reach backend**
-- Check `NEXT_PUBLIC_API_URL` is correct
-- Ensure backend is running on port 4001
-- Try: `curl http://localhost:4001/health`
+Remember to add both to the Discord Developer Portal.
 
 ---
 
-## 📝 Best Practices
+## 🆘 Troubleshooting
 
-1. **Never commit `.env` files** (already in `.gitignore`)
-2. **Use different secrets** for development vs production
-3. **Rotate secrets** periodically in production
-4. **Use strong passwords** for database
-5. **Keep `.env.example` updated** when adding new variables
+### “Cannot connect to database”
+- Confirm PostgreSQL is running and reachable
+- Verify `DATABASE_URL`
+- Ensure migrations (`npx prisma migrate dev`) succeed locally
 
----
+### “Cannot connect to Redis”
+- Confirm Redis is running (`redis-cli ping`)
+- Verify `REDIS_URL`
 
-## 🔄 Updating Environment
-
-When you change root `.env`:
-
-```bash
-# Re-run setup to sync to apps
-npm run setup:env
-
-# Or manually copy changes to app .env files
-```
+### Environment variables not loading in Next.js
+- Next.js only exposes variables prefixed with `NEXT_PUBLIC_` to the browser. Keep secrets on the server side.
 
 ---
 
-## 📚 Related Documentation
-
-- [QUICK_START.md](./QUICK_START.md) - Getting started guide
-- [DEPLOYMENT.md](./DEPLOYMENT.md) - Production deployment
-- [DISCORD_AUTH_SETUP.md](./DISCORD_AUTH_SETUP.md) - Discord OAuth detailed guide
-
----
-
-**Need help?** Check other docs in `/docs` or create an issue on GitHub.
+You’re ready to develop locally and deploy via Railpack using Nixpacks. Keep `.env.example` updated whenever new variables are introduced so teammates and CI environments stay aligned.
 

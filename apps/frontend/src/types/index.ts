@@ -234,6 +234,7 @@ export interface ScoreboardExtractionPayload {
   alpha: ScoreboardPlayerRow[]
   bravo: ScoreboardPlayerRow[]
   teams: RawScoreboardTeam[]
+  mapName?: string | null
 }
 
 export interface UploadMatchScoreboardResponse {

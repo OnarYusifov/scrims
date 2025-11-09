@@ -12,6 +12,9 @@ NEXT_PUBLIC_API_URL=http://localhost:4001
 
 # For production (Dokploy):
 # NEXT_PUBLIC_API_URL=https://api.customs.trayb.az
+
+# Auth.js session secret - REQUIRED
+AUTH_SECRET=your-nextauth-secret
 ```
 
 **Note:** The frontend port (4000) is hardcoded in `package.json` scripts.
@@ -39,6 +42,7 @@ REDIS_URL=redis://localhost:6379
 # JWT & Session
 JWT_SECRET=your-super-secret-jwt-key-min-32-chars
 SESSION_SECRET=your-super-secret-session-key-min-32-chars
+AUTH_SECRET=your-nextauth-secret
 
 # Discord OAuth
 DISCORD_CLIENT_ID=your-discord-client-id
@@ -75,6 +79,7 @@ RATE_LIMIT_WINDOW=1 minute
 ```bash
 NEXT_PUBLIC_API_URL=https://api.customs.trayb.az
 NODE_ENV=production
+AUTH_SECRET=<same-secret-used-by-backend>
 ```
 
 ### **Backend (api.customs.trayb.az)**
@@ -90,6 +95,7 @@ REDIS_URL=redis://redis:6379
 
 JWT_SECRET=<generate-secure-secret>
 SESSION_SECRET=<generate-secure-secret>
+AUTH_SECRET=<same-secret-used-by-frontend>
 
 DISCORD_CLIENT_ID=<your-production-id>
 DISCORD_CLIENT_SECRET=<your-production-secret>
@@ -129,6 +135,7 @@ RATE_LIMIT_WINDOW=1 minute
    ```bash
    openssl rand -base64 32
    ```
-3. **Update Discord OAuth callback URLs** in Discord Developer Portal
-4. **Set CORS_ORIGIN** to your actual frontend domain in production
+3. **Keep `JWT_SECRET`, `SESSION_SECRET`, and `AUTH_SECRET` unique per environment**
+4. **Update Discord OAuth callback URLs** in Discord Developer Portal
+5. **Set CORS_ORIGIN** to your actual frontend domain in production
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback, ChangeEvent } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,7 @@ import { OCRStatsUpload } from "@/components/match/ocr-stats-upload"
 import { TrackerHtmlUpload } from "@/components/match/tracker-html-upload"
 import type { ExtractedPlayerStats } from "@/lib/ocr"
 import { Users2 } from "lucide-react"
+import { useRealtimeStream } from "@/hooks/use-realtime"
 
 const STATUS_COLORS: Record<MatchStatus, string> = {
   DRAFT: "border-gray-400 dark:border-terminal-muted text-gray-700 dark:text-terminal-muted",
@@ -84,6 +85,10 @@ type MapStatsEntry = {
   winnerTeamId: string
   score: { alpha: number; bravo: number }
   playerStats: MapPlayerStat[]
+  importSubmissionId?: string | null
+  importSourceLabel?: string | null
+  importedAt?: string | null
+  detectedMapName?: string | null
 }
 
 const EDITABLE_STAT_FIELDS: Array<{ key: PlayerEditableField; label: string; allowNegative?: boolean }> = [
@@ -152,8 +157,47 @@ const [pendingOcrData, setPendingOcrData] = useState<{
   submissionId?: string | null
   statsStatus?: MatchStatsReviewStatus | null
   sourceLabel?: string
+  mapName?: string | null
 } | null>(null)
 const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undefined)
+const isFetchingMatchRef = useRef(false)
+const pendingReloadRef = useRef(false)
+
+const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
+  const silent = options?.silent ?? false
+
+  if (isFetchingMatchRef.current) {
+    if (silent) {
+      pendingReloadRef.current = true
+      return
+    }
+  }
+
+  isFetchingMatchRef.current = true
+
+  if (!silent) {
+    setIsLoading(true)
+  }
+
+  try {
+    const data = await fetchMatch(matchId)
+    setMatch(data)
+  } catch (error: any) {
+    console.error("Failed to load match:", error)
+    if (!silent) {
+      router.push("/matches")
+    }
+  } finally {
+    isFetchingMatchRef.current = false
+    if (!silent) {
+      setIsLoading(false)
+    }
+    if (pendingReloadRef.current) {
+      pendingReloadRef.current = false
+      void loadMatch({ silent: true })
+    }
+  }
+}, [matchId, router])
 
   const playerGroups = useMemo(() => {
     if (!match) return []
@@ -195,6 +239,30 @@ const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undef
     return [{ index: 0, label: "Map 1" }]
   }, [mapsStats, match?.maps])
 
+  const importedMapCount = useMemo(
+    () => mapsStats.filter((map) => Boolean(map.importedAt)).length,
+    [mapsStats],
+  )
+
+  const handleOpenImportForMap = useCallback(
+    (mapIndex: number) => {
+      setPendingMapIndex(mapIndex)
+      setPendingOcrData((current) => {
+        if (!current) return null
+        // Preserve detected map for context but drop players to force fresh upload
+        return {
+          players: [],
+          submissionId: current.submissionId,
+          statsStatus: current.statsStatus,
+          sourceLabel: current.sourceLabel,
+          mapName: mapsStats[mapIndex]?.mapName ?? current.mapName ?? null,
+        }
+      })
+      setShowOCRUpload(true)
+    },
+    [mapsStats],
+  )
+
   useEffect(() => {
     // Wait for auth to finish loading
     if (authLoading) {
@@ -208,22 +276,44 @@ const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undef
     }
 
     // Load match if authenticated
-    loadMatch()
-  }, [matchId, isAuthenticated, authLoading, router])
+    void loadMatch()
+  }, [matchId, isAuthenticated, authLoading, router, loadMatch])
 
-  async function loadMatch() {
-    try {
-      setIsLoading(true)
-      const data = await fetchMatch(matchId)
-      setMatch(data)
-      
-    } catch (error: any) {
-      console.error("Failed to load match:", error)
+  useRealtimeStream({
+    enabled: !authLoading && isAuthenticated,
+    events: {
+      "match:created": (payload) => {
+        if (!payload || payload.matchId !== matchId) return
+        void loadMatch({ silent: true })
+      },
+      "match:updated": (payload) => {
+        if (!payload || payload.matchId !== matchId) return
+        if (payload.action === "match:deleted") {
+          toast({
+            title: "Match removed",
+            description: "This match is no longer available.",
+          })
       router.push("/matches")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+          return
+        }
+        if (payload.action === "shutdown") {
+          return
+        }
+        void loadMatch({ silent: true })
+      },
+      "match:deleted": (payload) => {
+        if (!payload || payload.matchId !== matchId) return
+        toast({
+          title: "Match removed",
+          description: "This match is no longer available.",
+        })
+        router.push("/matches")
+      },
+    },
+    onError: (error) => {
+      console.error("Realtime stream error", error)
+    },
+  })
 
   async function handleJoinMatch() {
     if (match?.status === 'CANCELLED') {
@@ -231,7 +321,6 @@ const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undef
     }
     try {
       await joinMatch(matchId)
-      // Reload match - teams are already saved in database, so they should persist
       await loadMatch()
     } catch (error: any) {
       console.error("Failed to join match:", error)
@@ -244,7 +333,6 @@ const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undef
     }
     try {
       await leaveMatch(matchId)
-      // Reload match - teams are already saved in database, so they should persist
       await loadMatch()
     } catch (error: any) {
       console.error("Failed to leave match:", error)
@@ -411,6 +499,8 @@ const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undef
       stats: Partial<Record<PlayerEditableField, number | null>>
     }>
     submission?: { id: string | null; status: MatchStatsReviewStatus | null } | null
+    detectedMapName?: string | null
+    sourceLabel?: string
   }) {
     const targetIndex = mapsStats.length > 0
       ? Math.min(Math.max(payload.mapIndex, 0), mapsStats.length - 1)
@@ -441,6 +531,25 @@ const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undef
       }
     })
     
+    if (payload.detectedMapName) {
+      const detected = payload.detectedMapName.trim()
+      if (detected.length > 0) {
+        const existingName = updated[targetIndex].mapName?.trim() ?? ""
+        const isDefaultName = existingName === "" || /^Map\s+\d+$/i.test(existingName)
+        const isDifferent = existingName.toLowerCase() !== detected.toLowerCase()
+
+        if (isDefaultName || isDifferent) {
+          updated[targetIndex].mapName = detected
+        }
+        updated[targetIndex].detectedMapName = detected
+      }
+    }
+
+    updated[targetIndex].importSubmissionId = payload.submission?.id ?? updated[targetIndex].importSubmissionId ?? null
+    updated[targetIndex].importSourceLabel =
+      payload.sourceLabel ?? pendingOcrData?.sourceLabel ?? updated[targetIndex].importSourceLabel ?? null
+    updated[targetIndex].importedAt = new Date().toISOString()
+
     console.log(`Updated ${updatedCount} players for map index ${targetIndex}`)
     setMapsStats(updated)
     setShowOCRUpload(false)
@@ -484,6 +593,10 @@ const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undef
           winnerTeamId: map?.winnerTeamId || '',
           score: { alpha: 0, bravo: 0 },
           playerStats,
+          importSubmissionId: null,
+          importSourceLabel: null,
+          importedAt: null,
+          detectedMapName: map?.mapName || null,
         })
       }
       
@@ -1465,22 +1578,60 @@ const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undef
                 )}
 
                 <div className="mt-6">
-                  <TrackerHtmlUpload
-                    matchId={match.id}
-                onScoreboardReady={({ players, submissionId, statsStatus }) => {
-                  const emptyMapIndex = mapsStats.findIndex((map) =>
-                    map.playerStats.every((p) => (p.kills ?? 0) === 0 && (p.deaths ?? 0) === 0 && (p.acs ?? 0) === 0),
-                  )
-                  setPendingMapIndex(emptyMapIndex >= 0 ? emptyMapIndex : undefined)
-                  setPendingOcrData({
-                    players,
-                    submissionId,
-                    statsStatus,
-                    sourceLabel: "tracker bundle",
-                  })
-                  setShowOCRUpload(true)
-                }}
-                  />
+                <TrackerHtmlUpload
+                  matchId={match.id}
+                  onScoreboardReady={({ players, submissionId, statsStatus, sourceLabel, mapName }) => {
+                    const normalisedMapName = mapName?.trim().toLowerCase() ?? null
+
+                    const findMapIndexByName = (): number => {
+                      if (!normalisedMapName) return -1
+                      const stateIndex = mapsStats.findIndex(
+                        (map) => map.mapName && map.mapName.toLowerCase().includes(normalisedMapName),
+                      )
+                      if (stateIndex >= 0) return stateIndex
+
+                      if (match?.maps && match.maps.length > 0) {
+                        const matchIndex = match.maps.findIndex(
+                          (map) => map.mapName && map.mapName.toLowerCase().includes(normalisedMapName),
+                        )
+                        if (matchIndex >= 0) return matchIndex
+                      }
+
+                      return -1
+                    }
+
+                    const findEmptyMapIndex = (): number => {
+                      return mapsStats.findIndex((map) =>
+                        map.playerStats.every(
+                          (p) => (p.kills ?? 0) === 0 && (p.deaths ?? 0) === 0 && (p.acs ?? 0) === 0,
+                        ),
+                      )
+                    }
+
+                    const mapIndexByName = findMapIndexByName()
+                    const emptyMapIndex = findEmptyMapIndex()
+                    const targetIndex =
+                      mapIndexByName >= 0
+                        ? mapIndexByName
+                        : emptyMapIndex >= 0
+                          ? emptyMapIndex
+                          : mapsStats.length > 0
+                            ? 0
+                            : undefined
+
+                    setPendingMapIndex(
+                      typeof targetIndex === "number" && targetIndex >= 0 ? targetIndex : undefined,
+                    )
+                    setPendingOcrData({
+                      players,
+                      submissionId,
+                      statsStatus,
+                      sourceLabel: sourceLabel ?? "tracker bundle",
+                      mapName: mapName ?? null,
+                    })
+                    setShowOCRUpload(true)
+                  }}
+                />
                 </div>
 
                 {/* Action Buttons */}

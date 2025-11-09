@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -47,6 +47,7 @@ import {
 } from "@/lib/api"
 import { cn, formatTimestamp } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useRealtimeStream } from "@/hooks/use-realtime"
 
 type AdminTab = "users" | "weights" | "audit"
 
@@ -87,6 +88,120 @@ export default function AdminPage() {
   // Audit logs tab state
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+  const usersFetchingRef = useRef(false)
+  const profilesFetchingRef = useRef(false)
+  const auditFetchingRef = useRef(false)
+  const pendingUsersReloadRef = useRef(false)
+  const pendingProfilesReloadRef = useRef(false)
+  const pendingAuditReloadRef = useRef(false)
+
+  const loadUsers = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false
+
+      if (usersFetchingRef.current) {
+        if (silent) {
+          pendingUsersReloadRef.current = true
+        }
+        return
+      }
+
+      usersFetchingRef.current = true
+      if (!silent) {
+        setIsLoadingUsers(true)
+      }
+
+      try {
+        const response = await fetchUsers({
+          limit: 100,
+          search: searchQuery || undefined,
+        })
+        setUsers(response.users)
+      } catch (error: any) {
+        console.error("Failed to load users:", error)
+      } finally {
+        usersFetchingRef.current = false
+        if (!silent) {
+          setIsLoadingUsers(false)
+        }
+        if (pendingUsersReloadRef.current) {
+          pendingUsersReloadRef.current = false
+          void loadUsers({ silent: true })
+        }
+      }
+    },
+    [searchQuery],
+  )
+
+  const loadWeightProfiles = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false
+
+      if (profilesFetchingRef.current) {
+        if (silent) {
+          pendingProfilesReloadRef.current = true
+        }
+        return
+      }
+
+      profilesFetchingRef.current = true
+      if (!silent) {
+        setIsLoadingProfiles(true)
+      }
+
+      try {
+        const profiles = await fetchWeightProfiles()
+        setWeightProfiles(profiles)
+      } catch (error: any) {
+        console.error("Failed to load weight profiles:", error)
+      } finally {
+        profilesFetchingRef.current = false
+        if (!silent) {
+          setIsLoadingProfiles(false)
+        }
+        if (pendingProfilesReloadRef.current) {
+          pendingProfilesReloadRef.current = false
+          void loadWeightProfiles({ silent: true })
+        }
+      }
+    },
+    [],
+  )
+
+  const loadAuditLogs = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false
+
+      if (auditFetchingRef.current) {
+        if (silent) {
+          pendingAuditReloadRef.current = true
+        }
+        return
+      }
+
+      auditFetchingRef.current = true
+      if (!silent) {
+        setIsLoadingLogs(true)
+      }
+
+      try {
+        const response = await fetchAuditLogs({ limit: 100 })
+        setAuditLogs(response.logs)
+      } catch (error: any) {
+        console.error("Failed to load audit logs:", error)
+      } finally {
+        auditFetchingRef.current = false
+        if (!silent) {
+          setIsLoadingLogs(false)
+        }
+        if (pendingAuditReloadRef.current) {
+          pendingAuditReloadRef.current = false
+          void loadAuditLogs({ silent: true })
+        }
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     if (authLoading) return
@@ -101,55 +216,14 @@ export default function AdminPage() {
       return
     }
 
-    // Load data based on active tab
     if (activeTab === "users") {
-      loadUsers()
+      void loadUsers()
     } else if (activeTab === "weights") {
-      loadWeightProfiles()
+      void loadWeightProfiles()
     } else if (activeTab === "audit") {
-      loadAuditLogs()
+      void loadAuditLogs()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, authLoading, user, activeTab, router])
-
-  async function loadUsers() {
-    try {
-      setIsLoadingUsers(true)
-      const response = await fetchUsers({
-        limit: 100,
-        search: searchQuery || undefined,
-      })
-      setUsers(response.users)
-    } catch (error: any) {
-      console.error("Failed to load users:", error)
-    } finally {
-      setIsLoadingUsers(false)
-    }
-  }
-
-  async function loadWeightProfiles() {
-    try {
-      setIsLoadingProfiles(true)
-      const profiles = await fetchWeightProfiles()
-      setWeightProfiles(profiles)
-    } catch (error: any) {
-      console.error("Failed to load weight profiles:", error)
-    } finally {
-      setIsLoadingProfiles(false)
-    }
-  }
-
-  async function loadAuditLogs() {
-    try {
-      setIsLoadingLogs(true)
-      const response = await fetchAuditLogs({ limit: 100 })
-      setAuditLogs(response.logs)
-    } catch (error: any) {
-      console.error("Failed to load audit logs:", error)
-    } finally {
-      setIsLoadingLogs(false)
-    }
-  }
+  }, [isAuthenticated, authLoading, user, activeTab, router, loadUsers, loadWeightProfiles, loadAuditLogs])
 
 
   async function handleUpdateRole(userId: string, newRole: 'USER' | 'MODERATOR' | 'ADMIN' | 'ROOT') {
@@ -157,7 +231,7 @@ export default function AdminPage() {
       await updateUserRole(userId, newRole)
       console.log(`User role changed to ${newRole}`)
       setShowRoleDialog(false)
-      loadUsers()
+      await loadUsers()
     } catch (error: any) {
       console.error("Failed to update role:", error)
     }
@@ -167,7 +241,7 @@ export default function AdminPage() {
     try {
       await banUser(userId, banned)
       console.log(`User has been ${banned ? "banned" : "unbanned"}`)
-      loadUsers()
+      await loadUsers()
     } catch (error: any) {
       console.error("Failed to ban user:", error)
     }
@@ -178,7 +252,7 @@ export default function AdminPage() {
       await addToWhitelist(whitelistDiscordId)
       setShowWhitelistDialog(false)
       setWhitelistDiscordId("")
-      loadUsers()
+      await loadUsers()
     } catch (error: any) {
       console.error("Failed to whitelist user:", error)
     }
@@ -187,7 +261,7 @@ export default function AdminPage() {
   async function handleRemoveFromWhitelist(userId: string) {
     try {
       await removeFromWhitelist(userId)
-      loadUsers()
+      await loadUsers()
     } catch (error: any) {
       console.error("Failed to remove from whitelist:", error)
     }
@@ -196,7 +270,7 @@ export default function AdminPage() {
   async function handleAddUserToWhitelist(discordId: string) {
     try {
       await addToWhitelist(discordId)
-      loadUsers()
+      await loadUsers()
     } catch (error: any) {
       console.error("Failed to whitelist user:", error)
     }
@@ -221,9 +295,9 @@ export default function AdminPage() {
 
       // Refresh relevant data in the background
       if (activeTab === "users") {
-        loadUsers()
+        void loadUsers({ silent: true })
       }
-      loadAuditLogs()
+      void loadAuditLogs({ silent: true })
     } catch (error: any) {
       const message =
         error?.message || "Failed to reset application data. Please check server logs."
@@ -259,7 +333,7 @@ export default function AdminPage() {
         firstKillWeight: 0.05,
         clutchWeight: 0.05,
       })
-      loadWeightProfiles()
+      await loadWeightProfiles()
     } catch (error: any) {
         console.error("Failed to save weight profile:", error)
     }
@@ -268,11 +342,40 @@ export default function AdminPage() {
   async function handleActivateProfile(profileId: string) {
     try {
       await activateWeightProfile(profileId)
-      loadWeightProfiles()
+      await loadWeightProfiles()
     } catch (error: any) {
       console.error("Failed to activate profile:", error)
     }
   }
+
+  const realtimeHandlers = useMemo(
+    () => ({
+      "match:updated": () => {
+        if (activeTab === "audit") {
+          void loadAuditLogs({ silent: true })
+        }
+      },
+      "match:deleted": () => {
+        if (activeTab === "audit") {
+          void loadAuditLogs({ silent: true })
+        }
+      },
+      "match:created": () => {
+        if (activeTab === "audit") {
+          void loadAuditLogs({ silent: true })
+        }
+      },
+    }),
+    [activeTab, loadAuditLogs],
+  )
+
+  useRealtimeStream({
+    enabled: isAuthenticated,
+    events: realtimeHandlers,
+    onError: (error) => {
+      console.error("Realtime stream error", error)
+    },
+  })
 
   function openEditProfile(profile: WeightProfile) {
     setSelectedProfile(profile)

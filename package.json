@@ -18,10 +18,7 @@
     "start:backend": "cd apps/backend && npm start",
     "start:frontend": "cd apps/frontend && npm start",
     "lint": "eslint .",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "docker:dev": "docker-compose -f docker-compose.dev.yml up -d --build",
-    "docker:down": "docker-compose -f docker-compose.dev.yml down",
-    "docker:logs": "docker-compose -f docker-compose.dev.yml logs -f"
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

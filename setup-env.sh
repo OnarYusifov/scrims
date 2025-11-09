@@ -24,6 +24,10 @@ set +a
 
 echo "✅ Found root .env file"
 
+if [ -z "${AUTH_SECRET}" ]; then
+    echo "⚠️ Warning: AUTH_SECRET is not set in root .env. NextAuth sessions require a strong secret."
+fi
+
 # ==============================================
 # Create Backend .env
 # ==============================================
@@ -66,6 +70,7 @@ NODE_ENV=${NODE_ENV:-development}
 PORT=${FRONTEND_PORT:-4000}
 
 NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+AUTH_SECRET=${AUTH_SECRET}
 EOF
 
 echo "✅ Created apps/frontend/.env.local"
@@ -81,7 +86,7 @@ echo "   ✓ apps/backend/.env"
 echo "   ✓ apps/frontend/.env.local"
 echo ""
 echo "🚀 Next steps:"
-echo "   1. Start database: docker-compose up -d postgres redis"
+echo "   1. Make sure PostgreSQL and Redis are running"
 echo "   2. Run migrations: cd apps/backend && npx prisma migrate dev"
 echo "   3. Start dev servers: npm run dev"
 echo ""

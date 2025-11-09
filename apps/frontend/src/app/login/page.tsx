@@ -7,6 +7,7 @@ import { Terminal, Zap, Shield, AlertCircle } from "lucide-react"
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { initiateDiscordLogin } from "@/lib/auth"
 import { useAuth } from "@/hooks/use-auth"
 
 function LoginContent() {
@@ -88,8 +89,7 @@ function LoginContent() {
     })
 
     // Redirect to Discord OAuth
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
-    window.location.href = `${apiUrl}/api/auth/discord`
+    initiateDiscordLogin()
   }
 
   return (

@@ -26,22 +26,17 @@ cp .env.example .env
 # - DISCORD_CLIENT_SECRET
 # - JWT_SECRET (generate random 32+ char string)
 # - SESSION_SECRET (generate random 32+ char string)
+# - AUTH_SECRET (generate random 32+ char string for NextAuth)
 ```
 
-### 3. Start Database Services
-```bash
-# Using Docker Compose
-docker-compose up -d postgres redis
-```
-
-### 4. Run Database Migrations
+### 3. Run Database Migrations
 ```bash
 cd apps/backend
 npx prisma generate
 npx prisma migrate dev
 ```
 
-### 5. Start Development Servers
+### 4. Start Development Servers
 ```bash
 # From root directory
 npm run dev

@@ -2,9 +2,9 @@
 
 import { useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { setToken } from "@/lib/auth"
 import { motion } from "framer-motion"
 import { Loader2 } from "lucide-react"
+import { signIn } from "next-auth/react"
 
 function AuthCallbackContent() {
   const router = useRouter()
@@ -15,21 +15,39 @@ function AuthCallbackContent() {
     const error = searchParams.get("error")
 
     if (error) {
-      // Redirect back to login with error
       router.push(`/login?error=${error}`)
       return
     }
 
-    if (token) {
-      // Save token and redirect to dashboard
-      setToken(token)
-      // Force a page reload to trigger auth state update
-      window.location.href = "/dashboard"
-    } else {
-      // No token, redirect to login
+    if (!token) {
       router.push("/login?error=no_token")
+      return
     }
-  }, [searchParams, router])
+
+    let cancelled = false
+
+    const completeSignIn = async () => {
+      const result = await signIn("trayb-backend", {
+        token,
+        redirect: false,
+      })
+
+      if (cancelled) return
+
+      if (result?.error) {
+        router.push(`/login?error=${encodeURIComponent(result.error)}`)
+        return
+      }
+
+      router.replace("/dashboard")
+    }
+
+    void completeSignIn()
+
+    return () => {
+      cancelled = true
+    }
+  }, [router, searchParams])
 
   return (
     <div className="container relative flex min-h-[calc(100vh-4rem)] items-center justify-center">
@@ -52,11 +70,13 @@ function AuthCallbackContent() {
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={
-      <div className="container relative flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <Loader2 className="h-12 w-12 text-matrix-500 animate-spin" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="container relative flex min-h-[calc(100vh-4rem)] items-center justify-center">
+          <Loader2 className="h-12 w-12 text-matrix-500 animate-spin" />
+        </div>
+      }
+    >
       <AuthCallbackContent />
     </Suspense>
   )

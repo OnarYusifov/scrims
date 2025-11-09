@@ -40,6 +40,9 @@ async function buildServer(): Promise<FastifyInstance> {
         },
       } : undefined,
     },
+    trustProxy: process.env.TRUST_PROXY
+      ? process.env.TRUST_PROXY === 'true'
+      : true,
   });
 
   // Register JWT plugin
@@ -84,9 +87,34 @@ async function buildServer(): Promise<FastifyInstance> {
   // Register rate limiting (will skip if Redis fails)
   try {
     await fastify.register(rateLimit, {
-      max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
+      max: parseInt(process.env.RATE_LIMIT_MAX || '600'),
       timeWindow: process.env.RATE_LIMIT_WINDOW || '1 minute',
-      redis: redis,
+      redis,
+      skipOnError: true,
+      continueExceeding: false,
+      keyGenerator: (request) => {
+        const headers = request.headers;
+        const forwarded =
+          (headers['cf-connecting-ip'] as string | undefined) ??
+          (headers['x-real-ip'] as string | undefined) ??
+          (headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
+
+        if (forwarded) {
+          return forwarded;
+        }
+
+        const sessionId = (request as any).session?.sessionId;
+        if (sessionId) {
+          return sessionId;
+        }
+
+        const userId = (request as any).user?.userId;
+        if (userId) {
+          return userId;
+        }
+
+        return request.ip;
+      },
     });
   } catch (error) {
     fastify.log.warn({ err: error }, 'Rate limiting disabled due to Redis error');
@@ -125,6 +153,7 @@ async function buildServer(): Promise<FastifyInstance> {
   await fastify.register(import('./routes/admin'), { prefix: '/api/admin' });
   await fastify.register(import('./routes/import'), { prefix: '/api/import' });
   await fastify.register(import('./routes/leaderboard'), { prefix: '/api/leaderboard' });
+  await fastify.register(import('./routes/realtime'), { prefix: '/api/realtime' });
   await fastify.register(import('./routes/random'), { prefix: '/api' });
 
   // Global error handler

@@ -23,19 +23,22 @@ cp .env.example .env
 ```
 
 ### 3. Start Services
-```bash
-# Start PostgreSQL and Redis
-docker-compose up -d postgres redis
+1. **Run PostgreSQL and Redis locally** (or use managed instances):
+   - PostgreSQL 16+
+   - Redis 7+
 
-# Run database migrations
-cd apps/backend
-npx prisma generate
-npx prisma migrate dev
-cd ../..
+2. **Run database migrations**
+   ```bash
+   cd apps/backend
+   npx prisma generate
+   npx prisma migrate dev
+   cd ../..
+   ```
 
-# Start development servers
-npm run dev
-```
+3. **Start development servers**
+   ```bash
+   npm run dev
+   ```
 
 ### 4. Access the Application
 - **Frontend:** http://localhost:4000
@@ -48,8 +51,9 @@ trayb-customs/
 ├── apps/
 │   ├── frontend/     # Next.js frontend (PORT 4000)
 │   └── backend/      # Fastify backend (PORT 4001)
-├── docs/             # All documentation
-├── docker/           # Docker configs
+├── docs/             # Documentation
+├── nixpacks.toml     # Backend build config for Railpack/Nixpacks
+├── nixpacks.frontend.toml # Frontend build config for Railpack/Nixpacks
 └── .env.example      # Environment template
 ```
 
@@ -59,7 +63,7 @@ trayb-customs/
 - **Backend:** Fastify, TypeScript, Prisma, PostgreSQL, Redis
 - **Realtime:** Discord.js 14, Canvas (for leaderboard rendering)
 - **Auth:** Discord OAuth 2.0
-- **Deployment:** Dokploy, Docker, Cloudflare
+- **Deployment:** Railpack (Nixpacks), Cloudflare
 
 ## 🤖 Discord Bot
 
@@ -87,10 +91,10 @@ DISCORD_RESULTS_CHANNEL_ID=1436464923365605426
 
 ### Native Dependencies
 
-The bot renders leaderboard images with `canvas`. If you run locally outside Docker make sure the Cairo toolchain is available:
+The bot renders leaderboard images with `canvas`. When running locally make sure the Cairo toolchain is available:
 
 - **Debian/Ubuntu:** `sudo apt install -y libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev`
-- **Alpine (WSL/Docker):** `apk add --no-cache cairo-dev pango-dev jpeg-dev giflib-dev pixman-dev freetype-dev`
+  - **Alpine/WSL:** `apk add --no-cache cairo-dev pango-dev jpeg-dev giflib-dev pixman-dev freetype-dev`
 - **macOS (Homebrew):** `brew install pkg-config cairo pango libpng jpeg giflib`
 
 ## 📚 Documentation
@@ -111,18 +115,7 @@ DISCORD_CLIENT_ID=           # From Discord Developer Portal
 DISCORD_CLIENT_SECRET=       # From Discord Developer Portal
 JWT_SECRET=                  # Random 32+ character string
 SESSION_SECRET=              # Random 32+ character string
-```
-
-## 🐳 Docker Commands
-
-```bash
-# Development
-npm run docker:dev         # Start all services
-npm run docker:down        # Stop all services
-npm run docker:logs        # View logs
-
-# Production
-docker-compose -f docker-compose.prod.yml up -d
+AUTH_SECRET=                 # Random 32+ character string (NextAuth session encryption)
 ```
 
 ## 📝 Scripts
@@ -137,7 +130,7 @@ npm run start            # Start production servers
 
 ## 🌐 Deployment
 
-For production deployment to Dokploy, see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+For Railpack production deployment (Nixpacks builds for backend & frontend) see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
 
 ## 📄 License
 

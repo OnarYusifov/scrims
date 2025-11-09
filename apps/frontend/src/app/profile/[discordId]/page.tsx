@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +9,7 @@ import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { fetchProfileByDiscordId, ProfileData } from "@/lib/api"
 import { UserProfileView } from "@/components/profile/user-profile-view"
+import { useRealtimeStream } from "@/hooks/use-realtime"
 
 export default function UserProfileByDiscordIdPage() {
   const params = useParams<{ discordId: string }>()
@@ -18,6 +19,8 @@ export default function UserProfileByDiscordIdPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isFullHistory, setIsFullHistory] = useState(false)
+  const isFetchingRef = useRef(false)
+  const pendingReloadRef = useRef(false)
 
   const discordId = params?.discordId
 
@@ -26,29 +29,54 @@ export default function UserProfileByDiscordIdPage() {
   }, [discordId])
 
   const loadProfile = useCallback(
-    async (fullHistory = false) => {
+    async (fullHistory = isFullHistory, options?: { silent?: boolean }) => {
       if (!discordId) return
-      try {
+      const silent = options?.silent ?? false
+
+      if (isFetchingRef.current) {
+        if (silent) {
+          pendingReloadRef.current = true
+        }
+        return
+      }
+
+      isFetchingRef.current = true
+
+      if (!silent) {
         setIsLoading(true)
         setError(null)
+      }
+
+      try {
         const data = await fetchProfileByDiscordId(
           discordId,
           fullHistory ? { fullHistory: true } : undefined
         )
         if (!data) {
-          setError("Profile not found")
-          setProfileData(null)
+          if (!silent) {
+            setError("Profile not found")
+            setProfileData(null)
+          }
         } else {
           setProfileData(data)
         }
       } catch (err) {
         console.error("Failed to load profile:", err)
-        setError(err instanceof Error ? err.message : "Failed to load profile")
+        if (!silent) {
+          setError(err instanceof Error ? err.message : "Failed to load profile")
+        }
       } finally {
-        setIsLoading(false)
+        isFetchingRef.current = false
+        if (!silent) {
+          setIsLoading(false)
+        }
+        if (pendingReloadRef.current) {
+          pendingReloadRef.current = false
+          void loadProfile(fullHistory, { silent: true })
+        }
       }
     },
-    [discordId]
+    [discordId, isFullHistory]
   )
 
   useEffect(() => {
@@ -73,8 +101,71 @@ export default function UserProfileByDiscordIdPage() {
       return
     }
 
-    loadProfile(isFullHistory)
+    void loadProfile(isFullHistory)
   }, [authLoading, isAuthenticated, discordId, router, currentUser, loadProfile, isFullHistory])
+
+  const profileUserId = profileData?.user.id
+
+  const realtimeHandlers = useMemo(
+    () => ({
+      "match:updated": (payload: any) => {
+        if (!profileUserId || !payload) return
+
+        if (payload.action === "shutdown") {
+          return
+        }
+
+        const data = payload.data
+        const touchesUser = (() => {
+          if (!data) {
+            return payload.action?.startsWith?.("status:COMPLETED")
+          }
+
+          if (typeof data === "object") {
+            if ("userId" in data && data.userId === profileUserId) {
+              return true
+            }
+
+            if ("addedUsers" in data && Array.isArray(data.addedUsers)) {
+              return data.addedUsers.some((entry: any) => {
+                if (typeof entry === "string") {
+                  return entry === profileUserId
+                }
+                return entry?.userId === profileUserId
+              })
+            }
+
+            if ("removedBy" in data && data.userId === profileUserId) {
+              return true
+            }
+
+            if ("movedBy" in data && (data.userId === profileUserId || data.toTeamId || data.fromTeamId)) {
+              return true
+            }
+          }
+
+          return payload.action?.startsWith?.("status:COMPLETED")
+        })()
+
+        if (touchesUser) {
+          void loadProfile(isFullHistory, { silent: true })
+        }
+      },
+      "match:deleted": (payload: any) => {
+        if (!profileUserId || !payload) return
+        void loadProfile(isFullHistory, { silent: true })
+      },
+    }),
+    [profileUserId, loadProfile, isFullHistory]
+  )
+
+  useRealtimeStream({
+    enabled: isAuthenticated,
+    events: realtimeHandlers,
+    onError: (error) => {
+      console.error("Realtime stream error", error)
+    },
+  })
 
   if (authLoading || isLoading) {
     return (

@@ -1,4 +1,3 @@
-import { getToken } from './auth';
 import { Match, MatchStatus, SeriesType, MatchStatsSource, MatchStatsReviewStatus, UploadMatchScoreboardResponse, ScoreboardExtractionPayload } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
@@ -17,13 +16,10 @@ export async function apiRequest<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const token = getToken();
-  
   // Only include Content-Type for requests with a body
   const hasBody = options?.body !== undefined && options?.body !== null;
   const headers: HeadersInit = {
     ...(hasBody && { 'Content-Type': 'application/json' }),
-    ...(token && { Authorization: `Bearer ${token}` }),
     ...options?.headers,
   };
   
@@ -746,7 +742,6 @@ export async function uploadMatchScoreboard(
   matchId: string,
   file: File,
 ): Promise<UploadMatchScoreboardResponse> {
-  const token = getToken();
   const formData = new FormData();
   formData.append('scoreboard', file);
 
@@ -756,11 +751,6 @@ export async function uploadMatchScoreboard(
       method: 'POST',
       body: formData,
       credentials: 'include',
-      headers: token
-        ? {
-            Authorization: `Bearer ${token}`,
-          }
-        : undefined,
     },
   );
 
@@ -791,7 +781,6 @@ export async function uploadMatchTrackerBundle(
   matchId: string,
   files: File[] | FileList,
 ): Promise<UploadTrackerBundleResponse> {
-  const token = getToken();
   const formData = new FormData();
   const fileArray = files instanceof FileList ? Array.from(files) : files;
 
@@ -809,11 +798,6 @@ export async function uploadMatchTrackerBundle(
       method: 'POST',
       body: formData,
       credentials: 'include',
-      headers: token
-        ? {
-            Authorization: `Bearer ${token}`,
-          }
-        : undefined,
     },
   );
 

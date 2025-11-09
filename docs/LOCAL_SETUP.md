@@ -2,297 +2,142 @@
 
 ## Prerequisites
 
-Before starting, you need:
-- Node.js 18+ installed
-- PostgreSQL 16 (or use Docker Desktop for just Postgres + Redis)
-- Redis (or use Docker Desktop)
-- Cairo graphics toolchain for the Discord bot's Canvas rendering:
+- Node.js 20+
+- PostgreSQL 16+
+- Redis 7+
+- Cairo graphics toolchain for the Discord bot:
   - **Ubuntu/Debian:** `sudo apt install -y libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev`
-  - **Alpine (WSL/Docker):** `apk add --no-cache cairo-dev pango-dev jpeg-dev giflib-dev pixman-dev freetype-dev`
   - **macOS:** `brew install pkg-config cairo pango libpng jpeg giflib`
+  - **Windows (WSL recommended):** use the Ubuntu command above inside WSL
 
-## Option 1: Using Docker Desktop (Recommended)
-
-If you have Docker Desktop installed:
-
-### 1. Start only PostgreSQL and Redis (not the full app)
-
-```bash
-# Navigate to project root
-cd "C:\Users\Onarbay\Documents\trayb leaderboard"
-
-# Start only database services
-docker-compose up -d postgres redis
-
-# Check they're running
-docker-compose ps
-```
-
-### 2. Stop all Docker containers (if needed)
-
-```bash
-# Stop all services
-docker-compose down
-
-# Or stop specific services
-docker-compose stop postgres redis
-
-# To remove volumes as well (fresh start)
-docker-compose down -v
-```
+> If you prefer containers for the datastores, run PostgreSQL and Redis however you like—the application itself runs directly on Node.js.
 
 ---
 
-## Option 2: Install PostgreSQL and Redis Locally (Windows)
+## 1. Install Dependencies
 
-### Install PostgreSQL
-1. Download from: https://www.postgresql.org/download/windows/
-2. Install with default settings (port 5432)
-3. Remember your postgres password!
+```bash
+cd trayb-customs
+npm install
+```
 
-### Install Redis
-1. Download from: https://github.com/microsoftarchive/redis/releases
-2. Or use WSL2: `wsl -d Ubuntu sudo service redis-server start`
+The workspace install pulls dependencies for both the backend and frontend.
 
 ---
 
-## Full Local Setup (After DB is Running)
+## 2. Configure Environment Variables
 
-### Step 1: Install Dependencies
+Copy the example file and adjust values for local development:
 
 ```bash
-# Navigate to project root
-cd "C:\Users\Onarbay\Documents\trayb leaderboard"
-
-# Install root dependencies
-npm install
-
-# Install backend dependencies
-cd apps/backend
-npm install
-
-# Install frontend dependencies
-cd ../frontend
-npm install
-
-cd ../..
+cp .env.example .env
 ```
 
-### Step 2: Configure Environment Variables
+Key entries:
 
-Create a `.env` file in the project root:
-
-```bash
-# Copy example (if it exists) or create manually
-# .env file contents:
-
+```env
 DATABASE_URL="postgresql://postgres:password@localhost:5432/trayb_customs?schema=public"
 REDIS_URL="redis://localhost:6379"
 
-PORT=3001
+PORT=4001
 HOST="0.0.0.0"
 NODE_ENV="development"
 
-JWT_SECRET="your-super-secret-jwt-key-change-this"
-SESSION_SECRET="your-super-secret-session-key-change-this"
-JWT_EXPIRATION="7d"
+JWT_SECRET="generate-a-strong-secret"
+SESSION_SECRET="generate-another-strong-secret"
+AUTH_SECRET="generate-a-strong-secret-for-nextauth"
 
-# Discord OAuth (get from Discord Developer Portal)
 DISCORD_CLIENT_ID="your-discord-client-id"
 DISCORD_CLIENT_SECRET="your-discord-client-secret"
-DISCORD_CALLBACK_URL="http://localhost:3001/auth/discord/callback"
-DISCORD_WHITELISTED_IDS="your-discord-user-id"
+DISCORD_REDIRECT_URI="http://localhost:4001/api/auth/discord/callback"
 
-NEXT_PUBLIC_API_URL="http://localhost:3001"
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-
-# Elo Configuration
-ELO_START_RATING=800
-ELO_CALIBRATION_MATCHES=10
-ELO_CALIBRATION_K_FACTOR=48
-ELO_NORMAL_K_FACTOR=32
-ELO_HIGH_ELO_K_FACTOR=24
-ELO_HIGH_ELO_THRESHOLD=1600
-ELO_MAX_CHANGE_PER_SERIES=150
-
-# Logging
-LOG_LEVEL="info"
-PRETTY_LOGS="true"
-
-# CORS
-CORS_ORIGIN="http://localhost:3000"
+NEXT_PUBLIC_API_URL="http://localhost:4001"
+NEXT_PUBLIC_APP_URL="http://localhost:4000"
 ```
-
-### Step 3: Set Up the Database
-
-```bash
-# Navigate to backend
-cd apps/backend
-
-# Generate Prisma client
-npx prisma generate
-
-# Run migrations (creates all tables)
-npx prisma migrate dev --name init
-
-# (Optional) Open Prisma Studio to see your database
-npx prisma studio
-```
-
-### Step 4: Start the Backend Server
-
-```bash
-# From apps/backend directory
-npm run dev
-
-# You should see:
-# ╔════════════════════════════════════════╗
-# ║   TRAYB Customs Backend API Server    ║
-# ║   Status: ✓ Running                    ║
-# ║   Port: 3001                           ║
-# ╚════════════════════════════════════════╝
-```
-
-Test the backend:
-- Open browser to: http://localhost:3001/health
-- You should see: `{"status":"ok","timestamp":"...","services":{"database":"connected","redis":"..."}}`
-
-### Step 5: Start the Frontend Server
-
-Open a NEW terminal window:
-
-```bash
-# Navigate to frontend
-cd "C:\Users\Onarbay\Documents\trayb leaderboard\apps\frontend"
-
-# Start dev server
-npm run dev
-
-# You should see:
-# ▲ Next.js 15.1.0
-# - Local:        http://localhost:3000
-```
-
-### Step 6: Test the Application
-
-Open your browser to: http://localhost:3000
-
-You should see:
-- ✅ Matrix-themed landing page
-- ✅ Animated Matrix rain effect
-- ✅ TRAYB Customs header
-- ✅ Navigation links
-- ✅ Theme toggle working
 
 ---
 
-## Quick Commands Reference
+## 3. Prepare the Database
 
-### Start Everything (from project root)
-
-```bash
-# Start both backend and frontend
-npm run dev
-
-# Or separately:
-npm run dev:backend    # Backend only
-npm run dev:frontend   # Frontend only
-```
-
-### Database Commands
+Ensure PostgreSQL and Redis are running, then:
 
 ```bash
 cd apps/backend
-
-# View database in browser
-npx prisma studio
-
-# Reset database (careful - deletes all data!)
-npx prisma migrate reset
-
-# Create new migration
-npx prisma migrate dev --name your_migration_name
-
-# Generate Prisma client (after schema changes)
 npx prisma generate
+npx prisma migrate dev --name init
 ```
 
-### Docker Commands (if using Docker Desktop)
+Optional: view data in Prisma Studio.
 
 ```bash
-# Start databases only
-docker-compose up -d postgres redis
+npx prisma studio
+```
 
-# Check status
-docker-compose ps
+---
 
-# View logs
-docker-compose logs -f postgres
-docker-compose logs -f redis
+## 4. Start the Services
 
-# Stop databases
-docker-compose stop postgres redis
+### Backend (Fastify API + Discord bot)
 
-# Stop and remove everything
-docker-compose down
+```bash
+cd apps/backend
+npm run dev
+```
 
-# Stop and remove with volumes (fresh start)
-docker-compose down -v
+Health check: http://localhost:4001/api/health
+
+### Frontend (Next.js)
+
+```bash
+cd apps/frontend
+npm run dev
+```
+
+Visit http://localhost:4000
+
+> Shortcut: from the project root you can run `npm run dev` to start both servers concurrently.
+
+---
+
+## Useful Commands
+
+```bash
+# Backend helpers
+cd apps/backend
+npx prisma studio               # Browse the database
+npx prisma migrate reset        # Reset database (destructive!)
+npm run build                   # Production build
+
+# Frontend helpers
+cd apps/frontend
+npm run lint
+npm run build
 ```
 
 ---
 
 ## Troubleshooting
 
-### Backend won't start - Database connection error
+### Database connection errors
+- Confirm PostgreSQL is reachable at `localhost:5432`
+- Verify credentials in `DATABASE_URL`
 
-**Problem:** `Can't reach database server at localhost:5432`
-
-**Solutions:**
-1. Check PostgreSQL is running: `docker-compose ps` or Windows Services
-2. Check DATABASE_URL in .env file
-3. Verify port 5432 is not in use: `netstat -an | findstr 5432`
-
-### Backend won't start - Redis connection error
-
-**Problem:** `Could not connect to Redis`
-
-**Solutions:**
-1. Check Redis is running: `docker-compose ps` or `redis-cli ping`
-2. Check REDIS_URL in .env file
-3. Try: `docker-compose restart redis`
-
-### Frontend can't connect to backend
-
-**Problem:** Network errors in browser console
-
-**Solutions:**
-1. Verify backend is running on port 3001
-2. Check NEXT_PUBLIC_API_URL in .env
-3. Check CORS settings in backend
+### Redis connection errors
+- Ensure Redis is running on `localhost:6379`
+- Confirm `REDIS_URL` matches your instance
 
 ### Port already in use
-
-**Problem:** `Error: listen EADDRINUSE: address already in use :::3000`
-
-**Solutions:**
 ```bash
-# Find process using port
-netstat -ano | findstr :3000
+# macOS/Linux
+lsof -i :4000
+kill -9 <PID>
 
-# Kill process by PID
+# Windows PowerShell
+netstat -ano | findstr :4000
 taskkill /PID <PID> /F
-
-# Or use different port
-# Frontend: Change in package.json or: npm run dev -- -p 3001
-# Backend: Change PORT in .env
 ```
 
-### Prisma Client not generated
-
-**Problem:** `@prisma/client did not initialize yet`
-
-**Solution:**
+### Prisma client not generated
 ```bash
 cd apps/backend
 npx prisma generate
@@ -300,119 +145,16 @@ npx prisma generate
 
 ---
 
-## Development Workflow
+## Discord OAuth Credentials
 
-### 1. Daily Start
-
-```bash
-# Terminal 1: Start databases
-docker-compose up -d postgres redis
-
-# Terminal 2: Start backend
-cd apps/backend
-npm run dev
-
-# Terminal 3: Start frontend
-cd apps/frontend
-npm run dev
-```
-
-### 2. Making Database Changes
-
-```bash
-# 1. Edit apps/backend/prisma/schema.prisma
-# 2. Create migration:
-cd apps/backend
-npx prisma migrate dev --name your_change
-
-# 3. Prisma Client updates automatically
-```
-
-### 3. Viewing Database
-
-```bash
-cd apps/backend
-npx prisma studio
-# Opens at http://localhost:5555
-```
-
-### 4. Stopping Everything
-
-```bash
-# Ctrl+C in each terminal (backend, frontend)
-
-# Stop databases
-docker-compose stop postgres redis
-
-# Or stop everything
-docker-compose down
-```
+1. Go to https://discord.com/developers/applications
+2. Create a new application
+3. In **OAuth2 → General** copy the Client ID and Client Secret
+4. Add `http://localhost:4001/api/auth/discord/callback` to Redirects
 
 ---
 
-## What Works Right Now
+## Questions?
 
-✅ **Backend:**
-- Server starts on port 3001
-- Health check endpoint working
-- Database connection established
-- Redis connection established
-- JWT & session plugins loaded
-- CORS configured
-- Rate limiting active
-
-✅ **Frontend:**
-- Next.js 15 running on port 3000
-- Matrix rain animation
-- Theme toggle (dark mode)
-- Toast notifications
-- Responsive layout
-- All components rendering
-
-❌ **Not Yet Implemented:**
-- API routes (auth, matches, users, admin)
-- Authentication flow
-- Match creation UI
-- Leaderboard
-- Admin dashboard
-
-See PROJECT_STATUS.md for full implementation roadmap.
-
----
-
-## Next Steps After Setup
-
-1. **Test the health endpoint:** http://localhost:3001/health
-2. **View the landing page:** http://localhost:3000
-3. **Open Prisma Studio:** http://localhost:5555 (after `npx prisma studio`)
-4. **Start building:** Follow PROJECT_STATUS.md for next implementation steps
-
----
-
-## Getting Discord OAuth Credentials
-
-To enable Discord login:
-
-1. Go to: https://discord.com/developers/applications
-2. Create New Application → Name it "TRAYB Customs"
-3. Go to OAuth2 → General
-4. Copy Client ID and Client Secret
-5. Add Redirect: `http://localhost:3001/auth/discord/callback`
-6. Go to OAuth2 → URL Generator
-7. Select scopes: `identify`, `email`
-8. Get your Discord User ID:
-   - Enable Developer Mode in Discord (User Settings → Advanced)
-   - Right-click your profile → Copy ID
-9. Add to .env file
-
----
-
-## Support
-
-- Check PROJECT_STATUS.md for architecture details
-- View Prisma schema: apps/backend/prisma/schema.prisma
-- Backend code: apps/backend/src/
-- Frontend code: apps/frontend/src/
-
-Good luck! 🚀
+Open an issue on GitHub or reach out on Discord. When you're ready for production, follow the Railpack deployment guide.
 

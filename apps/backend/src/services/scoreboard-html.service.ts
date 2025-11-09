@@ -25,7 +25,23 @@ export interface ParsedScoreboardResult {
     players: ParsedPlayerRow[]
   }>
   rawPlayerCount: number
+  mapName?: string | null
 }
+
+const VALORANT_MAPS = [
+  'Ascent',
+  'Bind',
+  'Haven',
+  'Split',
+  'Icebox',
+  'Breeze',
+  'Fracture',
+  'Pearl',
+  'Lotus',
+  'Sunset',
+  'Abyss',
+  'District',
+] as const
 
 const VALUE_HEADERS = [
   'acs',
@@ -67,6 +83,39 @@ function normaliseValues(values: string[]): Record<ValueKey, string> {
 export function parseScoreboardFromHtml(html: string): ParsedScoreboardResult {
   const $ = load(html)
   const teams: ParsedScoreboardResult['teams'] = []
+  const findMapName = () => {
+    const titleText = $('title').text().trim()
+    for (const candidate of VALORANT_MAPS) {
+      const regex = new RegExp(`\\b${candidate}\\b`, 'i')
+      if (regex.test(titleText)) {
+        return candidate
+      }
+    }
+
+    const headerText = $('.trn-match-bar, .st-header, header, h1, h2')
+      .map((_, el) => $(el).text())
+      .get()
+      .join(' ')
+      .trim()
+    for (const candidate of VALORANT_MAPS) {
+      const regex = new RegExp(`\\b${candidate}\\b`, 'i')
+      if (regex.test(headerText)) {
+        return candidate
+      }
+    }
+
+    const bodyText = $('body').text().trim()
+    for (const candidate of VALORANT_MAPS) {
+      const regex = new RegExp(`\\b${candidate}\\b`, 'i')
+      if (regex.test(bodyText)) {
+        return candidate
+      }
+    }
+
+    return null
+  }
+
+  const detectedMapName = findMapName()
 
   $('.st').each((_, teamElement) => {
     const teamName = $(teamElement).find('.st-header .label span').first().text().trim() || 'Unknown'
@@ -104,5 +153,6 @@ export function parseScoreboardFromHtml(html: string): ParsedScoreboardResult {
   return {
     teams,
     rawPlayerCount: teams.reduce((total, team) => total + team.players.length, 0),
+    mapName: detectedMapName,
   }
 }

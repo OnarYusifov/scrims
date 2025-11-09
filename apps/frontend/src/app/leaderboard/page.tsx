@@ -5,11 +5,12 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Search, Trophy, Crown, TrendingUp, TrendingDown, AlertCircle } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
+import { useRealtimeStream } from "@/hooks/use-realtime"
 
 interface LeaderboardEntry {
   rank: number
@@ -34,6 +35,53 @@ export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const isFetchingRef = useRef(false)
+  const pendingReloadRef = useRef(false)
+
+  const loadLeaderboard = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false
+
+    if (isFetchingRef.current) {
+      if (silent) {
+        pendingReloadRef.current = true
+      }
+      return
+    }
+
+    isFetchingRef.current = true
+
+    if (!silent) {
+      setIsLoading(true)
+      setError(null)
+    }
+
+    try {
+      const response = await fetch("/api/leaderboard", {
+        credentials: "include",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to load leaderboard")
+      }
+
+      const data = await response.json()
+      setLeaderboard(data.leaderboard || [])
+    } catch (err: any) {
+      console.error("Failed to load leaderboard:", err)
+      if (!silent) {
+        setError(err.message || "Failed to load leaderboard data")
+      }
+    } finally {
+      isFetchingRef.current = false
+      if (!silent) {
+        setIsLoading(false)
+      }
+      if (pendingReloadRef.current) {
+        pendingReloadRef.current = false
+        void loadLeaderboard({ silent: true })
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (authLoading) return
@@ -43,30 +91,34 @@ export default function LeaderboardPage() {
       return
     }
 
-    loadLeaderboard()
-  }, [isAuthenticated, authLoading, router])
+    void loadLeaderboard()
+  }, [isAuthenticated, authLoading, router, loadLeaderboard])
 
-  async function loadLeaderboard() {
-    try {
-      setIsLoading(true)
-      setError(null)
-      const response = await fetch('/api/leaderboard', {
-        credentials: 'include',
-      })
+  const realtimeHandlers = useMemo(
+    () => ({
+      "match:updated": (payload: any) => {
+        if (!payload) return
+        if ((payload.action as string)?.startsWith?.("status:COMPLETED") || payload.action === "match:deleted") {
+          void loadLeaderboard({ silent: true })
+        }
+      },
+      "match:created": () => {
+        // No-op for leaderboard
+      },
+      "match:deleted": () => {
+        void loadLeaderboard({ silent: true })
+      },
+    }),
+    [loadLeaderboard],
+  )
 
-      if (!response.ok) {
-        throw new Error('Failed to load leaderboard')
-      }
-
-      const data = await response.json()
-      setLeaderboard(data.leaderboard || [])
-    } catch (err: any) {
-      console.error('Failed to load leaderboard:', err)
-      setError(err.message || 'Failed to load leaderboard data')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  useRealtimeStream({
+    enabled: isAuthenticated,
+    events: realtimeHandlers,
+    onError: (error) => {
+      console.error("Realtime stream error", error)
+    },
+  })
 
   const filteredLeaderboard = leaderboard.filter((player) =>
     player.username.toLowerCase().includes(searchQuery.toLowerCase())
