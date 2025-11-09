@@ -7,7 +7,11 @@ interface AuthSessionProviderProps {
 }
 
 export function AuthSessionProvider({ children }: AuthSessionProviderProps) {
-  return <SessionProvider refetchOnWindowFocus={false}>{children}</SessionProvider>
+  return (
+    <SessionProvider basePath="/api/web-auth" refetchOnWindowFocus={false}>
+      {children}
+    </SessionProvider>
+  )
 }
 
 
