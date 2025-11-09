@@ -6,6 +6,7 @@ nixPkgs = [
   'cairo',
   'pango',
   'pixman',
+  'pixman.dev',
   'libpng',
   'jpeg',
   'giflib',
