@@ -36,7 +36,7 @@ JWT_EXPIRATION="7d"
 # ⚠️ REQUIRED: Get these from https://discord.com/developers/applications
 DISCORD_CLIENT_ID="your-discord-client-id-here"
 DISCORD_CLIENT_SECRET="your-discord-client-secret-here"
-DISCORD_REDIRECT_URI="http://localhost:4001/api/auth/discord/callback"
+DISCORD_REDIRECT_URI="http://localhost:4001/api/core-auth/discord/callback"
 
 # Whitelist (Optional - leave empty to allow all users)
 DISCORD_WHITELISTED_IDS=""
@@ -89,7 +89,7 @@ NEXT_PUBLIC_APP_URL="http://localhost:4000"
 3. Go to **OAuth2** → **General**
 4. Copy **Client ID**
 5. Copy **Client Secret** (click "Reset Secret" if needed)
-6. Add redirect URI: `http://localhost:4001/api/auth/discord/callback`
+6. Add redirect URI: `http://localhost:4001/api/core-auth/discord/callback`
 
 ## Important Notes
 

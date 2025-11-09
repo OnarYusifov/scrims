@@ -60,7 +60,7 @@ export const authOptions: NextAuthOptions = {
         const apiBase = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL
 
         try {
-          const response = await fetch(`${apiBase}/api/auth/me`, {
+          const response = await fetch(`${apiBase}/api/core-auth/me`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },

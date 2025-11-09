@@ -147,7 +147,7 @@ async function buildServer(): Promise<FastifyInstance> {
   await fastify.register(import('./plugins/auth'));
 
   // Register route modules
-  await fastify.register(import('./routes/auth'), { prefix: '/api/auth' });
+  await fastify.register(import('./routes/auth'), { prefix: '/api/core-auth' });
   await fastify.register(import('./routes/users'), { prefix: '/api/users' });
   await fastify.register(import('./routes/matches'), { prefix: '/api/matches' });
   await fastify.register(import('./routes/admin'), { prefix: '/api/admin' });

@@ -43,10 +43,10 @@
 
 **New Files:**
 - `src/routes/auth.ts` - Complete Discord OAuth flow
-  - `GET /api/auth/discord` - Initiates OAuth
-  - `GET /api/auth/discord/callback` - Handles Discord callback
-  - `GET /api/auth/me` - Returns current user (protected)
-  - `POST /api/auth/logout` - Logout endpoint
+  - `GET /api/core-auth/discord` - Initiates OAuth
+  - `GET /api/core-auth/discord/callback` - Handles Discord callback
+  - `GET /api/core-auth/me` - Returns current user (protected)
+  - `POST /api/core-auth/logout` - Logout endpoint
 
 - `src/plugins/auth.ts` - JWT authentication plugin
   - `fastify.authenticate` decorator for protected routes
@@ -128,10 +128,10 @@
 ### User Login Journey
 
 1. User clicks "LOGIN WITH DISCORD" on `/login`
-2. Frontend redirects to backend: `GET /api/auth/discord`
+2. Frontend redirects to backend: `GET /api/core-auth/discord`
 3. Backend redirects to Discord authorization page
 4. User authorizes the application
-5. Discord redirects to backend: `GET /api/auth/discord/callback?code=...`
+5. Discord redirects to backend: `GET /api/core-auth/discord/callback?code=...`
 6. Backend:
    - Exchanges code for Discord access token
    - Fetches user info from Discord API
@@ -202,7 +202,7 @@ fastify.get('/protected', {
    - Go to https://discord.com/developers/applications
    - Create new application
    - Get Client ID and Secret
-   - Add redirect URI: `http://localhost:3001/api/auth/discord/callback`
+   - Add redirect URI: `http://localhost:3001/api/core-auth/discord/callback`
 
 2. **Configure Environment Variables**:
    ```bash
@@ -290,7 +290,7 @@ Before marking authentication as complete, test:
 - [ ] Dashboard shows empty states correctly
 - [ ] Leaderboard shows empty state correctly
 - [ ] Error messages show for failed auth
-- [ ] Protected routes work (try accessing `/api/auth/me` without token)
+- [ ] Protected routes work (try accessing `/api/core-auth/me` without token)
 
 ---
 

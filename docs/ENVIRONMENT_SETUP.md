@@ -59,7 +59,7 @@ REDIS_URL=redis://localhost:6379
 PORT=4001
 NODE_ENV=development
 
-DISCORD_REDIRECT_URI=http://localhost:4001/api/auth/discord/callback
+DISCORD_REDIRECT_URI=http://localhost:4001/api/core-auth/discord/callback
 FRONTEND_URL=http://localhost:4000
 CORS_ORIGIN=http://localhost:4000
 
@@ -85,7 +85,7 @@ DATABASE_URL=postgresql://trayb:${POSTGRES_PASSWORD}@trayb-postgres:5432/trayb_c
 REDIS_URL=redis://trayb-redis:6379
 
 FRONTEND_URL=https://customs.trayb.az
-DISCORD_REDIRECT_URI=https://customs.trayb.az/api/auth/discord/callback
+DISCORD_REDIRECT_URI=https://customs.trayb.az/api/core-auth/discord/callback
 CORS_ORIGIN=https://customs.trayb.az
 ```
 
@@ -125,8 +125,8 @@ curl http://localhost:4001/api/health  # backend health check passes
 
 ## 🔍 Discord OAuth Redirects
 
-- **Local:** `http://localhost:4001/api/auth/discord/callback`
-- **Production:** `https://customs.trayb.az/api/auth/discord/callback`
+- **Local:** `http://localhost:4001/api/core-auth/discord/callback`
+- **Production:** `https://customs.trayb.az/api/core-auth/discord/callback`
 
 Remember to add both to the Discord Developer Portal.
 

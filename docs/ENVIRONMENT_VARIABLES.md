@@ -47,7 +47,7 @@ AUTH_SECRET=your-nextauth-secret
 # Discord OAuth
 DISCORD_CLIENT_ID=your-discord-client-id
 DISCORD_CLIENT_SECRET=your-discord-client-secret
-DISCORD_REDIRECT_URI=http://localhost:4001/api/auth/discord/callback
+DISCORD_REDIRECT_URI=http://localhost:4001/api/core-auth/discord/callback
 
 # Discord Bot Integration
 DISCORD_BOT_TOKEN=your-discord-bot-token
@@ -58,7 +58,7 @@ DISCORD_TEAM_BRAVO_CHANNEL_ID=1426995070590255186
 DISCORD_RESULTS_CHANNEL_ID=1436464923365605426
 
 # For production, use:
-# DISCORD_REDIRECT_URI=https://api.customs.trayb.az/api/auth/discord/callback
+# DISCORD_REDIRECT_URI=https://api.customs.trayb.az/api/core-auth/discord/callback
 
 # CORS
 CORS_ORIGIN=http://localhost:4000
@@ -99,7 +99,7 @@ AUTH_SECRET=<same-secret-used-by-frontend>
 
 DISCORD_CLIENT_ID=<your-production-id>
 DISCORD_CLIENT_SECRET=<your-production-secret>
-DISCORD_REDIRECT_URI=https://api.customs.trayb.az/api/auth/discord/callback
+DISCORD_REDIRECT_URI=https://api.customs.trayb.az/api/core-auth/discord/callback
 
 # Discord Bot Integration
 DISCORD_BOT_TOKEN=<bot-token>

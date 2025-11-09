@@ -19,8 +19,8 @@ This guide explains how to set up Discord OAuth authentication for TRAYB CUSTOMS
 1. In your application, go to "OAuth2" in the left sidebar
 2. Click "Add Redirect" under "Redirects"
 3. Add the following redirect URLs:
-   - For local development: `http://localhost:3001/api/auth/discord/callback`
-   - For production: `https://scrims.trayb.az/api/auth/discord/callback`
+   - For local development: `http://localhost:3001/api/core-auth/discord/callback`
+   - For production: `https://scrims.trayb.az/api/core-auth/discord/callback`
 
 ## Step 3: Get Your Credentials
 
@@ -36,7 +36,7 @@ This guide explains how to set up Discord OAuth authentication for TRAYB CUSTOMS
    ```env
    DISCORD_CLIENT_ID="your_client_id_here"
    DISCORD_CLIENT_SECRET="your_client_secret_here"
-   DISCORD_REDIRECT_URI="http://localhost:3001/api/auth/discord/callback"
+   DISCORD_REDIRECT_URI="http://localhost:3001/api/core-auth/discord/callback"
    FRONTEND_URL="http://localhost:3000"
    JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
    ```
@@ -77,24 +77,24 @@ npm run dev
 
 ### Backend Flow
 
-1. **Initiate OAuth**: `GET /api/auth/discord`
+1. **Initiate OAuth**: `GET /api/core-auth/discord`
    - Redirects user to Discord authorization page
 
-2. **Callback**: `GET /api/auth/discord/callback?code=...`
+2. **Callback**: `GET /api/core-auth/discord/callback?code=...`
    - Exchanges code for Discord access token
    - Fetches user info from Discord API
    - Creates or updates user in database
    - Generates JWT token
    - Redirects to frontend with token
 
-3. **Get Current User**: `GET /api/auth/me`
+3. **Get Current User**: `GET /api/core-auth/me`
    - Requires JWT token in Authorization header
    - Returns current user info
 
 ### Frontend Flow
 
 1. User clicks "Login with Discord" button
-2. Browser redirects to backend `/api/auth/discord`
+2. Browser redirects to backend `/api/core-auth/discord`
 3. Backend redirects to Discord
 4. User authorizes
 5. Discord redirects to backend callback
@@ -149,12 +149,12 @@ For production:
 ## API Endpoints
 
 ### Public Endpoints
-- `GET /api/auth/discord` - Initiate Discord OAuth
-- `GET /api/auth/discord/callback` - OAuth callback
+- `GET /api/core-auth/discord` - Initiate Discord OAuth
+- `GET /api/core-auth/discord/callback` - OAuth callback
 
 ### Protected Endpoints (require JWT token)
-- `GET /api/auth/me` - Get current user
-- `POST /api/auth/logout` - Logout (client-side token removal)
+- `GET /api/core-auth/me` - Get current user
+- `POST /api/core-auth/logout` - Logout (client-side token removal)
 
 ## Next Steps
 

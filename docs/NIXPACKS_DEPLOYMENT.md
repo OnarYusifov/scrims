@@ -57,7 +57,7 @@ In Dokploy → Backend App → **Environment** tab, update:
 
 ```bash
 # Change from api.customs.trayb.az to customs.trayb.az/api
-DISCORD_REDIRECT_URI=https://customs.trayb.az/api/auth/discord/callback
+DISCORD_REDIRECT_URI=https://customs.trayb.az/api/core-auth/discord/callback
 CORS_ORIGIN=https://customs.trayb.az
 FRONTEND_URL=https://customs.trayb.az
 
@@ -95,7 +95,7 @@ PORT=4000
 3. Go to **OAuth2** → **Redirects**
 4. **Update** redirect URI to:
    ```
-   https://customs.trayb.az/api/auth/discord/callback
+   https://customs.trayb.az/api/core-auth/discord/callback
    ```
 5. **Save Changes**
 
@@ -161,7 +161,7 @@ After redeploying:
 → Check backend domain has path `/api` configured in Dokploy
 
 ### **OAuth redirect error**
-→ Verify Discord redirect URI matches exactly: `https://customs.trayb.az/api/auth/discord/callback`
+→ Verify Discord redirect URI matches exactly: `https://customs.trayb.az/api/core-auth/discord/callback`
 
 ### **CORS errors**
 → Verify `CORS_ORIGIN=https://customs.trayb.az` in backend env

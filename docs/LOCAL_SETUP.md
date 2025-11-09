@@ -49,7 +49,7 @@ AUTH_SECRET="generate-a-strong-secret-for-nextauth"
 
 DISCORD_CLIENT_ID="your-discord-client-id"
 DISCORD_CLIENT_SECRET="your-discord-client-secret"
-DISCORD_REDIRECT_URI="http://localhost:4001/api/auth/discord/callback"
+DISCORD_REDIRECT_URI="http://localhost:4001/api/core-auth/discord/callback"
 
 NEXT_PUBLIC_API_URL="http://localhost:4001"
 NEXT_PUBLIC_APP_URL="http://localhost:4000"
@@ -150,7 +150,7 @@ npx prisma generate
 1. Go to https://discord.com/developers/applications
 2. Create a new application
 3. In **OAuth2 → General** copy the Client ID and Client Secret
-4. Add `http://localhost:4001/api/auth/discord/callback` to Redirects
+4. Add `http://localhost:4001/api/core-auth/discord/callback` to Redirects
 
 ---
 
