@@ -71,6 +71,7 @@ JWT_SECRET=<your-jwt-secret>
 SESSION_SECRET=<your-session-secret>
 DISCORD_CLIENT_ID=<your-discord-client-id>
 DISCORD_CLIENT_SECRET=<your-discord-client-secret>
+FRONTEND_INTERNAL_URL=http://trayb-frontend:4000
 ```
 
 #### **Frontend Environment Variables**

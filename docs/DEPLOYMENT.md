@@ -60,6 +60,7 @@ DISCORD_REDIRECT_URI=https://customs.trayb.az/api/core-auth/discord/callback
 JWT_SECRET=generate-a-long-secret
 SESSION_SECRET=generate-another-long-secret
 AUTH_SECRET=generate-a-long-secret-for-nextauth
+FRONTEND_INTERNAL_URL=http://trayb-frontend:4000
 CORS_ORIGIN=https://customs.trayb.az
 ```
 

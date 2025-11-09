@@ -39,6 +39,9 @@ That’s it—no per-app `.env` files are required.
 3. `JWT_SECRET` (generate a long random string)
 4. `SESSION_SECRET` (generate another long random string)
 5. `AUTH_SECRET` (NextAuth secret, generate a long random string)
+6. `FRONTEND_INTERNAL_URL` (URL backend uses to reach the frontend service, e.g. `http://localhost:4000`)
+FRONTEND_INTERNAL_URL=http://localhost:4000
+FRONTEND_INTERNAL_URL=http://trayb-frontend:4000
 
 ### Generating secrets
 

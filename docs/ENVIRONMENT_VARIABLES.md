@@ -63,8 +63,12 @@ DISCORD_RESULTS_CHANNEL_ID=1436464923365605426
 # CORS
 CORS_ORIGIN=http://localhost:4000
 
+# Frontend proxy for Auth.js (backend → frontend forwarding)
+FRONTEND_INTERNAL_URL=http://localhost:4000
+
 # For production, use:
 # CORS_ORIGIN=https://customs.trayb.az
+# FRONTEND_INTERNAL_URL=http://frontend-service:4000
 
 # Rate Limiting
 RATE_LIMIT_MAX=100
@@ -96,6 +100,7 @@ REDIS_URL=redis://redis:6379
 JWT_SECRET=<generate-secure-secret>
 SESSION_SECRET=<generate-secure-secret>
 AUTH_SECRET=<same-secret-used-by-frontend>
+FRONTEND_INTERNAL_URL=http://trayb-frontend:4000
 
 DISCORD_CLIENT_ID=<your-production-id>
 DISCORD_CLIENT_SECRET=<your-production-secret>

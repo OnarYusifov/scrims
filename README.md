@@ -116,6 +116,7 @@ DISCORD_CLIENT_SECRET=       # From Discord Developer Portal
 JWT_SECRET=                  # Random 32+ character string
 SESSION_SECRET=              # Random 32+ character string
 AUTH_SECRET=                 # Random 32+ character string (NextAuth session encryption)
+FRONTEND_INTERNAL_URL=       # Internal URL for proxying NextAuth (e.g. http://localhost:4000 or http://frontend:4000)
 ```
 
 ## 📝 Scripts

@@ -53,6 +53,7 @@ DISCORD_REDIRECT_URI="http://localhost:4001/api/core-auth/discord/callback"
 
 NEXT_PUBLIC_API_URL="http://localhost:4001"
 NEXT_PUBLIC_APP_URL="http://localhost:4000"
+FRONTEND_INTERNAL_URL="http://localhost:4000"
 ```
 
 ---

@@ -155,6 +155,7 @@ async function buildServer(): Promise<FastifyInstance> {
   await fastify.register(import('./routes/leaderboard'), { prefix: '/api/leaderboard' });
   await fastify.register(import('./routes/realtime'), { prefix: '/api/realtime' });
   await fastify.register(import('./routes/random'), { prefix: '/api' });
+  await fastify.register(import('./plugins/frontend-auth-proxy'));
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {
