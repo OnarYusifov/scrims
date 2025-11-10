@@ -1,0 +1,64 @@
+name: Preview Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment slug (e.g. staging, review)"
+        required: true
+        default: "review"
+      ref:
+        description: "Git ref (branch or tag)"
+        required: false
+        default: ""
+  pull_request:
+    types: [labeled]
+
+env:
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+  TURBO_API: ${{ secrets.TURBO_API }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+
+jobs:
+  prepare:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'preview')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build workspaces
+        run: npm run build
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-backend-dist
+          path: apps/backend/dist
+          if-no-files-found: error
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-frontend-standalone
+          path: apps/frontend/.next
+          if-no-files-found: error
+      - name: Summary
+        run: |
+          cat <<'EOF' >> $GITHUB_STEP_SUMMARY
+          ## Preview build ready
+          - Environment: \`${{ github.event.inputs.environment || 'review' }}\`
+          - Backend artifact: preview-backend-dist
+          - Frontend artifact: preview-frontend-standalone
+          Upload these artifacts to Railpack or your chosen preview host.
+          EOF
+
+
+

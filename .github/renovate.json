@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":ignoreUnstable",
+    "group:monorepos"
+  ],
+  "timezone": "America/New_York",
+  "schedule": ["after 02:00 on monday"],
+  "rangeStrategy": "replace",
+  "npm": {
+    "packageRules": [
+      {
+        "matchDepTypes": ["devDependencies"],
+        "matchManagers": ["npm"],
+        "groupName": "dev-dependencies-weekly",
+        "schedule": ["after 03:00 on monday"],
+        "automerge": false
+      },
+      {
+        "matchManagers": ["npm"],
+        "matchUpdateTypes": ["patch", "digest"],
+        "automerge": true,
+        "automergeType": "branch"
+      }
+    ]
+  },
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies", "renovate"],
+  "dependencyDashboard": true
+}
+
+
+

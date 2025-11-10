@@ -1,0 +1,27 @@
+{
+  "name": "trayb-default-loadtest",
+  "baseUrl": "http://localhost:4001",
+  "connections": 15,
+  "duration": 45,
+  "timeout": 10,
+  "pipelining": 1,
+  "warmup": {
+    "connections": 5,
+    "duration": 15
+  },
+  "defaultHeaders": {
+    "Accept": "application/json"
+  },
+  "requests": [
+    { "method": "GET", "path": "/api/matches?status=COMPLETED&limit=10" },
+    { "method": "GET", "path": "/api/matches?cache=refresh&limit=5" },
+    { "method": "GET", "path": "/api/leaderboard?limit=25" },
+    { "method": "GET", "path": "/healthz" },
+    { "method": "GET", "path": "/readyz" }
+  ],
+  "assertions": [
+    { "metric": "non2xx", "max": 0 },
+    { "metric": "timeouts", "max": 0 }
+  ]
+}
+
