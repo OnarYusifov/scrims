@@ -54,6 +54,7 @@ model User {
   @@index([discordId])
   @@index([elo])
   @@index([role])
+  @@index([elo, matchesPlayed], map: "User_elo_matches_idx")
 }
 
 enum UserRole {
@@ -93,6 +94,7 @@ model Match {
   
   @@index([status])
   @@index([createdAt])
+  @@index([status, createdAt], map: "Match_status_created_idx")
 }
 
 enum SeriesType {
@@ -237,6 +239,7 @@ model PlayerMatchStats {
   @@index([matchId])
   @@index([userId])
   @@index([wpr])
+  @@index([userId, createdAt], map: "PlayerMatchStats_user_created_idx")
 }
 
 // EloHistory - tracks Elo changes over time
@@ -266,6 +269,7 @@ model EloHistory {
   @@index([userId])
   @@index([matchId])
   @@index([createdAt])
+  @@index([userId, createdAt], map: "EloHistory_user_created_idx")
 }
 
 model MatchStatsSubmission {
@@ -284,6 +288,7 @@ model MatchStatsSubmission {
   @@index([matchId])
   @@index([status])
   @@index([source])
+  @@index([status, createdAt], map: "MatchStatsSubmission_status_created_idx")
 }
 
 // WeightProfile - configurable weights for WPR calculation
@@ -434,4 +439,10 @@ model MapPool {
   
   @@index([isActive])
   @@index([order])
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }

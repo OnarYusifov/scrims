@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../index';
+import { prisma } from '../lib/prisma';
 
 export default async function adminRoutes(fastify: FastifyInstance) {
   // Middleware to check admin role

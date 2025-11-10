@@ -1,18 +1,27 @@
+[variables]
+NODE_ENV = "production"
+
 [phases.setup]
-nixPkgs = [
-  'nodejs_22'
-]
+nixPkgs = ["nodejs_22"]
 
 [phases.install]
 cmds = [
-  'npm ci --workspace=@trayb/frontend'
+  "npm ci --workspace=@trayb/frontend"
 ]
 
 [phases.build]
 cmds = [
-  'npm run build --workspace=@trayb/frontend'
+  "turbo run build --filter=@trayb/frontend",
+  "npm prune --workspace=@trayb/frontend --omit=dev"
+]
+
+[build]
+cacheDirectories = [
+  "node_modules",
+  "apps/frontend/node_modules",
+  ".turbo"
 ]
 
 [start]
-cmd = 'cd apps/frontend && npm run start'
+cmd = "cd apps/frontend && npm run start"
 

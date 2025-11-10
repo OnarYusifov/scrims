@@ -14,12 +14,14 @@ npm install
 ### 2. Setup Environment
 ```bash
 # Copy environment template
-cp .env.example .env
+cp config/env.example .env
 
-# Edit .env and fill in your values:
-# - Database credentials
-# - Discord OAuth credentials
-# - JWT secrets
+# Edit .env and fill in secrets/URLs (see config/env.schema.json for details)
+vim .env
+
+# Validate and materialize app-specific env files
+npm run env:check
+npm run setup:env
 ```
 
 ### 3. Start Services
@@ -52,9 +54,12 @@ trayb-customs/
 │   ├── frontend/     # Next.js frontend (PORT 4000)
 │   └── backend/      # Fastify backend (PORT 4001)
 ├── docs/             # Documentation
+├── config/           # Environment schema + sample template
+│   ├── env.schema.json
+│   └── env.example
 ├── nixpacks.toml     # Backend build config for Railpack/Nixpacks
 ├── nixpacks.frontend.toml # Frontend build config for Railpack/Nixpacks
-└── .env.example      # Environment template
+└── setup-env.sh      # Copies root .env into per-app files
 ```
 
 ## 🛠️ Tech Stack
@@ -107,17 +112,12 @@ All documentation is in the `/docs` folder:
 
 ## 🔐 Environment Variables
 
-Copy `.env.example` to `.env` and configure:
-```bash
-# Required variables:
-POSTGRES_PASSWORD=           # Your database password
-DISCORD_CLIENT_ID=           # From Discord Developer Portal
-DISCORD_CLIENT_SECRET=       # From Discord Developer Portal
-JWT_SECRET=                  # Random 32+ character string
-SESSION_SECRET=              # Random 32+ character string
-AUTH_SECRET=                 # Random 32+ character string (NextAuth session encryption)
-FRONTEND_INTERNAL_URL=       # Internal URL for proxying NextAuth (e.g. http://localhost:4000 or http://frontend:4000)
-```
+- **Source of truth:** `config/env.schema.json` (includes descriptions, scopes, defaults, and required contexts)
+- **Template:** `config/env.example` (copy to `.env`)
+- **Validation:** `npm run env:check` (local), `npm run env:check:ci` (automation)
+- **Syncing:** `npm run setup:env` regenerates `apps/backend/.env` and `apps/frontend/.env.local`
+
+Update the schema whenever new environment configuration is introduced. The CI pipeline runs `npm run env:check:ci` to catch missing/unexpected variables early.
 
 ## 📝 Scripts
 
@@ -125,13 +125,34 @@ FRONTEND_INTERNAL_URL=       # Internal URL for proxying NextAuth (e.g. http://l
 npm run dev              # Start both frontend and backend
 npm run dev:backend      # Backend only (PORT 4001)
 npm run dev:frontend     # Frontend only (PORT 4000)
-npm run build            # Build both apps
+npm run lint             # Lint all workspaces via Turborepo
+npm run test             # Run test targets (placeholder until suites exist)
+npm run env:check        # Validate local .env against schema
+npm run env:check:ci     # Validate CI/deploy env (no .env file required)
+npm run setup:env        # Regenerate app-specific env files from root .env
+npm run build            # Build all workspaces with remote cache support
+npm run build:backend    # Build backend only via Turborepo
+npm run build:frontend   # Build frontend only via Turborepo
 npm run start            # Start production servers
+npm run loadtest         # Execute the default autocannon scenario (requires sanitized data)
+npm run deps:check       # Preview dependency updates (npm-check-updates)
+npm run deps:upgrade     # Apply dependency updates and reinstall
+npm run deps:audit       # Audit production dependencies (CI uses this)
 ```
 
 ## 🌐 Deployment
 
 For Railpack production deployment (Nixpacks builds for backend & frontend) see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+
+Realtime/event delivery pipeline details live in [docs/REALTIME_DELIVERY.md](./docs/REALTIME_DELIVERY.md).
+
+CI/CD, dependency automation, and pipeline ownership are described in [docs/CI_CD.md](./docs/CI_CD.md).
+
+Scaling/monitoring/DR runbooks: [docs/SCALING_MONITORING_DR.md](./docs/SCALING_MONITORING_DR.md).
+
+Open risks & follow-up actions: [docs/OPEN_RISKS_ACTIONS.md](./docs/OPEN_RISKS_ACTIONS.md).
+
+Production data safe-use playbook: [docs/PROD_DATA_SAFE_PLAYBOOK.md](./docs/PROD_DATA_SAFE_PLAYBOOK.md).
 
 ## 📄 License
 

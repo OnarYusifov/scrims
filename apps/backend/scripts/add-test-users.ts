@@ -17,6 +17,27 @@ async function addTestUsers() {
     { discordId: '100000000000000009', username: 'TestUser9', elo: 700 },
   ];
 
+  const rootDiscordId = '492690309143330816';
+
+  const rootUser = await prisma.user.upsert({
+    where: { discordId: rootDiscordId },
+    update: {
+      username: 'RootUser',
+      role: 'ROOT',
+      isWhitelisted: true,
+    },
+    create: {
+      discordId: rootDiscordId,
+      username: 'RootUser',
+      role: 'ROOT',
+      isWhitelisted: true,
+      isCalibrating: false,
+      elo: 1200,
+      peakElo: 1200,
+    },
+  });
+  console.log(`✓ Ensured ROOT access for ${rootUser.discordId}`);
+
   for (const testUser of testUsers) {
     const user = await prisma.user.upsert({
       where: { discordId: testUser.discordId },

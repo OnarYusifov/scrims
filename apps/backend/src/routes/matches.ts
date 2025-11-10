@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../index';
+import { prisma } from '../lib/prisma';
 import { eloService, PerformanceEvaluation } from '../services/elo.service';
 import { randomService } from '../services/random.service';
 import { parseScoreboardFromHtml } from '../services/scoreboard-html.service';
@@ -10,6 +10,16 @@ import {
   MatchResultPayload,
   MatchResultPlayer,
 } from '../bot/types';
+import {
+  fetchMatchesForCache,
+  getMatchListFromCache,
+  invalidateMatchLists,
+  invalidateMatchSnapshot,
+  refreshMatchSnapshot,
+  setMatchListCache,
+} from '../cache/match-cache';
+import { recalculateUserTotals } from '../services/statistics.service';
+import { enqueueMatchSnapshotRefresh, enqueueProfileRefresh } from '../queues/job-queue';
 
 const buildDiscordIdentity = (user: {
   discordId: string | null;
@@ -474,57 +484,20 @@ async function applyEloAdjustments({
     }
   }
 
-  await recalculateUserTotals(Array.from(affectedUserIds));
+  const affectedUsers = Array.from(affectedUserIds);
+
+  await recalculateUserTotals(affectedUsers);
+  await refreshMatchSnapshot(match.id).catch(() => undefined);
+  await invalidateMatchLists().catch(() => undefined);
+  await enqueueMatchSnapshotRefresh(match.id).catch(() => undefined);
+  await Promise.all(
+    affectedUsers.map((userId) => enqueueProfileRefresh(userId).catch(() => undefined)),
+  );
 
   return {
     eloResults,
-    affectedUserIds: Array.from(affectedUserIds),
+    affectedUserIds: affectedUsers,
   };
-}
-
-async function recalculateUserTotals(userIds: string[]): Promise<void> {
-  if (userIds.length === 0) return;
-
-  await prisma.$transaction(async (tx) => {
-    const totals = await tx.playerMatchStats.groupBy({
-      by: ['userId'],
-      where: { userId: { in: userIds } },
-      _sum: {
-        kills: true,
-        deaths: true,
-        assists: true,
-        acs: true,
-        adr: true,
-      },
-    });
-
-    const totalsMap = new Map<string, {
-      kills?: number | null;
-      deaths?: number | null;
-      assists?: number | null;
-      acs?: number | null;
-      adr?: number | null;
-    }>();
-
-    for (const total of totals) {
-      totalsMap.set(total.userId, total._sum);
-    }
-
-    for (const userId of userIds) {
-      const sum = totalsMap.get(userId) ?? {};
-
-      await tx.user.update({
-        where: { id: userId },
-        data: {
-          totalKills: sum.kills ?? 0,
-          totalDeaths: sum.deaths ?? 0,
-          totalAssists: sum.assists ?? 0,
-          totalACS: sum.acs ?? 0,
-          totalADR: sum.adr ?? 0,
-        },
-      });
-    }
-  });
 }
 
 export default async function matchRoutes(fastify: FastifyInstance) {
@@ -536,82 +509,31 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       page?: string;
       limit?: string;
       status?: string;
+      cache?: string;
     };
   }>, reply: FastifyReply) => {
     try {
       const page = parseInt(request.query.page || '1');
       const limit = Math.min(parseInt(request.query.limit || '20'), 50);
-      const skip = (page - 1) * limit;
       const status = request.query.status;
+      const cacheOption = request.query.cache;
 
-      const where: any = {};
-      if (status) {
-        where.status = status;
+      const cacheParams = { page, limit, status };
+      const shouldBypassCache = cacheOption === 'refresh' || cacheOption === 'skip';
+
+      if (!shouldBypassCache) {
+        const cached = await getMatchListFromCache<any>(cacheParams);
+        if (cached) {
+          return cached;
+        }
       }
 
-      const [matches, total] = await Promise.all([
-        prisma.match.findMany({
-          where,
-          include: {
-            teams: {
-              include: {
-                members: {
-                  include: {
-                    user: {
-                      select: {
-                        id: true,
-                        username: true,
-                        discordId: true,
-                        avatar: true,
-                        elo: true,
-                      },
-                    },
-                  },
-                },
-                captain: {
-                  select: {
-                    id: true,
-                    username: true,
-                    discordId: true,
-                    avatar: true,
-                  },
-                },
-              },
-            },
-            maps: {
-              orderBy: { order: 'asc' },
-            },
-            winnerTeam: {
-              include: {
-                members: {
-                  include: {
-                    user: {
-                      select: {
-                        id: true,
-                        username: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: limit,
-        }),
-        prisma.match.count({ where }),
-      ]);
+      const payload = await fetchMatchesForCache(cacheParams);
+      if (!shouldBypassCache) {
+        await setMatchListCache(cacheParams, payload);
+      }
 
-      return {
-        matches,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
+      return payload;
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
@@ -990,7 +912,20 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         });
       });
 
-      return match;
+      const eloHistory = await prisma.eloHistory.findMany({
+        where: { matchId: id },
+        select: {
+          userId: true,
+          oldElo: true,
+          newElo: true,
+          change: true,
+        },
+      });
+
+      return {
+        ...match,
+        eloHistory,
+      };
     } catch (error) {
       fastify.log.error(error);
       return reply.code(500).send({ error: 'Internal server error' });
@@ -1023,6 +958,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
         status: match.status,
         seriesType: match.seriesType,
       });
+
+      await invalidateMatchLists().catch(() => undefined);
 
       return match;
     } catch (error) {
@@ -1612,6 +1549,11 @@ export default async function matchRoutes(fastify: FastifyInstance) {
       });
 
       await recalculateUserTotals(userIds);
+      await invalidateMatchLists().catch(() => undefined);
+      await invalidateMatchSnapshot(matchId).catch(() => undefined);
+      await Promise.all(
+        userIds.map((userId) => enqueueProfileRefresh(userId).catch(() => undefined)),
+      );
 
       broadcastMatchDeleted(matchId, { reason: 'manual-delete' });
 
@@ -3767,6 +3709,8 @@ export default async function matchRoutes(fastify: FastifyInstance) {
             },
           },
         }) as any;
+
+        await invalidateMatchLists().catch(() => undefined);
       }
 
       // Clear existing teams

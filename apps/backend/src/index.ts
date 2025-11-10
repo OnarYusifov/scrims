@@ -5,28 +5,21 @@ import rateLimit from '@fastify/rate-limit';
 import jwt from '@fastify/jwt';
 import cookie from '@fastify/cookie';
 import session from '@fastify/session';
-import Redis from 'ioredis';
-import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
+import cluster from 'node:cluster';
+import os from 'node:os';
+import underPressure from '@fastify/under-pressure';
+import { prisma } from './lib/prisma';
+import { redis } from './lib/redis';
+import { registerCacheInvalidationListeners } from './cache/invalidation-listener';
+import { shutdownJobWorkers, startJobWorkers } from './queues/job-queue';
+import { startRealtimeBus, stopRealtimeBus } from './events/realtime-bus';
+import metricsPlugin from './plugins/metrics';
+import healthRoutes from './routes/health';
 
-// Load environment variables
 dotenv.config();
 
-export const prisma = new PrismaClient();
-export const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  // Connection timeout settings to prevent long delays
-  connectTimeout: 5000,
-  retryStrategy: (times) => {
-    // Don't retry too many times
-    if (times > 3) {
-      return null; // Stop retrying
-    }
-    return Math.min(times * 200, 1000); // Exponential backoff, max 1s
-  },
-  maxRetriesPerRequest: 1,
-  enableOfflineQueue: false, // Don't queue commands if disconnected
-  lazyConnect: false, // Connect immediately
-});
+registerCacheInvalidationListeners();
 
 async function buildServer(): Promise<FastifyInstance> {
   const fastify = Fastify({
@@ -44,6 +37,8 @@ async function buildServer(): Promise<FastifyInstance> {
       ? process.env.TRUST_PROXY === 'true'
       : true,
   });
+
+  await fastify.register(metricsPlugin);
 
   // Register JWT plugin
   await fastify.register(jwt, {
@@ -82,6 +77,27 @@ async function buildServer(): Promise<FastifyInstance> {
   // Register Helmet
   await fastify.register(helmet, {
     contentSecurityPolicy: process.env.NODE_ENV === 'production',
+  });
+
+  await fastify.register(underPressure, {
+    maxEventLoopDelay: parseInt(process.env.UNDER_PRESSURE_MAX_EVENT_LOOP_DELAY || '1000', 10),
+    maxHeapUsedBytes: parseInt(
+      process.env.UNDER_PRESSURE_MAX_HEAP_BYTES || `${200 * 1024 * 1024}`,
+      10,
+    ),
+    retryAfter: 50,
+    healthCheck: async () => {
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+        await redis.ping();
+        return true;
+      } catch (error) {
+        fastify.log.error({ err: error }, 'Under-pressure health check failed');
+        return false;
+      }
+    },
+    healthCheckInterval: 30000,
+    exposeStatusRoute: '/status/under-pressure',
   });
 
   // Register rate limiting (will skip if Redis fails)
@@ -156,6 +172,7 @@ async function buildServer(): Promise<FastifyInstance> {
   await fastify.register(import('./routes/realtime'), { prefix: '/api/realtime' });
   await fastify.register(import('./routes/random'), { prefix: '/api' });
   await fastify.register(import('./plugins/frontend-auth-proxy'));
+  await fastify.register(healthRoutes);
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {
@@ -187,9 +204,18 @@ async function buildServer(): Promise<FastifyInstance> {
   return fastify;
 }
 
-async function start() {
+let currentServer: FastifyInstance | null = null;
+let runJobWorkerInstance = false;
+
+async function start(runJobWorker: boolean) {
   try {
     const server = await buildServer();
+    currentServer = server;
+    await startRealtimeBus(server.log);
+    if (runJobWorker) {
+      await startJobWorkers(server.log, server.observability?.updateBullQueueMetrics);
+      runJobWorkerInstance = true;
+    }
     // Use PORT env var or default to 4001 for backend
     const port = parseInt(process.env.PORT || '4001', 10);
     const host = process.env.HOST || '0.0.0.0';
@@ -218,6 +244,13 @@ async function gracefulShutdown(signal: string) {
   try {
     await prisma.$disconnect();
     await redis.quit();
+    if (runJobWorkerInstance) {
+      await shutdownJobWorkers();
+    }
+    await stopRealtimeBus();
+    if (currentServer) {
+      await currentServer.close();
+    }
     console.log('Database and Redis connections closed');
     process.exit(0);
   } catch (err) {
@@ -244,7 +277,39 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Start the server
 if (require.main === module) {
-  start();
+  const workerCount = parseInt(process.env.CLUSTER_WORKERS || '1', 10);
+
+  if (cluster.isPrimary && workerCount > 1) {
+    const cpus = os.cpus().length;
+    const spawnCount = Math.min(workerCount, cpus);
+    const workerRoles = new Map<number, string>();
+
+    for (let i = 0; i < spawnCount; i += 1) {
+      const role = i === 0 ? 'true' : 'false';
+      const worker = cluster.fork({
+        RUN_JOB_WORKER: role,
+      });
+      workerRoles.set(worker.id, role);
+    }
+
+    cluster.on('exit', (worker, code, signal) => {
+      console.warn(
+        `Worker ${worker.process?.pid} exited (code=${code}, signal=${signal}). Restarting...`,
+      );
+      const previousRole = workerRoles.get(worker.id) || 'false';
+      workerRoles.delete(worker.id);
+      const replacement = cluster.fork({
+        RUN_JOB_WORKER: previousRole,
+      });
+      workerRoles.set(replacement.id, previousRole);
+    });
+  } else {
+    const runJobWorker = process.env.RUN_JOB_WORKER === 'true' || workerCount <= 1;
+    start(runJobWorker).catch((err) => {
+      console.error('Failed to start worker', err);
+      process.exit(1);
+    });
+  }
 }
 
 export { buildServer };

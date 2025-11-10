@@ -27,34 +27,21 @@ The workspace install pulls dependencies for both the backend and frontend.
 
 ## 2. Configure Environment Variables
 
-Copy the example file and adjust values for local development:
-
 ```bash
-cp .env.example .env
+cp config/env.example .env   # Copy the template
+vim .env                     # Fill in secrets/URLs (see config/env.schema.json for details)
+npm run env:check            # Validate required keys for the local context
+npm run setup:env            # Generate apps/backend/.env and apps/frontend/.env.local
 ```
 
-Key entries:
+Key values:
 
-```env
-DATABASE_URL="postgresql://postgres:password@localhost:5432/trayb_customs?schema=public"
-REDIS_URL="redis://localhost:6379"
+- `DATABASE_URL` / `REDIS_URL` — point to your local Postgres & Redis instances
+- `JWT_SECRET`, `SESSION_SECRET`, `AUTH_SECRET` — generate strong random strings (`openssl rand -base64 32`)
+- `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` — from the Discord Developer Portal
+- `FRONTEND_URL`, `NEXT_PUBLIC_API_URL`, `NEXTAUTH_URL`, `FRONTEND_INTERNAL_URL` — default to `http://localhost:4000` & `http://localhost:4001`
 
-PORT=4001
-HOST="0.0.0.0"
-NODE_ENV="development"
-
-JWT_SECRET="generate-a-strong-secret"
-SESSION_SECRET="generate-another-strong-secret"
-AUTH_SECRET="generate-a-strong-secret-for-nextauth"
-
-DISCORD_CLIENT_ID="your-discord-client-id"
-DISCORD_CLIENT_SECRET="your-discord-client-secret"
-DISCORD_REDIRECT_URI="http://localhost:4001/api/core-auth/discord/callback"
-
-NEXT_PUBLIC_API_URL="http://localhost:4001"
-NEXT_PUBLIC_APP_URL="http://localhost:4000"
-FRONTEND_INTERNAL_URL="http://localhost:4000"
-```
+Refer to `config/env.schema.json` for the full catalogue of variables, scopes, and which environments require them.
 
 ---
 
@@ -100,6 +87,20 @@ Visit http://localhost:4000
 
 ---
 
+## 5. Optional: Seed a Sanitized Shadow Database
+
+If you have access to the read-only production replica, you can refresh a local/staging “shadow” database with anonymized data:
+
+```bash
+PROD_REPLICA_URL=postgresql://readonly:password@replica-host:5432/trayb_customs \
+SHADOW_DATABASE_URL=postgresql://postgres:password@localhost:5432/trayb_shadow \
+./scripts/db/sync-anonymized.sh
+```
+
+The script masks Discord IDs, emails, IP addresses, and sensitive payloads, then verifies the result. Logs are saved under `logs/data-sync/` for auditing. See `docs/PROD_DATA_SAFE_PLAYBOOK.md` for more details and additional guardrails.
+
+---
+
 ## Useful Commands
 
 ```bash
@@ -113,6 +114,21 @@ npm run build                   # Production build
 cd apps/frontend
 npm run lint
 npm run build
+
+# Turborepo shortcuts from project root
+cd ../..
+npm run lint
+npm run test
+npm run build
+npm run deps:check         # Inspect pending dependency updates
+npm run deps:audit         # Audit production dependencies
+npm run loadtest           # Run the default autocannon scenario (requires sanitized shadow data)
+
+### Cache verification tips
+
+- Hit `GET http://localhost:4001/api/matches?limit=5` twice – the second call should hit Redis (check server logs for `cache hit`).
+- To bypass cache temporarily append `?cache=refresh`.
+- Redis metrics live under hashes `metrics:cache:hits` / `metrics:cache:misses`; inspect with `redis-cli HGETALL metrics:cache:hits`.
 ```
 
 ---

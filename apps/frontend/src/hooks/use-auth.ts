@@ -25,6 +25,7 @@ export function useAuth() {
     user: (session?.user as User | undefined) ?? null,
     isAuthenticated: status === "authenticated",
     isLoading: status === "loading",
+    backendToken: (session?.backendToken as string | undefined) ?? null,
     logout,
     refreshUser,
   }

@@ -1,12 +1,28 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env.*local"],
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "NEXTAUTH_URL",
+    "NEXT_PUBLIC_API_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "inputs": ["src/**", "package.json", "tsconfig.json", "next.config.js", "prisma/**"]
     },
-    "lint": {},
+    "lint": {
+      "dependsOn": ["^lint"],
+      "outputs": [],
+      "inputs": ["src/**", "package.json", "tsconfig.json", ".eslintrc*", ".eslintignore"]
+    },
+    "test": {
+      "dependsOn": ["^test"],
+      "outputs": [],
+      "inputs": ["src/**", "tests/**", "package.json", "tsconfig.json"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

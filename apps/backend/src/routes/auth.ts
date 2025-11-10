@@ -1,10 +1,24 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../index';
+import { prisma } from '../lib/prisma';
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '';
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:4001/api/core-auth/discord/callback';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4000';
+
+const ROOT_DISCORD_IDS = new Set(
+  (process.env.DISCORD_ROOT_IDS || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0)
+    .map((id) => id.replace(/^['"]|['"]$/g, '')),
+);
+
+if (ROOT_DISCORD_IDS.size === 0) {
+  console.warn('[auth] DISCORD_ROOT_IDS is empty; no automatic ROOT promotions will occur.');
+} else {
+  console.info('[auth] Loaded DISCORD_ROOT_IDS for automatic ROOT promotion:', Array.from(ROOT_DISCORD_IDS));
+}
 
 interface DiscordUser {
   id: string;
@@ -23,6 +37,11 @@ interface DiscordTokenResponse {
 }
 
 export default async function authRoutes(fastify: FastifyInstance) {
+  fastify.log.info({
+    rootIdsConfigured: Array.from(ROOT_DISCORD_IDS),
+    count: ROOT_DISCORD_IDS.size,
+  }, 'auth: automatic ROOT promotion configured');
+
   // Discord OAuth - Initiate
   fastify.get('/discord', async (request: FastifyRequest, reply: FastifyReply) => {
     const authUrl = new URL('https://discord.com/api/oauth2/authorize');
@@ -86,6 +105,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
       // }
 
       // Create or update user in database
+      const isRoot = ROOT_DISCORD_IDS.has(discordUser.id);
+
       const user = await prisma.user.upsert({
         where: { discordId: discordUser.id },
         update: {
@@ -94,6 +115,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
           avatar: discordUser.avatar,
           email: discordUser.email,
           lastLogin: new Date(),
+          ...(isRoot ? { role: 'ROOT' } : {}),
         },
         create: {
           discordId: discordUser.id,
@@ -101,11 +123,19 @@ export default async function authRoutes(fastify: FastifyInstance) {
           discriminator: discordUser.discriminator,
           avatar: discordUser.avatar,
           email: discordUser.email,
-          role: 'USER',
+          role: isRoot ? 'ROOT' : 'USER',
           isWhitelisted: true, // TODO: Implement proper whitelist check
           lastLogin: new Date(),
         },
       });
+
+      if (isRoot) {
+        fastify.log.info({
+          discordId: user.discordId,
+          userId: user.id,
+          role: user.role,
+        }, 'auth: granted ROOT role via DISCORD_ROOT_IDS');
+      }
 
       // Check if user is banned
       if (user.isBanned) {

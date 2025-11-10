@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../index';
+import { prisma } from '../lib/prisma';
 import * as cheerio from 'cheerio';
 import puppeteer from 'puppeteer';
 

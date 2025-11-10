@@ -1,146 +1,98 @@
 # Environment Variables Reference
 
-## 🔧 Configuration Overview
+## 📌 Source of Truth
 
-### **Frontend Environment Variables** (`apps/frontend`)
+- **Schema:** `config/env.schema.json` (defines every variable, scope, defaults, and required contexts)
+- **Template:** `config/env.example` (copy to `.env`)
+- **Validation:** `npm run env:check` (local), `npm run env:check:ci` (CI/deploy)
+- **Syncing:** `npm run setup:env` regenerates `apps/backend/.env` and `apps/frontend/.env.local`
 
-Create a `.env.local` file in `apps/frontend/` for local development:
-
-```bash
-# API Configuration - REQUIRED
-NEXT_PUBLIC_API_URL=http://localhost:4001
-
-# For production (Dokploy):
-# NEXT_PUBLIC_API_URL=https://api.customs.trayb.az
-
-# Auth.js session secret - REQUIRED
-AUTH_SECRET=your-nextauth-secret
-```
-
-**Note:** The frontend port (4000) is hardcoded in `package.json` scripts.
+Always update the schema and template together when adding new configuration. The CI pipeline runs the CI validation script to catch missing or unexpected keys before merges.
 
 ---
 
-### **Backend Environment Variables** (`apps/backend`)
+## 🎯 Minimum Required Variables
 
-Create a `.env` file in `apps/backend/` for local development:
+The following variables must be populated in **local, staging, and production** environments.
 
-```bash
-# Server Configuration
-PORT=4001
-HOST=0.0.0.0
-NODE_ENV=development
-LOG_LEVEL=info
-PRETTY_LOGS=true
-
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/trayb_customs
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# JWT & Session
-JWT_SECRET=your-super-secret-jwt-key-min-32-chars
-SESSION_SECRET=your-super-secret-session-key-min-32-chars
-AUTH_SECRET=your-nextauth-secret
-
-# Discord OAuth
-DISCORD_CLIENT_ID=your-discord-client-id
-DISCORD_CLIENT_SECRET=your-discord-client-secret
-DISCORD_REDIRECT_URI=http://localhost:4001/api/core-auth/discord/callback
-
-# Discord Bot Integration
-DISCORD_BOT_TOKEN=your-discord-bot-token
-DISCORD_GUILD_ID=your-discord-guild-id
-DISCORD_LOBBY_CHANNEL_ID=1436009958469533726
-DISCORD_TEAM_ALPHA_CHANNEL_ID=1426994984300712027
-DISCORD_TEAM_BRAVO_CHANNEL_ID=1426995070590255186
-DISCORD_RESULTS_CHANNEL_ID=1436464923365605426
-
-# For production, use:
-# DISCORD_REDIRECT_URI=https://api.customs.trayb.az/api/core-auth/discord/callback
-
-# CORS
-CORS_ORIGIN=http://localhost:4000
-
-# Frontend proxy for Auth.js (backend → frontend forwarding)
-FRONTEND_INTERNAL_URL=http://localhost:4000
-
-# For production, use:
-# CORS_ORIGIN=https://customs.trayb.az
-# FRONTEND_INTERNAL_URL=http://frontend-service:4000
-
-# Rate Limiting
-RATE_LIMIT_MAX=100
-RATE_LIMIT_WINDOW=1 minute
-```
+| Key | Scope | Description |
+| --- | --- | --- |
+| `FRONTEND_URL` | shared | Public URL of the frontend app (browser origin) |
+| `FRONTEND_INTERNAL_URL` | backend | Internal URL for backend → frontend proxying (Auth.js) |
+| `NEXT_PUBLIC_API_URL` | frontend | Base URL for API requests issued by the Next.js app |
+| `NEXTAUTH_URL` | frontend | Canonical NextAuth callback URL (must match `FRONTEND_URL`) |
+| `AUTH_SECRET` | shared | NextAuth session encryption secret |
+| `JWT_SECRET` | backend | Fastify JWT signing secret |
+| `SESSION_SECRET` | backend | Fastify session secret |
+| `DATABASE_URL` | backend | Postgres connection string |
+| `REDIS_URL` | backend | Redis connection string |
+| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI` | shared | Discord OAuth credentials |
+| `CORS_ORIGIN` | backend | Allowed origin(s) for cross-site requests |
 
 ---
 
-## 🚀 Production Environment (Dokploy)
+## 🚦 Production & Staging Enhancements
 
-### **Frontend (customs.trayb.az)**
-```bash
-NEXT_PUBLIC_API_URL=https://api.customs.trayb.az
-NODE_ENV=production
-AUTH_SECRET=<same-secret-used-by-backend>
-```
+These variables become important on shared staging or production clusters.
 
-### **Backend (api.customs.trayb.az)**
-```bash
-PORT=4001
-HOST=0.0.0.0
-NODE_ENV=production
-LOG_LEVEL=info
-PRETTY_LOGS=false
+| Key | Purpose |
+| --- | --- |
+| `TRUST_PROXY` | Required when running behind a load balancer (ensures correct client IPs) |
+| `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW` | Fastify rate limit tuning |
+| `CLUSTER_WORKERS` | Number of Fastify workers (keep at `1` until sticky sessions + `/metrics` controls are in place) |
+| `UNDER_PRESSURE_MAX_EVENT_LOOP_DELAY`, `UNDER_PRESSURE_MAX_HEAP_BYTES` | Backpressure thresholds for under-pressure plugin |
+| `REALTIME_STREAM_*` | Redis Streams configuration (key, group, maxlen, read batch/block) |
+| `DISCORD_BOT_TOKEN`, channel IDs, role IDs | Discord bot automation |
+| `METRIC_PREFIX` | Prometheus metric namespace |
 
-DATABASE_URL=postgresql://user:password@postgres:5432/trayb_customs
-REDIS_URL=redis://redis:6379
-
-JWT_SECRET=<generate-secure-secret>
-SESSION_SECRET=<generate-secure-secret>
-AUTH_SECRET=<same-secret-used-by-frontend>
-FRONTEND_INTERNAL_URL=http://trayb-frontend:4000
-
-DISCORD_CLIENT_ID=<your-production-id>
-DISCORD_CLIENT_SECRET=<your-production-secret>
-DISCORD_REDIRECT_URI=https://api.customs.trayb.az/api/core-auth/discord/callback
-
-# Discord Bot Integration
-DISCORD_BOT_TOKEN=<bot-token>
-DISCORD_GUILD_ID=<guild-id>
-DISCORD_LOBBY_CHANNEL_ID=1436009958469533726
-DISCORD_TEAM_ALPHA_CHANNEL_ID=1426994984300712027
-DISCORD_TEAM_BRAVO_CHANNEL_ID=1426995070590255186
-DISCORD_RESULTS_CHANNEL_ID=1436464923365605426
-
-CORS_ORIGIN=https://customs.trayb.az
-
-RATE_LIMIT_MAX=100
-RATE_LIMIT_WINDOW=1 minute
-```
+All Discord channel/role IDs are documented in the schema; update those entries when guild mappings change.
 
 ---
 
-## 📋 Port Reference
+## 🛡️ Production Data Safe-Use
 
-| Service  | Port | URL (Local)              | URL (Production)              |
-|----------|------|--------------------------|-------------------------------|
-| Frontend | 4000 | http://localhost:4000    | https://customs.trayb.az      |
-| Backend  | 4001 | http://localhost:4001    | https://api.customs.trayb.az  |
-| Database | 5432 | localhost:5432           | postgres:5432 (internal)      |
-| Redis    | 6379 | localhost:6379           | redis:6379 (internal)         |
+| Key | Description | Notes |
+| --- | --- | --- |
+| `PROD_REPLICA_URL` | Read-only production replica connection string | Used by `scripts/db/sync-anonymized.sh` |
+| `SHADOW_DATABASE_URL` | Target database for anonymized dumps | Typically a local/staging shadow database |
+| `LOADTEST_BASE_URL` | Base URL for the autocannon harness | Defaults to the backend URL |
+| `LOADTEST_ALLOWED_HOSTS` | Comma-separated allow-list for load-testing targets | Prevents accidental production hits |
+| `LOADTEST_BEARER`, `LOADTEST_*` overrides | Optional auth + tuning knobs for load tests | Assertions live in `loadtest/scenario.json` |
+
+Workflow:
+
+```bash
+PROD_REPLICA_URL=... SHADOW_DATABASE_URL=... ./scripts/db/sync-anonymized.sh
+npm run loadtest
+```
+
+See `docs/PROD_DATA_SAFE_PLAYBOOK.md` for the full procedure.
 
 ---
 
-## 🔒 Security Notes
+## 🧰 Optional Overrides
 
-1. **Never commit `.env` files to git** - they are in `.gitignore`
-2. **Generate strong secrets** for production:
-   ```bash
-   openssl rand -base64 32
-   ```
-3. **Keep `JWT_SECRET`, `SESSION_SECRET`, and `AUTH_SECRET` unique per environment**
-4. **Update Discord OAuth callback URLs** in Discord Developer Portal
-5. **Set CORS_ORIGIN** to your actual frontend domain in production
+These tune specific subsystems and all default to safe values:
+
+- Cache TTLs: `CACHE_PROFILE_TTL`, `CACHE_PROFILE_FULL_TTL`, `CACHE_MATCH_LIST_TTL`, `CACHE_MATCH_SNAPSHOT_TTL`
+- SSE behaviour: `SSE_HEARTBEAT_INTERVAL_MS`, `SSE_CLIENT_QUEUE_LIMIT`
+- Redis Streams tuning: `REALTIME_STREAM_MAXLEN`, `REALTIME_STREAM_READ_COUNT`, `REALTIME_STREAM_READ_BLOCK_MS`
+- BullMQ metrics polling: `BULLMQ_METRICS_POLL_MS`
+- Random.org integration: `RANDOM_ORG_API_KEY`
+- Discord role escalation: `DISCORD_ROOT_IDS` (comma-separated Discord IDs that should auto-upgrade to ROOT during login)
+- Debug flag: `DEBUG_OPGG_HTML`
+- Legacy ELO settings (`ELO_*`) remain optional for historical parity
+- Turborepo cache credentials (`TURBO_*`) for CI/deploy optimisation
+
+---
+
+## 🔄 Recommended Workflow
+
+1. `cp config/env.example .env`
+2. Fill in variables (consult `config/env.schema.json` for descriptions and requirements)
+3. `npm run env:check` to validate the file
+4. `npm run setup:env` to regenerate per-app environment files
+5. Commit schema/template changes alongside code that introduces new configuration
+
+If validation fails, the script lists missing keys and the contexts where they are required. Resolve those before proceeding.
 

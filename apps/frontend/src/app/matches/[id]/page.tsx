@@ -121,7 +121,7 @@ const createEmptyPlayerStat = (userId: string, teamId: string): MapPlayerStat =>
 export default function MatchDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { user, isAuthenticated, isLoading: authLoading, backendToken } = useAuth()
   const { toast } = useToast()
   const [match, setMatch] = useState<Match | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -162,6 +162,7 @@ const [pendingOcrData, setPendingOcrData] = useState<{
 const [pendingMapIndex, setPendingMapIndex] = useState<number | undefined>(undefined)
 const isFetchingMatchRef = useRef(false)
 const pendingReloadRef = useRef(false)
+const realtimeConnectedRef = useRef(false)
 
 const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
   const silent = options?.silent ?? false
@@ -220,6 +221,11 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
         members: team.members,
       }))
   }, [match])
+
+  const eloHistoryMap = useMemo(() => {
+    const entries = match?.eloHistory ?? []
+    return new Map(entries.map((entry) => [entry.userId, entry]))
+  }, [match?.eloHistory])
 
   const mapOptions = useMemo(() => {
     if (mapsStats.length > 0) {
@@ -281,6 +287,7 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
 
   useRealtimeStream({
     enabled: !authLoading && isAuthenticated,
+    authToken: backendToken ?? undefined,
     events: {
       "match:created": (payload) => {
         if (!payload || payload.matchId !== matchId) return
@@ -293,7 +300,7 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
             title: "Match removed",
             description: "This match is no longer available.",
           })
-      router.push("/matches")
+          router.push("/matches")
           return
         }
         if (payload.action === "shutdown") {
@@ -310,8 +317,26 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
         router.push("/matches")
       },
     },
-    onError: (error) => {
-      console.error("Realtime stream error", error)
+    onOpen: () => {
+      realtimeConnectedRef.current = true
+      console.info("Realtime stream connected (match detail)", { matchId })
+    },
+    onError: (event) => {
+      const source = (event?.currentTarget ?? event?.target) as EventSource | null
+      const readyState = source?.readyState
+
+      if (!realtimeConnectedRef.current) {
+        console.warn("Realtime stream waiting for initial handshake (match detail)...", { matchId, readyState, event })
+        return
+      }
+
+      if (typeof readyState === "number" && readyState !== EventSource.CLOSED) {
+        console.warn("Realtime stream transient issue (match detail, retrying)", { matchId, readyState })
+        return
+      }
+
+      realtimeConnectedRef.current = false
+      console.error("Realtime stream closed unexpectedly (match detail)", { matchId, event })
     },
   })
 
@@ -356,7 +381,11 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
       await loadMatch()
     } catch (error: any) {
       console.error("Failed to add random players:", error)
-      alert(error.message || "Failed to add random players")
+      toast({
+        title: "No players available",
+        description: error.message || "All available users are already in the match.",
+        variant: "default",
+      })
     }
   }
 
@@ -385,6 +414,39 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
     } catch (error: any) {
       console.error("Failed to unassign player:", error)
       alert(error.message || "Failed to move player to pool")
+    } finally {
+      setPlayerActionLoading((current) => (current === actionKey ? null : current))
+    }
+  }
+
+  async function handleAssignPlayerToTeam(userId: string, teamId: string | null, label: string) {
+    if (!isAdminUser) return
+    if (!teamId) {
+      toast({
+        title: "Team unavailable",
+        description: "Cannot assign player because the target team is not available in this match.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const actionKey = `assign:${userId}:${teamId}`
+    setPlayerActionLoading(actionKey)
+    try {
+      await movePlayerToTeam(matchId, userId, teamId)
+      await loadMatch()
+      toast({
+        title: "Player assigned",
+        description: `Moved to ${label}.`,
+        variant: "success",
+      })
+    } catch (error: any) {
+      console.error("Failed to assign player:", error)
+      toast({
+        title: "Assignment failed",
+        description: error.message || "Failed to assign player to the selected team.",
+        variant: "destructive",
+      })
     } finally {
       setPlayerActionLoading((current) => (current === actionKey ? null : current))
     }
@@ -827,8 +889,16 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
   const userInMatch = isUserInMatch()
   const totalPlayers = getTotalPlayers()
   const isFull = totalPlayers >= 10
+  const isCompleted = match.status === "COMPLETED"
   const isCancelled = match.status === "CANCELLED"
   const canJoin = !isCancelled && (match.status === "DRAFT" || match.status === "TEAM_SELECTION")
+  const teamAlphaId = match.teams.find((team) => team.name === 'Team Alpha')?.id ?? null
+  const teamBravoId = match.teams.find((team) => team.name === 'Team Bravo')?.id ?? null
+  const yourEloChange = isCompleted && user ? eloHistoryMap.get(user.id)?.change : undefined
+
+  const formatEloChange = (value: number) => (value > 0 ? `+${value}` : value.toString())
+  const eloChangeTone = (value: number) =>
+    value > 0 ? 'text-green-500' : value < 0 ? 'text-red-500' : 'text-terminal-muted'
 
   return (
     <div className="container relative z-10 py-10 space-y-6">
@@ -856,6 +926,11 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
             <p className="text-gray-600 dark:text-terminal-muted font-mono mt-1">
               {match.seriesType} • {STATUS_LABELS[match.status]}
             </p>
+            {isCompleted && typeof yourEloChange === "number" && (
+              <p className={`text-sm font-mono mt-1 ${eloChangeTone(yourEloChange)}`}>
+                Your Elo Change: {formatEloChange(yourEloChange)}
+              </p>
+            )}
           </div>
         </div>
 
@@ -1024,6 +1099,13 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
                               const isCaptain = group.captainId === member.userId
                               const canSetCaptain = isPlayableTeam && !!group.id && !isCaptain
                               const canUnassign = group.name !== 'Player Pool'
+                              const assignAlphaKey = teamAlphaId ? `assign:${member.userId}:${teamAlphaId}` : null
+                              const assignBravoKey = teamBravoId ? `assign:${member.userId}:${teamBravoId}` : null
+                              const assignAlphaLoading = assignAlphaKey ? playerActionLoading === assignAlphaKey : false
+                              const assignBravoLoading = assignBravoKey ? playerActionLoading === assignBravoKey : false
+                              const isInAlpha = group.name === 'Team Alpha'
+                              const isInBravo = group.name === 'Team Bravo'
+                              const playerEloChange = isCompleted ? eloHistoryMap.get(member.userId)?.change : undefined
 
                               return (
                                 <div
@@ -1047,6 +1129,11 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
                                     <p className="font-mono text-[11px] text-gray-600 dark:text-terminal-muted truncate">
                                       ELO {member.user.elo ?? 800}
                                     </p>
+                                    {isCompleted && typeof playerEloChange === "number" && (
+                                      <p className={`font-mono text-[11px] ${eloChangeTone(playerEloChange)}`}>
+                                        ΔELO {formatEloChange(playerEloChange)}
+                                      </p>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-2">
                                     {isCaptain ? (
@@ -1069,6 +1156,66 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
                                           )}
                                         </Button>
                                       )
+                                    )}
+                                    {group.name === 'Player Pool' && (
+                                      <>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleAssignPlayerToTeam(member.userId, teamAlphaId, 'Team Alpha')}
+                                          disabled={!teamAlphaId || assignAlphaLoading}
+                                          className="font-mono text-[11px] h-7 px-2 border-matrix-500 text-matrix-500 hover:bg-matrix-500/10"
+                                        >
+                                          {assignAlphaLoading ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          ) : (
+                                            'TO ALPHA'
+                                          )}
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleAssignPlayerToTeam(member.userId, teamBravoId, 'Team Bravo')}
+                                          disabled={!teamBravoId || assignBravoLoading}
+                                          className="font-mono text-[11px] h-7 px-2 border-cyber-500 text-cyber-500 hover:bg-cyber-500/10"
+                                        >
+                                          {assignBravoLoading ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          ) : (
+                                            'TO BRAVO'
+                                          )}
+                                        </Button>
+                                      </>
+                                    )}
+                                    {isInAlpha && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleAssignPlayerToTeam(member.userId, teamBravoId, 'Team Bravo')}
+                                        disabled={!teamBravoId || assignBravoLoading}
+                                        className="font-mono text-[11px] h-7 px-2 border-cyber-500 text-cyber-500 hover:bg-cyber-500/10"
+                                      >
+                                        {assignBravoLoading ? (
+                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                          'MOVE → BRAVO'
+                                        )}
+                                      </Button>
+                                    )}
+                                    {isInBravo && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleAssignPlayerToTeam(member.userId, teamAlphaId, 'Team Alpha')}
+                                        disabled={!teamAlphaId || assignAlphaLoading}
+                                        className="font-mono text-[11px] h-7 px-2 border-matrix-500 text-matrix-500 hover:bg-matrix-500/10"
+                                      >
+                                        {assignAlphaLoading ? (
+                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                          'MOVE → ALPHA'
+                                        )}
+                                      </Button>
                                     )}
                                     {canUnassign && (
                                       <Button
@@ -1156,6 +1303,7 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
                           const avgKD = deaths > 0 ? ((kills / deaths) || 0).toFixed(2) : kills > 0 ? kills.toFixed(2) : '0.00'
                           const avgHS = user.avgHeadshotPercent || 0
                           const avgKAST = user.avgKAST || 0
+                          const playerEloChange = isCompleted ? eloHistoryMap.get(member.userId)?.change : undefined
 
                           return (
                             <div
@@ -1176,6 +1324,11 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
                               </Avatar>
                               <div className="flex-1 min-w-0">
                                 <p className="font-mono text-sm text-gray-900 dark:text-matrix-500 truncate">{member.user.username}</p>
+                                {isCompleted && typeof playerEloChange === "number" && (
+                                  <p className={`font-mono text-xs ${eloChangeTone(playerEloChange)}`}>
+                                    ΔELO {formatEloChange(playerEloChange)}
+                                  </p>
+                                )}
                                 {/* Stats Table - Horizontal columns (6 stats only) */}
                                 <div className="flex gap-x-4 overflow-x-auto text-sm font-mono">
                                   {/* ACS */}
@@ -1323,7 +1476,10 @@ const loadMatch = useCallback(async (options?: { silent?: boolean }) => {
                 <Button
                   onClick={() => {
                     setShowStatsEntry(true)
-                    setShowOCRUpload(true)
+                    if (mapsStats.length === 0) {
+                      // reset stats so the importer has a clean slate
+                      setMapsStats([])
+                    }
                   }}
                   className="font-mono w-full bg-matrix-500 hover:bg-matrix-600 text-black"
                   style={{ pointerEvents: 'auto' }}

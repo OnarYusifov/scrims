@@ -1,6 +1,6 @@
 # 🔐 Environment Variables Setup Guide
 
-This guide explains how environment files are organised for local development and for Railpack production deploys.
+This guide explains how to configure environment files consistently across local development, CI, and Railpack/Dokploy deployments.
 
 ---
 
@@ -8,40 +8,41 @@ This guide explains how environment files are organised for local development an
 
 ```
 trayb-customs/
-├── .env.example          # Template used for local + production
-├── .env                  # Your local override (create from .env.example)
+├── config/
+│   ├── env.schema.json   # Canonical list of variables, scopes & requirements
+│   └── env.example       # Template you copy to .env
+├── .env                  # Your local values (ignored by git)
+├── setup-env.sh          # Generates app-specific env files
 ├── apps/
 │   ├── backend/
-│   │   └── prisma/
 │   └── frontend/
-└── nixpacks*.toml        # Build configuration for Railpack/Nixpacks
+└── ...
 ```
 
-The project relies on a **single root `.env`** file. Both the backend and frontend read from it (via `process.env`) so you only need to keep one copy in sync.
+The **root `.env`** is the single source of truth. Both apps load from it via `setup-env.sh`, which writes `apps/backend/.env` and `apps/frontend/.env.local`.
 
 ---
 
 ## 🚀 Quick Setup
 
 ```bash
-cp .env.example .env      # 1. Copy the template
-nano .env                 # 2. Fill in your values (or use your editor of choice)
+cp config/env.example .env   # 1. Copy the template
+vim .env                     # 2. Fill in secrets/URLs (see env.schema.json)
+npm run env:check            # 3. Validate required keys for local context
+npm run setup:env            # 4. Generate app-specific env files
 ```
 
-That’s it—no per-app `.env` files are required.
+If validation fails, the script lists missing variables along with the environments that require them.
 
 ---
 
-## 🔑 Minimum Variables to Change
+## 🔑 Minimum Variables to Provide
 
-1. `POSTGRES_PASSWORD`
-2. `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET`
-3. `JWT_SECRET` (generate a long random string)
-4. `SESSION_SECRET` (generate another long random string)
-5. `AUTH_SECRET` (NextAuth secret, generate a long random string)
-6. `FRONTEND_INTERNAL_URL` (URL backend uses to reach the frontend service, e.g. `http://localhost:4000`)
-FRONTEND_INTERNAL_URL=http://localhost:4000
-FRONTEND_INTERNAL_URL=http://trayb-frontend:4000
+1. `DATABASE_URL` – Postgres connection string
+2. `REDIS_URL` – Redis connection string
+3. `JWT_SECRET`, `SESSION_SECRET`, `AUTH_SECRET` – Generate strong secrets (see below)
+4. `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET`
+5. `FRONTEND_URL`, `FRONTEND_INTERNAL_URL`, `CORS_ORIGIN`, `NEXT_PUBLIC_API_URL`, `NEXTAUTH_URL`
 
 ### Generating secrets
 
@@ -53,75 +54,48 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 ---
 
-## 🌐 Local Development Defaults
+## 🌐 Local Defaults
 
-```env
-DATABASE_URL=postgresql://postgres:password@localhost:5432/trayb_customs?schema=public
-REDIS_URL=redis://localhost:6379
+`config/env.example` already contains sensible local defaults:
 
-PORT=4001
-NODE_ENV=development
+- `DATABASE_URL=postgresql://postgres:password@localhost:5432/trayb_customs?schema=public`
+- `REDIS_URL=redis://localhost:6379`
+- `FRONTEND_URL=http://localhost:4000`
+- `NEXT_PUBLIC_API_URL=http://localhost:4001`
+- `DISCORD_REDIRECT_URI=http://localhost:4001/api/core-auth/discord/callback`
 
-DISCORD_REDIRECT_URI=http://localhost:4001/api/core-auth/discord/callback
-FRONTEND_URL=http://localhost:4000
-CORS_ORIGIN=http://localhost:4000
-
-NEXT_PUBLIC_API_URL=http://localhost:4001
-NEXT_PUBLIC_APP_URL=http://localhost:4000
-AUTH_SECRET=change-me-in-development
-```
-
-Adjust hostnames if you run PostgreSQL/Redis elsewhere.
+Adjust hostnames if you run databases elsewhere.
 
 ---
 
-## 🚢 Railpack Production Configuration
+## 🚢 Deploying to Railpack / Dokploy
 
-### Backend service
+1. Populate `.env` with production credentials and URLs.
+2. Run `npm run env:check -- --context=production` if you want to validate the prod set locally.
+3. Copy values into Railpack’s dashboard (backend + frontend services).
+4. Ensure `TRUST_PROXY=true` and production URLs (`FRONTEND_URL`, `CORS_ORIGIN`, `FRONTEND_INTERNAL_URL`) point to deployed hosts.
 
-```env
-NODE_ENV=production
-PORT=4001
-HOST=0.0.0.0
-
-DATABASE_URL=postgresql://trayb:${POSTGRES_PASSWORD}@trayb-postgres:5432/trayb_customs?schema=public
-REDIS_URL=redis://trayb-redis:6379
-
-FRONTEND_URL=https://customs.trayb.az
-DISCORD_REDIRECT_URI=https://customs.trayb.az/api/core-auth/discord/callback
-CORS_ORIGIN=https://customs.trayb.az
-```
-
-### Frontend service
-
-```env
-NODE_ENV=production
-PORT=4000
-NEXT_PUBLIC_API_URL=https://customs.trayb.az/api
-NEXT_PUBLIC_APP_URL=https://customs.trayb.az
-AUTH_SECRET=${AUTH_SECRET}
-```
-
-Replace `trayb-postgres` / `trayb-redis` with the service names Railpack generates in your environment. If you split the API onto a subdomain (e.g. `api.customs.trayb.az`) remember to update `NEXT_PUBLIC_API_URL`.
+The schema lists which variables become required in production (`TRUST_PROXY`, `REALTIME_STREAM_*`, Discord bot channels/roles, etc.).
 
 ---
 
-## 🔄 Keeping Files in Sync
+## 🔄 Keeping Things in Sync
 
-- The root `.env` is the single source of truth.
-- Commit `.env.example` with placeholder values so teammates know what needs to be set.
-- Never commit `.env`—it stays local.
-- When deploying, copy the values into Railpack’s environment variable UI for each service.
+- `config/env.schema.json` is **the** ground truth. Update it when adding/removing variables.
+- `config/env.example` mirrors the schema with safe placeholder values—keep them aligned.
+- `setup-env.sh` should be re-run after editing `.env`; it will regenerate `apps/backend/.env` and `apps/frontend/.env.local`.
+- CI runs `npm run env:check:ci` so new variables must be reflected in the schema before merges.
 
 ---
 
 ## ✅ Verification Checklist
 
 ```bash
-ls .env                                # file exists
-npx prisma migrate dev --name init     # successfully connects to DB
-npm run dev                            # backend + frontend start locally
-curl http://localhost:4001/api/health  # backend health check passes
+npm run env:check                     # passes for local context
+npm run setup:env                     # regenerates per-app files
+npx prisma migrate dev --name init    # database connectivity works
+npm run dev                           # backend + frontend start locally
+curl http://localhost:4001/healthz    # backend health check OK
 ```
 
 ---
@@ -130,6 +104,17 @@ curl http://localhost:4001/api/health  # backend health check passes
 
 - **Local:** `http://localhost:4001/api/core-auth/discord/callback`
 - **Production:** `https://customs.trayb.az/api/core-auth/discord/callback`
+
+Remember to update the Discord Developer Portal when URLs change.
+
+---
+
+## 🧹 Legacy Cleanup & Migration Notes
+
+- Older per-app templates (e.g. `apps/backend/.env.example`, `apps/frontend/.env.local`) have been removed. Always edit the root `.env` and rerun `npm run setup:env`.
+- Delete any lingering `.env.local`, `.env.production`, or service-specific `.env` files that were committed or cached from previous flows—those values now live in the root `.env` and the schema.
+- If you introduce app-specific secrets, add them to `config/env.schema.json` so validation works everywhere (local, CI, staging, production).
+- The validator warns about unknown keys; remove them or add them to the schema. This prevents stale configuration from surviving future refactors.
 
 Remember to add both to the Discord Developer Portal.
 

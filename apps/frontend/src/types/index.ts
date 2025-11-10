@@ -63,6 +63,7 @@ export interface Match {
   maps: MapSelection[]
   playerStats: PlayerMatchStats[]
   statsSubmissions?: MatchStatsSubmissionRecord[]
+  eloHistory?: EloHistory[]
 }
 
 export interface Team {

@@ -1,4 +1,8 @@
-import { EventEmitter } from 'node:events';
+import {
+  publishRealtimeEvent,
+  realtimeEmitter,
+  RealtimeEnvelope,
+} from './realtime-bus';
 
 export type RealtimeEventName =
   | 'match:created'
@@ -12,41 +16,37 @@ export interface MatchRealtimePayload {
   timestamp: string;
 }
 
-class AppEventBus extends EventEmitter {
-  constructor() {
-    super();
-    // Allow unlimited listeners – we manage cleanup manually per connection.
-    this.setMaxListeners(0);
-  }
-}
-
-const bus = new AppEventBus();
-
 export const emitRealtimeEvent = (
   event: RealtimeEventName,
   payload: MatchRealtimePayload,
 ) => {
-  bus.emit(event, payload);
+  publishRealtimeEvent(event, payload).catch((error) => {
+    console.error('Failed to publish realtime event', error);
+  });
 };
 
 export const onRealtimeEvent = (
   event: RealtimeEventName,
-  listener: (payload: MatchRealtimePayload) => void,
+  listener: (payload: MatchRealtimePayload, envelope: RealtimeEnvelope) => void,
 ) => {
-  bus.on(event, listener);
+  const handler = (envelope: RealtimeEnvelope) => {
+    listener(envelope.payload, envelope);
+  };
+  realtimeEmitter.on(event, handler);
   return () => {
-    bus.off(event, listener);
+    realtimeEmitter.off(event, handler);
   };
 };
 
 export const onceRealtimeEvent = (
   event: RealtimeEventName,
-  listener: (payload: MatchRealtimePayload) => void,
+  listener: (payload: MatchRealtimePayload, envelope: RealtimeEnvelope) => void,
 ) => {
-  bus.once(event, listener);
-  return () => {
-    bus.off(event, listener);
+  const handler = (envelope: RealtimeEnvelope) => {
+    listener(envelope.payload, envelope);
   };
+  realtimeEmitter.once(event, handler);
+  return () => realtimeEmitter.off(event, handler);
 };
 
 

@@ -1,5 +1,5 @@
 import { SeriesType } from '@prisma/client';
-import { prisma } from '../index';
+import { prisma } from '../lib/prisma';
 
 type MetricKey =
   | 'acs'

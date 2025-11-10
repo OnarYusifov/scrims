@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Loader2, Upload, CheckCircle2, Info, Trash2, FileText, AlertTriangle } from "lucide-react"
@@ -69,6 +69,7 @@ export function TrackerHtmlUpload({ matchId, onScoreboardReady }: TrackerHtmlUpl
   const [selectedFiles, setSelectedFiles] = useState<SelectedFileDescriptor[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [lastResult, setLastResult] = useState<UploadTrackerBundleResponse | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const hasScoreboardCandidate = useMemo(
     () => selectedFiles.some(({ file }) => /scoreboard/i.test(file.name)),
@@ -83,8 +84,7 @@ export function TrackerHtmlUpload({ matchId, onScoreboardReady }: TrackerHtmlUpl
     }
   }, [lastResult])
 
-  const handleFileSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
+  const ingestFiles = (files: FileList | File[]) => {
     if (!files || files.length === 0) return
 
     const mapped: SelectedFileDescriptor[] = Array.from(files).map((file) => ({
@@ -100,8 +100,24 @@ export function TrackerHtmlUpload({ matchId, onScoreboardReady }: TrackerHtmlUpl
       ]
       return combined
     })
+  }
+
+  const handleFileSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    ingestFiles(event.target.files ?? [])
 
     event.target.value = ""
+  }
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    ingestFiles(event.dataTransfer.files)
+  }
+
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      fileInputRef.current?.click()
+    }
   }
 
   const handleRemoveFile = (id: string) => {
@@ -168,14 +184,26 @@ export function TrackerHtmlUpload({ matchId, onScoreboardReady }: TrackerHtmlUpl
         <CardDescription className="font-mono text-xs">{HINT_TEXT}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <label className="block cursor-pointer rounded border-2 border-dashed border-matrix-500/60 bg-terminal-panel/40 p-6 text-center transition hover:border-matrix-500">
-          <input
-            type="file"
-            accept=".html,.htm"
-            multiple
-            className="hidden"
-            onChange={handleFileSelection}
-          />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".html,.htm"
+          multiple
+          className="hidden"
+          onChange={handleFileSelection}
+        />
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={handleKeyPress}
+          onDragOver={(event) => {
+            event.preventDefault()
+            event.dataTransfer.dropEffect = "copy"
+          }}
+          onDrop={handleDrop}
+          className="rounded border-2 border-dashed border-matrix-500/60 bg-terminal-panel/40 p-6 text-center transition hover:border-matrix-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-matrix-500"
+        >
           <div className="flex flex-col items-center gap-3">
             <FileText className="h-8 w-8 text-matrix-500" />
             <p className="font-mono text-sm text-gray-900 dark:text-matrix-400">
@@ -186,7 +214,7 @@ export function TrackerHtmlUpload({ matchId, onScoreboardReady }: TrackerHtmlUpl
               auto-detect the correct slot.
             </p>
           </div>
-        </label>
+        </div>
 
         {selectedFiles.length > 0 && (
           <div className="space-y-2">

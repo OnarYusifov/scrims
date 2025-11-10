@@ -31,6 +31,21 @@ Keep the service names handy—they are used in the backend connection strings.
 
 ---
 
+## 2.5 Configure Environment Values
+
+1. Align on the master schema (`config/env.schema.json`) and template (`config/env.example`).
+2. Populate a production `.env` locally and validate:
+   ```bash
+   cp config/env.example .env
+   vim .env
+   npm run env:check -- --context=production
+   ```
+3. After validation, copy the required variables into Railpack’s Environment tab for each service.
+
+> The schema indicates which keys are required in production (e.g. `TRUST_PROXY`, `REALTIME_STREAM_*`, Discord bot channels/roles, replica & load-test settings). Update the schema and template before introducing new configuration.
+
+---
+
 ## 3. Backend Service (`trayb-backend`)
 
 1. In your Railpack project, create a new service and select **Nixpacks** as the builder.
@@ -64,6 +79,15 @@ FRONTEND_INTERNAL_URL=http://trayb-frontend:4000
 CORS_ORIGIN=https://customs.trayb.az
 ```
 
+Additional keys to set (see schema for full list):
+
+- `TRUST_PROXY=true`
+- `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW`
+- `REALTIME_STREAM_KEY`, `REALTIME_STREAM_GROUP`, `REALTIME_STREAM_MAXLEN`, `REALTIME_STREAM_READ_*`
+- `METRIC_PREFIX` (defaults to `trayb_`)
+- `DISCORD_BOT_TOKEN` plus channel/role IDs used by the bot
+- `PROD_REPLICA_URL` / `SHADOW_DATABASE_URL` / `LOADTEST_*` for sanitized syncs and load testing
+
 > Replace `<postgres-service>` / `<redis-service>` with the hostnames Railpack provides (often the service name inside the same environment).
 
 ### Database migrations
@@ -94,9 +118,33 @@ PORT=4000
 NEXT_PUBLIC_API_URL=https://customs.trayb.az/api
 NEXT_PUBLIC_APP_URL=https://customs.trayb.az
 AUTH_SECRET=${AUTH_SECRET}
+NEXTAUTH_URL=https://customs.trayb.az
 ```
 
 If you expose the API on a separate subdomain (e.g. `api.customs.trayb.az`), update `NEXT_PUBLIC_API_URL` accordingly.
+
+Refer to `config/env.schema.json` for the complete list of optional overrides (e.g. feature flags, Turborepo cache credentials).
+
+### Shared build cache configuration
+
+If you enable a remote Turborepo cache, add the following to **both** services (Railpack UI → Environment):
+
+```env
+TURBO_TEAM=<team-slug>
+TURBO_API=<remote-cache-endpoint>
+TURBO_TOKEN=<turbo-auth-token>
+TURBO_REMOTE_CACHE_SIGNATURE_KEY=<signature-secret>
+```
+
+These variables are optional; without them Turborepo builds still work with local caching only.
+
+### Horizontal scaling
+
+- Set `CLUSTER_WORKERS` on the backend service (usually match vCPU count). Workers auto-restart on crash.
+- Prefer sticky sessions at the load balancer to keep SSE clients on the same worker.
+- Route database traffic through PgBouncer (transaction mode) for connection pooling.
+- Use managed Redis with `maxmemory-policy=allkeys-lru` and enable automatic backups.
+- Tune job metrics polling via `BULLMQ_METRICS_POLL_MS` if needed.
 
 ---
 

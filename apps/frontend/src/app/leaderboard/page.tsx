@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { useRealtimeStream } from "@/hooks/use-realtime"
+import { apiRequest } from "@/lib/api"
 
 interface LeaderboardEntry {
   rank: number
@@ -30,7 +31,8 @@ interface LeaderboardEntry {
 
 export default function LeaderboardPage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const { isAuthenticated, isLoading: authLoading, backendToken } = useAuth()
+  const realtimeConnectedRef = useRef(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -56,15 +58,7 @@ export default function LeaderboardPage() {
     }
 
     try {
-      const response = await fetch("/api/leaderboard", {
-        credentials: "include",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to load leaderboard")
-      }
-
-      const data = await response.json()
+      const data = await apiRequest<{ leaderboard?: LeaderboardEntry[] }>("/api/leaderboard")
       setLeaderboard(data.leaderboard || [])
     } catch (err: any) {
       console.error("Failed to load leaderboard:", err)
@@ -115,8 +109,27 @@ export default function LeaderboardPage() {
   useRealtimeStream({
     enabled: isAuthenticated,
     events: realtimeHandlers,
-    onError: (error) => {
-      console.error("Realtime stream error", error)
+    authToken: backendToken ?? undefined,
+    onOpen: () => {
+      realtimeConnectedRef.current = true
+      console.info("Realtime stream connected")
+    },
+    onError: (event) => {
+      const source = (event?.currentTarget ?? event?.target) as EventSource | null
+      const readyState = source?.readyState
+
+      if (!realtimeConnectedRef.current) {
+        console.warn("Realtime stream waiting for initial handshake...", { readyState, event })
+        return
+      }
+
+      if (typeof readyState === "number" && readyState !== EventSource.CLOSED) {
+        console.warn("Realtime stream transient issue (retrying)", { readyState })
+        return
+      }
+
+      realtimeConnectedRef.current = false
+      console.error("Realtime stream closed unexpectedly", event)
     },
   })
 

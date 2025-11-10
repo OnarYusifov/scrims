@@ -52,7 +52,7 @@ import { useRealtimeStream } from "@/hooks/use-realtime"
 type AdminTab = "users" | "weights" | "audit"
 
 export default function AdminPage() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { user, isAuthenticated, isLoading: authLoading, backendToken } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<AdminTab>("users")
@@ -348,6 +348,8 @@ export default function AdminPage() {
     }
   }
 
+  const realtimeConnectedRef = useRef(false)
+
   const realtimeHandlers = useMemo(
     () => ({
       "match:updated": () => {
@@ -372,8 +374,27 @@ export default function AdminPage() {
   useRealtimeStream({
     enabled: isAuthenticated,
     events: realtimeHandlers,
-    onError: (error) => {
-      console.error("Realtime stream error", error)
+    authToken: backendToken ?? undefined,
+    onOpen: () => {
+      realtimeConnectedRef.current = true
+      console.info("Realtime stream connected (admin)")
+    },
+    onError: (event) => {
+      const source = (event?.currentTarget ?? event?.target) as EventSource | null
+      const readyState = source?.readyState
+
+      if (!realtimeConnectedRef.current) {
+        console.warn("Realtime stream waiting for initial handshake (admin)...", { readyState, event })
+        return
+      }
+
+      if (typeof readyState === "number" && readyState !== EventSource.CLOSED) {
+        console.warn("Realtime stream transient issue (admin, retrying)", { readyState })
+        return
+      }
+
+      realtimeConnectedRef.current = false
+      console.error("Realtime stream closed unexpectedly (admin)", event)
     },
   })
 

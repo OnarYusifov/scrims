@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
-import { prisma } from '../index';
+import { prisma } from '../lib/prisma';
 import { eloService } from '../services/elo.service';
 
 export default async function leaderboardRoutes(fastify: FastifyInstance) {

@@ -51,7 +51,7 @@ const STATUS_LABELS: Record<MatchStatus, string> = {
 }
 
 export default function MatchesPage() {
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, backendToken } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
   const [matches, setMatches] = useState<Match[]>([])
@@ -62,6 +62,7 @@ export default function MatchesPage() {
   const [selectedSeriesType, setSelectedSeriesType] = useState<SeriesType>("BO1")
   const isFetchingRef = useRef(false)
   const pendingReloadRef = useRef(false)
+  const realtimeConnectedRef = useRef(false)
 
   const loadMatches = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -139,8 +140,27 @@ export default function MatchesPage() {
   useRealtimeStream({
     enabled: isAuthenticated,
     events: realtimeHandlers,
-    onError: (error) => {
-      console.error("Realtime stream error", error)
+    authToken: backendToken ?? undefined,
+    onOpen: () => {
+      realtimeConnectedRef.current = true
+      console.info("Realtime stream connected (matches)")
+    },
+    onError: (event) => {
+      const source = (event?.currentTarget ?? event?.target) as EventSource | null
+      const readyState = source?.readyState
+
+      if (!realtimeConnectedRef.current) {
+        console.warn("Realtime stream waiting for initial handshake (matches)...", { readyState, event })
+        return
+      }
+
+      if (typeof readyState === "number" && readyState !== EventSource.CLOSED) {
+        console.warn("Realtime stream transient issue (matches, retrying)", { readyState })
+        return
+      }
+
+      realtimeConnectedRef.current = false
+      console.error("Realtime stream closed unexpectedly (matches)", event)
     },
   })
 

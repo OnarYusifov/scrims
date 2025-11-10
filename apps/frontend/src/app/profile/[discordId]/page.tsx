@@ -14,13 +14,14 @@ import { useRealtimeStream } from "@/hooks/use-realtime"
 export default function UserProfileByDiscordIdPage() {
   const params = useParams<{ discordId: string }>()
   const router = useRouter()
-  const { user: currentUser, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { user: currentUser, isAuthenticated, isLoading: authLoading, backendToken } = useAuth()
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isFullHistory, setIsFullHistory] = useState(false)
   const isFetchingRef = useRef(false)
   const pendingReloadRef = useRef(false)
+  const realtimeConnectedRef = useRef(false)
 
   const discordId = params?.discordId
 
@@ -162,8 +163,27 @@ export default function UserProfileByDiscordIdPage() {
   useRealtimeStream({
     enabled: isAuthenticated,
     events: realtimeHandlers,
-    onError: (error) => {
-      console.error("Realtime stream error", error)
+    authToken: backendToken ?? undefined,
+    onOpen: () => {
+      realtimeConnectedRef.current = true
+      console.info("Realtime stream connected (profile)", { discordId })
+    },
+    onError: (event) => {
+      const source = (event?.currentTarget ?? event?.target) as EventSource | null
+      const readyState = source?.readyState
+
+      if (!realtimeConnectedRef.current) {
+        console.warn("Realtime stream waiting for initial handshake (profile)...", { discordId, readyState, event })
+        return
+      }
+
+      if (typeof readyState === "number" && readyState !== EventSource.CLOSED) {
+        console.warn("Realtime stream transient issue (profile, retrying)", { discordId, readyState })
+        return
+      }
+
+      realtimeConnectedRef.current = false
+      console.error("Realtime stream closed unexpectedly (profile)", { discordId, event })
     },
   })
 

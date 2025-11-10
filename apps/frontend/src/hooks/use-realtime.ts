@@ -29,6 +29,10 @@ interface UseRealtimeOptions {
    * Include credentials (cookies). Defaults to true.
    */
   withCredentials?: boolean
+  /**
+   * Optional auth token appended to the stream URL as a query parameter (e.g., JWT fallback when cookies are unavailable).
+   */
+  authToken?: string
 }
 
 export function useRealtimeStream({
@@ -38,6 +42,7 @@ export function useRealtimeStream({
   url,
   enabled = true,
   withCredentials = true,
+  authToken,
 }: UseRealtimeOptions) {
   const sourceRef = useRef<EventSource | null>(null)
 
@@ -58,7 +63,12 @@ export function useRealtimeStream({
       return
     }
 
-    const source = new EventSource(baseUrl, { withCredentials })
+    let streamUrl = baseUrl
+    if (authToken) {
+      streamUrl = `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}token=${encodeURIComponent(authToken)}`
+    }
+
+    const source = new EventSource(streamUrl, { withCredentials })
     sourceRef.current = source
 
     if (onOpen) {
@@ -103,7 +113,7 @@ export function useRealtimeStream({
         sourceRef.current = null
       }
     }
-  }, [enabled, events, onError, onOpen, url, withCredentials])
+  }, [authToken, enabled, events, onError, onOpen, url, withCredentials])
 
   return sourceRef.current
 }
