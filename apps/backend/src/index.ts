@@ -177,19 +177,27 @@ async function buildServer(): Promise<FastifyInstance> {
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {
     fastify.log.error(error);
-    
-    if (error.validation) {
+
+    const normalizedError = error as {
+      validation?: unknown;
+      message?: string;
+      statusCode?: number;
+    };
+
+    if (normalizedError.validation) {
       reply.status(400).send({
         error: 'Validation Error',
-        message: error.message,
-        details: error.validation,
+        message: normalizedError.message ?? 'Request failed validation',
+        details: normalizedError.validation,
       });
       return;
     }
 
-    reply.status(error.statusCode || 500).send({
-      error: error.message || 'Internal Server Error',
-      statusCode: error.statusCode || 500,
+    const statusCode = normalizedError.statusCode ?? 500;
+
+    reply.status(statusCode).send({
+      error: normalizedError.message || 'Internal Server Error',
+      statusCode,
     });
   });
 
