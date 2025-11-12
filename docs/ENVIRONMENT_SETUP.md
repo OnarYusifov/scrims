@@ -68,11 +68,11 @@ Adjust hostnames if you run databases elsewhere.
 
 ---
 
-## 🚢 Deploying to Railpack / Dokploy
+## 🚢 Deploying to Dokploy
 
 1. Populate `.env` with production credentials and URLs.
 2. Run `npm run env:check -- --context=production` if you want to validate the prod set locally.
-3. Copy values into Railpack’s dashboard (backend + frontend services).
+3. Copy values into Dokploy's dashboard (single unified service environment).
 4. Ensure `TRUST_PROXY=true` and production URLs (`FRONTEND_URL`, `CORS_ORIGIN`, `FRONTEND_INTERNAL_URL`) point to deployed hosts.
 
 The schema lists which variables become required in production (`TRUST_PROXY`, `REALTIME_STREAM_*`, Discord bot channels/roles, etc.).
@@ -136,5 +136,5 @@ Remember to add both to the Discord Developer Portal.
 
 ---
 
-You’re ready to develop locally and deploy via Railpack using Nixpacks. Keep `.env.example` updated whenever new variables are introduced so teammates and CI environments stay aligned.
+You're ready to develop locally and deploy via Dokploy using Nixpacks. Keep `.env.example` updated whenever new variables are introduced so teammates and CI environments stay aligned.
 

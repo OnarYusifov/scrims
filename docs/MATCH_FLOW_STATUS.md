@@ -58,7 +58,7 @@
 
 ### 9. Infrastructure & Deployment
 - ✅ Monorepo structure
-- ✅ Railpack (Nixpacks) deployment configs
+- ✅ Dokploy (Nixpacks) deployment configs
 - ✅ Healthcheck endpoints
 - ⚠️ **PARTIAL**: CI/CD config
 

@@ -1,10 +1,12 @@
 # 🚀 Nixpacks Deployment Guide (Dokploy)
 
+This guide covers deploying the TRAYB Customs platform as a **single unified service** on Dokploy using Nixpacks. Both the backend and frontend run in one service with path-based routing.
+
 ## 📋 Quick Steps for Path-Based Routing
 
 ### **1. Run Database Migrations (CRITICAL - Do this first!)**
 
-In Dokploy → Backend App → **Shell/Terminal**:
+In Dokploy → Application → **Shell/Terminal**:
 
 ```bash
 cd /app/apps/backend
@@ -22,22 +24,19 @@ npx prisma migrate deploy --schema=./apps/backend/prisma/schema.prisma
 
 ### **2. Configure Path-Based Routing in Dokploy**
 
-#### **Backend App Configuration**
+Since we're running both backend and frontend in a single service, configure path-based routing to expose both on the same domain:
 
-In Dokploy → Backend App → **Domains** tab:
+#### **Application Configuration**
 
-1. **Remove** `api.customs.trayb.az` domain (if it exists)
-2. **Add** new domain:
+In Dokploy → Application → **Domains** tab:
+
+1. **Add domain for backend API:**
    - **Host**: `customs.trayb.az`
    - **Path**: `/api`
    - **Container Port**: `4001`
    - **HTTPS**: ✅ Enabled
 
-#### **Frontend App Configuration**
-
-In Dokploy → Frontend App → **Domains** tab:
-
-1. Make sure domain is:
+2. **Add domain for frontend:**
    - **Host**: `customs.trayb.az`
    - **Path**: `/` (root)
    - **Container Port**: `4000`
@@ -51,40 +50,39 @@ In Dokploy → Frontend App → **Domains** tab:
 
 ### **3. Update Environment Variables**
 
-#### **Backend Environment Variables**
-
-In Dokploy → Backend App → **Environment** tab, update:
+In Dokploy → Application → **Environment** tab, set all environment variables for both backend and frontend:
 
 ```bash
-# Change from api.customs.trayb.az to customs.trayb.az/api
-DISCORD_REDIRECT_URI=https://customs.trayb.az/api/core-auth/discord/callback
-CORS_ORIGIN=https://customs.trayb.az
-FRONTEND_URL=https://customs.trayb.az
+# Node Environment
+NODE_ENV=production
 
-# Keep these as they are
+# Backend configuration
 PORT=4001
 HOST=0.0.0.0
-NODE_ENV=production
+
+# Database and Cache
 DATABASE_URL=postgresql://postgres:password@customs-postgres-dnycvg:5432/customs_db
 REDIS_URL=redis://defa2351245143513451345345314lt:ytxvhhs3d123432648129374051234dpj7qmo@customs-redis-9kuozx:6379
-JWT_SECRET=<your-jwt-secret>
-SESSION_SECRET=<your-session-secret>
+
+# URLs and CORS
+FRONTEND_URL=https://customs.trayb.az
+CORS_ORIGIN=https://customs.trayb.az
+FRONTEND_INTERNAL_URL=http://localhost:4000
+
+# Frontend public URLs
+NEXT_PUBLIC_API_URL=https://customs.trayb.az
+NEXT_PUBLIC_APP_URL=https://customs.trayb.az
+NEXTAUTH_URL=https://customs.trayb.az
+
+# Discord OAuth
 DISCORD_CLIENT_ID=<your-discord-client-id>
 DISCORD_CLIENT_SECRET=<your-discord-client-secret>
-FRONTEND_INTERNAL_URL=http://trayb-frontend:4000
-```
+DISCORD_REDIRECT_URI=https://customs.trayb.az/api/core-auth/discord/callback
 
-#### **Frontend Environment Variables**
-
-In Dokploy → Frontend App → **Environment** tab, update:
-
-```bash
-# Base URL without /api (endpoints already include /api/ prefix)
-NEXT_PUBLIC_API_URL=https://customs.trayb.az
-
-# Keep these
-NODE_ENV=production
-PORT=4000
+# Secrets
+JWT_SECRET=<your-jwt-secret>
+SESSION_SECRET=<your-session-secret>
+AUTH_SECRET=<your-auth-secret>
 ```
 
 ---
@@ -102,70 +100,95 @@ PORT=4000
 
 ---
 
-### **5. Redeploy Both Apps**
+### **5. Deploy the Application**
 
-1. **Redeploy Backend** (to pick up new env vars and domain config)
-2. **Redeploy Frontend** (to pick up new API URL)
+1. **Deploy the unified service** (to pick up new env vars and domain config)
+2. **Run database migrations** (see step 1)
 3. **Clear browser cache** and test!
 
 ---
 
 ## 🔍 Nixpacks Configuration
 
-Nixpacks should auto-detect your Node.js app. Make sure you have:
+The unified `nixpacks.toml` builds both backend and frontend in a single service:
 
 ### **`nixpacks.toml` (Root)**
 ```toml
+[variables]
+NODE_ENV = "production"
+
 [phases.setup]
-nixPkgs = ['nodejs_20']
+nixPkgs = ["nodejs_22"]
+aptPackages = [
+  "build-essential",
+  "python3",
+  "pkg-config",
+  "libcairo2-dev",
+  "libpango1.0-dev",
+  "libjpeg-dev",
+  "libgif-dev",
+  "librsvg2-dev",
+  "libpng-dev",
+  "libpixman-1-dev",
+  "zlib1g-dev"
+]
+
+[phases.install]
+cmds = [
+  "npm ci"
+]
+
+[phases.build]
+cmds = [
+  "npx prisma generate --schema=./apps/backend/prisma/schema.prisma",
+  "turbo run build --filter=@trayb/backend --filter=@trayb/frontend",
+  "npm prune --omit=dev"
+]
+
+[build]
+cacheDirectories = [
+  "node_modules",
+  "apps/backend/node_modules",
+  "apps/frontend/node_modules",
+  ".turbo"
+]
+
+[start]
+cmd = "npm run start"
 ```
 
-### **`package.json` (Root)**
-```json
-{
-  "packageManager": "npm@10.8.2"
-}
-```
-
-### **`turbo.json` (Root)**
-```json
-{
-  "tasks": {
-    "build": {
-      "outputs": ["dist/**", ".next/**"]
-    }
-  }
-}
-```
+The start command runs both services:
+- Backend on port 4001
+- Frontend on port 4000
 
 ---
 
 ## ✅ Verification Checklist
 
-After redeploying:
+After deploying:
 
 - [ ] **Frontend loads**: `https://customs.trayb.az`
 - [ ] **Backend health check**: `https://customs.trayb.az/api/health` returns JSON
 - [ ] **Database migrations run**: No "table does not exist" errors
 - [ ] **Login works**: Click login → Discord OAuth → Success
 - [ ] **No CORS errors**: Check browser console
-- [ ] **No Redis errors**: Check backend logs
+- [ ] **No Redis errors**: Check application logs
 
 ---
 
 ## 🐛 Troubleshooting
 
 ### **"Table does not exist" error**
-→ Run migrations: `npm run prisma:migrate:deploy` in backend shell
+→ Run migrations: `npm run prisma:migrate:deploy` in application shell
 
 ### **404 on `/api/*` routes**
-→ Check backend domain has path `/api` configured in Dokploy
+→ Check application domain has path `/api` configured in Dokploy
 
 ### **OAuth redirect error**
 → Verify Discord redirect URI matches exactly: `https://customs.trayb.az/api/core-auth/discord/callback`
 
 ### **CORS errors**
-→ Verify `CORS_ORIGIN=https://customs.trayb.az` in backend env
+→ Verify `CORS_ORIGIN=https://customs.trayb.az` in environment variables
 
 ---
 
@@ -175,4 +198,5 @@ After redeploying:
 - **Migrations** must be run manually (or add to startup script)
 - **Path-based routing** works better with Cloudflare SSL
 - **Single domain** = simpler SSL/TLS management
+- **Single service** = easier configuration and management
 

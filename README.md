@@ -57,8 +57,7 @@ trayb-customs/
 ├── config/           # Environment schema + sample template
 │   ├── env.schema.json
 │   └── env.example
-├── nixpacks.toml     # Backend build config for Railpack/Nixpacks
-├── nixpacks.frontend.toml # Frontend build config for Railpack/Nixpacks
+├── nixpacks.toml     # Unified build config for Dokploy/Nixpacks
 └── setup-env.sh      # Copies root .env into per-app files
 ```
 
@@ -68,7 +67,7 @@ trayb-customs/
 - **Backend:** Fastify, TypeScript, Prisma, PostgreSQL, Redis
 - **Realtime:** Discord.js 14, Canvas (for leaderboard rendering)
 - **Auth:** Discord OAuth 2.0
-- **Deployment:** Railpack (Nixpacks), Cloudflare
+- **Deployment:** Dokploy (Nixpacks), Cloudflare
 
 ## 🤖 Discord Bot
 
@@ -142,7 +141,7 @@ npm run deps:audit       # Audit production dependencies (CI uses this)
 
 ## 🌐 Deployment
 
-For Railpack production deployment (Nixpacks builds for backend & frontend) see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+For Dokploy production deployment (Nixpacks builds for both backend & frontend in a single service) see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
 
 Realtime/event delivery pipeline details live in [docs/REALTIME_DELIVERY.md](./docs/REALTIME_DELIVERY.md).
 

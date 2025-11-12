@@ -10,25 +10,25 @@ _Last updated: 2025-11-09_
 - Next.js 16 frontend with Matrix theme, admin panel, profile pages
 - Realtime updates via Server-Sent Events (matches, leaderboard, profiles, admin audit log)
 - Hybrid Elo system with performance multipliers and Discord role syncing
-- Nixpacks configuration for Railpack deployments (`nixpacks.toml`, `nixpacks.frontend.toml`)
+- Nixpacks unified configuration for Dokploy single-service deployment (`nixpacks.toml`)
 
 ## 🚧 Active Enhancements
 
 - Match room polish (stats mismatch fixes, scoreboard ordering)
 - Radar skill visualization + detailed stats dialog (in progress)
 - Admin tooling refinements (weight profile editor, audit log filters)
-- Documentation refresh for Railpack
+- Documentation refresh for Dokploy
 
 ## 🗺️ Next Up
 
-1. Railpack deployment automation (CI triggers, migration hooks)
+1. Dokploy deployment automation (CI triggers, migration hooks)
 2. Discord bot UX improvements (match completion summaries, error reporting)
 3. Export pipeline (CSV/JSON for matches & Elo snapshots)
 4. Additional profile analytics (rank history, achievement badges)
 
 ## 📌 Notes
 
-- Docker artifacts have been removed; use the Railpack guide (`docs/DEPLOYMENT.md`) for production.
+- Docker artifacts have been removed; use the Dokploy guide (`docs/DEPLOYMENT.md`) for production.
 - Local development expects PostgreSQL + Redis running on localhost (or your preferred managed instances).
 - Keep `.env.example` updated whenever new environment variables are introduced.
 

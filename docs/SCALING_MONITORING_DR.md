@@ -65,7 +65,7 @@
 - Verify Redis snapshot/replica failover (if using managed Redis).
 
 ### Infrastructure-as-Code
-- Track Railpack/Nixpacks config, PgBouncer helm chart, Redis provision scripts in `infra/` (todo).
+- Track Dokploy/Nixpacks config, PgBouncer helm chart, Redis provision scripts in `infra/` (todo).
 - Keep environment variable templates in repo (`setup-env.sh`) for quick redeploy.
 
 ## 4. Incident Playbooks

@@ -173,5 +173,5 @@ npx prisma generate
 
 ## Questions?
 
-Open an issue on GitHub or reach out on Discord. When you're ready for production, follow the Railpack deployment guide.
+Open an issue on GitHub or reach out on Discord. When you're ready for production, follow the Dokploy deployment guide.
 

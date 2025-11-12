@@ -29,7 +29,7 @@ All jobs share cached `.turbo` results and npm cache. Secrets (`TURBO_*`) enable
 
 ### Preview Workflow
 
-`preview.yml` can be kicked via the **Preview** label on a PR or manual dispatch. It builds the repo and publishes artifacts (`preview-backend-dist`, `preview-frontend-standalone`) suitable for manual upload to Railpack or other hosts.
+`preview.yml` can be kicked via the **Preview** label on a PR or manual dispatch. It builds the repo and publishes artifacts (`preview-backend-dist`, `preview-frontend-standalone`) suitable for manual upload to Dokploy or other hosts.
 
 Tear down temporary environments once you’re done—preview builds do not auto-clean infrastructure.
 
@@ -56,9 +56,9 @@ Tear down temporary environments once you’re done—preview builds do not auto
 ## 4. Known Risks & TODOs
 
 - **Lint/test placeholders**: The frontend/backend lint/test scripts currently emit placeholders. Replace with real suites to gain full pipeline value.
-- **Remote cache secrets**: Ensure `TURBO_*` secrets are present in GitHub and Railpack; otherwise builds fall back to local cache.
+- **Remote cache secrets**: Ensure `TURBO_*` secrets are present in GitHub and Dokploy; otherwise builds fall back to local cache.
 - **Cache poisoning**: Turborepo cache is shared across jobs—only trusted branches should have access (currently limited to repo jobs).
-- **Preview deployments**: Workflow stops at artifact upload; integrating with Railpack/Dokploy API is a future task.
+- **Preview deployments**: Workflow stops at artifact upload; integrating with Dokploy/Dokploy API is a future task.
 - **Runner capacity**: Parallel jobs increase concurrency; if queue times grow, consider larger GitHub runner pool or self-hosted runners.
 
 For day-to-day operations, monitor GitHub Actions dashboards and Renovate PR stream. Ping #dev-infra for pipeline escalations.
