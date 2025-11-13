@@ -1,0 +1,3 @@
+// Centralized environment configuration
+export {};
+
