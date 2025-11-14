@@ -3,7 +3,7 @@ import cors from "@fastify/cors";
 import { prisma } from "@trayb/db";
 import { loginSchema, registerSchema } from "@trayb/types";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import { SignJWT } from "jose";
 
 const fastify = Fastify({
   logger: true,
@@ -42,11 +42,17 @@ fastify.post("/api/auth/login", async (request, reply) => {
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || "your-secret-key",
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+    const secret = new TextEncoder().encode(
+      process.env.JWT_SECRET || "your-secret-key"
     );
+    const token = await new SignJWT({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setExpirationTime(process.env.JWT_EXPIRES_IN || "7d")
+      .sign(secret);
 
     return {
       token,
@@ -97,11 +103,17 @@ fastify.post("/api/auth/register", async (request, reply) => {
     });
 
     // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || "your-secret-key",
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+    const secret = new TextEncoder().encode(
+      process.env.JWT_SECRET || "your-secret-key"
     );
+    const token = await new SignJWT({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setExpirationTime(process.env.JWT_EXPIRES_IN || "7d")
+      .sign(secret);
 
     return {
       token,
