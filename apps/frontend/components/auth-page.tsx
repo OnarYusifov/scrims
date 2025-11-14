@@ -19,7 +19,7 @@ type AuthPageProps = {
 
 export function AuthPage({ mode = "login", children }: AuthPageProps) {
   return (
-    <main className="relative md:h-screen md:overflow-hidden lg:grid lg:grid-cols-2">
+    <main className="relative h-screen md:overflow-hidden lg:grid lg:grid-cols-2">
       <div className="relative hidden h-full flex-col border-r bg-secondary p-10 lg:flex dark:bg-secondary/20">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
         <Logo className="mr-auto h-8" />
