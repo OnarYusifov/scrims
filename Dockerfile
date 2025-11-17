@@ -1,10 +1,8 @@
 FROM oven/bun:alpine AS base
 
 # Install OpenSSL for Prisma (required for Prisma engines on Alpine/musl)
-# Prisma needs libssl.so.1.1, so we install openssl1.1-compat from community repo
-# Enable community repository and install OpenSSL compatibility package
-RUN apk add --no-cache openssl && \
-    apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/v3.22/community openssl1.1-compat
+# Prisma 5.22.0 supports OpenSSL 3.0, so we just need openssl
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
