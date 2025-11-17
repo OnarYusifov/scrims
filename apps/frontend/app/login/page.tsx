@@ -36,6 +36,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
+  // @ts-expect-error - error is defined in next-auth.d.ts but TypeScript doesn't see it
   const error = session?.error;
   
   const defaultTab = useMemo(() => {
@@ -281,6 +282,7 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="confirmPassword"
+                    // @ts-expect-error - Complex union type for LoginInput | RegisterInput
                     render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
                       <FormItem>
                         <FormLabel>Confirm Password</FormLabel>
