@@ -268,7 +268,95 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // Allow sign in - account is now linked, adapter will create session
           return true;
         }
-        // No existing user by email, proceed with normal OAuth flow (adapter will create user)
+        
+        // No existing user by email - create user manually with username before adapter tries
+        // Generate username from email or OAuth name
+        const emailPrefix = user.email.split("@")[0] || "user";
+        let username = (user.name || emailPrefix)
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, "")
+          .substring(0, 20);
+        
+        // If username is empty or too short, use email prefix
+        if (!username || username.length < 3) {
+          username = emailPrefix.substring(0, 20);
+        }
+        
+        // Ensure username is unique - append random number if needed
+        let finalUsername = username;
+        let counter = 0;
+        while (counter < 100) {
+          const existing = await prisma.user.findUnique({
+            where: { username: finalUsername },
+          });
+          
+          if (!existing) break;
+          
+          finalUsername = `${username}${Math.floor(Math.random() * 1000)}`;
+          counter++;
+        }
+        
+        // Create user with username before adapter tries
+        const newUser = await prisma.user.create({
+          data: {
+            username: finalUsername,
+            email: user.email,
+            emailVerified: new Date(), // OAuth providers verify emails
+            role: "user",
+          },
+        });
+        
+        // Set user.id so adapter uses the user we just created
+        if (user && typeof user === 'object') {
+          (user as { id?: string }).id = newUser.id;
+        }
+        
+        // Create the account record manually
+        try {
+          type OAuthAccount = typeof account & {
+            access_token?: string | null;
+            refresh_token?: string | null;
+            expires_at?: number | null;
+            token_type?: string | null;
+            scope?: string | null;
+            id_token?: string | null;
+            session_state?: string | null;
+          };
+          
+          const oauthAccount = account as OAuthAccount;
+          await prisma.account.create({
+            data: {
+              userId: newUser.id,
+              type: account.type,
+              provider: account.provider,
+              providerAccountId: account.providerAccountId!,
+              access_token: oauthAccount.access_token || null,
+              refresh_token: oauthAccount.refresh_token || null,
+              expires_at: oauthAccount.expires_at || null,
+              token_type: oauthAccount.token_type || null,
+              scope: oauthAccount.scope || null,
+              id_token: oauthAccount.id_token || null,
+              session_state: oauthAccount.session_state || null,
+            },
+          });
+        } catch (error) {
+          // Handle race condition - account might have been created
+          const prismaError = error as { code?: string; message?: string };
+          if (prismaError?.code !== "P2002" && !prismaError?.message?.includes("Unique constraint")) {
+            // Re-throw non-unique constraint errors
+            throw error;
+          }
+        }
+        
+        // For Discord, also save discord field
+        if (account.provider === "discord" && user.name) {
+          await prisma.user.update({
+            where: { id: newUser.id },
+            data: { discord: user.name },
+          });
+        }
+        
+        // Allow sign in - user and account are created, adapter will create session
         return true;
       }
 
