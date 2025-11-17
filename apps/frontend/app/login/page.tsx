@@ -243,7 +243,6 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="username"
-                    // @ts-expect-error - TypeScript can't infer RegisterInput fields correctly
                     render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Username</FormLabel>
@@ -257,7 +256,6 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="email"
-                    // @ts-expect-error - TypeScript can't infer RegisterInput fields correctly
                     render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
@@ -271,7 +269,6 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="password"
-                    // @ts-expect-error - TypeScript can't infer RegisterInput fields correctly
                     render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Password</FormLabel>
@@ -285,7 +282,6 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="confirmPassword"
-                    // @ts-expect-error - TypeScript can't infer RegisterInput fields correctly
                     render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Confirm Password</FormLabel>
