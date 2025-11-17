@@ -14,7 +14,14 @@ import { Badge } from "@/components/ui/badge";
 export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  type User = {
+    id: string;
+    username: string | null;
+    email: string;
+    role: string | null;
+    createdAt: string;
+  } | null;
+  const [user, setUser] = useState<User>(null);
   const [authenticated, setAuthenticated] = useState(false);
   const [textColor, setTextColor] = useState<"light" | "dark">("light");
   const bannerImageRef = useRef<HTMLDivElement>(null);
@@ -184,10 +191,12 @@ export default function ProfilePage() {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
-          // Calculate relative luminance
-          const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-          totalBrightness += brightness;
-          pixelCount++;
+          // Calculate relative luminance (r, g, b are guaranteed to exist in ImageData)
+          if (r !== undefined && g !== undefined && b !== undefined) {
+            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+            totalBrightness += brightness;
+            pixelCount++;
+          }
         }
 
         const averageBrightness = totalBrightness / pixelCount;
@@ -227,7 +236,7 @@ export default function ProfilePage() {
     return null; // Will redirect
   }
 
-  const bannerImage = getBannerImage(user.username);
+  const bannerImage = getBannerImage(user.username || "");
 
   return (
     <div className="min-h-screen bg-background">
@@ -267,9 +276,9 @@ export default function ProfilePage() {
         {/* Profile Picture and Username - Left middle of banner */}
         <div className="relative h-full flex items-center px-4 sm:px-6 md:px-8 z-10">
           <Avatar className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 lg:h-32 lg:w-32 border-2 sm:border-[3px] md:border-4 border-background shadow-lg relative z-10 flex-shrink-0">
-            <AvatarImage src={user.image} alt={user.username} />
+            <AvatarImage src={undefined} alt={user.username || ""} />
             <AvatarFallback className="text-lg sm:text-xl md:text-2xl lg:text-3xl bg-primary text-primary-foreground relative z-10">
-              {getInitials(user.username)}
+              {getInitials(user.username || "")}
             </AvatarFallback>
           </Avatar>
           <div className="ml-3 sm:ml-4 md:ml-6 flex flex-col space-y-1 sm:space-y-2 relative z-10 min-w-0 flex-1">

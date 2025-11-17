@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { motion, isMotionComponent, type HTMLMotionProps } from 'motion/react';
+import { motion, isMotionComponent } from 'motion/react';
+import type { HTMLMotionProps } from 'motion/react';
 import { cn } from '@/lib/utils';
 
 type AnyProps = Record<string, unknown>;
@@ -58,32 +59,42 @@ function mergeProps<T extends HTMLElement>(
   return merged;
 }
 
+// Cache for motion components to avoid creating them during render
+const motionComponentCache = new Map<React.ElementType, React.ElementType>();
+
 function Slot<T extends HTMLElement = HTMLElement>({
   children,
   ref,
   ...props
 }: SlotProps<T>) {
+  if (!React.isValidElement(children)) return null;
+
   const isAlreadyMotion =
     typeof children.type === 'object' &&
     children.type !== null &&
     isMotionComponent(children.type);
 
-  const Base = React.useMemo(
-    () =>
-      isAlreadyMotion
-        ? (children.type as React.ElementType)
-        : motion.create(children.type as React.ElementType),
-    [isAlreadyMotion, children.type],
-  );
-
-  if (!React.isValidElement(children)) return null;
-
   const { ref: childRef, ...childProps } = children.props as AnyProps;
-
   const mergedProps = mergeProps(childProps, props);
 
-  return (
-    <Base {...mergedProps} ref={mergeRefs(childRef as React.Ref<T>, ref)} />
+  // Use React.createElement directly for already motion components
+  if (isAlreadyMotion) {
+    return React.createElement(
+      children.type as React.ElementType,
+      { ...mergedProps, ref: mergeRefs(childRef as React.Ref<T>, ref) }
+    );
+  }
+
+  // Get or create motion component from cache to avoid creating during render
+  let MotionComponent = motionComponentCache.get(children.type as React.ElementType);
+  if (!MotionComponent) {
+    MotionComponent = motion.create(children.type as React.ElementType);
+    motionComponentCache.set(children.type as React.ElementType, MotionComponent);
+  }
+
+  return React.createElement(
+    MotionComponent,
+    { ...mergedProps, ref: mergeRefs(childRef as React.Ref<T>, ref) }
   );
 }
 

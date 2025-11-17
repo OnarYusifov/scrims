@@ -1,7 +1,5 @@
 "use client";
 
-import { ChevronLeftIcon } from "lucide-react";
-import Link from "next/link";
 import type React from "react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";

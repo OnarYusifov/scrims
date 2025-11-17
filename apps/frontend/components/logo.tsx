@@ -2,7 +2,6 @@
 
 import type React from "react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 
 // Logo icon based on favicon - adapts to theme
 export const LogoIcon = (props: React.ComponentProps<"svg">) => (
@@ -16,15 +15,12 @@ export const LogoIcon = (props: React.ComponentProps<"svg">) => (
 
 export const Logo = ({ className, ...props }: React.ComponentProps<"div">) => {
   const { theme, systemTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Check if we're on client side (this is a client component, so window should be available)
+  const isClient = typeof window !== "undefined";
 
   // Determine if we're in dark mode
   // If theme is "system", use systemTheme, otherwise use theme
-  const isDark = mounted && (theme === "dark" || (theme === "system" && systemTheme === "dark"));
+  const isDark = isClient && (theme === "dark" || (theme === "system" && systemTheme === "dark"));
 
   return (
     <div className={className} {...props}>

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyEmailSchema } from "@trayb/types";
-import { signIn } from "@/auth";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3001";
 

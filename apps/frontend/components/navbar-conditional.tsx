@@ -16,7 +16,13 @@ const AUTH_PAGES = [
 
 export function NavbarConditional() {
   const pathname = usePathname();
-  const [user, setUser] = useState<any>(null);
+  type User = {
+    id: string;
+    username: string | null;
+    email: string;
+    role: string | null;
+  } | null;
+  const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
 
   // Check if current path is an auth page
@@ -68,7 +74,7 @@ export function NavbarConditional() {
               id: user.id || "",
               username: user.username || user.email?.split("@")[0] || "User",
               email: user.email || "",
-              image: user.image || undefined,
+              image: undefined,
             }
           : null
       }

@@ -9,11 +9,11 @@ function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
-  const [isResending, setIsResending] = useState(false);
+  const [_isResending, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [verificationType, setVerificationType] = useState<"register" | "login">("register");
-  const otpInputRef = useRef<HTMLInputElement>(null);
+  const _otpInputRef = useRef<HTMLInputElement>(null);
   
   const emailFromQuery = searchParams.get("email") || "";
   const typeFromQuery = searchParams.get("type") || "";
@@ -54,7 +54,7 @@ function VerifyEmailContent() {
           router.push("/login");
         }
         // For login flow, allow unauthenticated (they're logging in)
-      } catch (error) {
+      } catch {
         // Error checking auth - only redirect if it's registration flow
         if (verificationType === "register") {
           router.push("/login");

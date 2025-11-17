@@ -72,7 +72,7 @@ export default function ForgotPasswordPage() {
               <div className="space-y-1">
                 <h2 className="text-xl font-bold">Forgot Password?</h2>
                 <p className="text-sm text-muted-foreground">
-                  Enter your email address and we'll send you a verification code to reset your password.
+                  Enter your email address and we&apos;ll send you a verification code to reset your password.
                 </p>
               </div>
               {form.formState.errors.root && (

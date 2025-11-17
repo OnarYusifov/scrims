@@ -1,5 +1,4 @@
 import "next-auth";
-import { AUTH_ERROR_CODES } from "./lib/auth-codes";
 
 // Extend NextAuth types
 declare module "next-auth" {

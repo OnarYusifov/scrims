@@ -14,8 +14,21 @@ export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [dismissedBanner, setDismissedBanner] = useState(false);
+  type User = {
+    id: string;
+    username: string | null;
+    email: string;
+    role: string | null;
+    createdAt: string;
+  } | null;
+  const [user, setUser] = useState<User>(null);
+  // Initialize from localStorage directly to avoid setState in effect
+  const [dismissedBanner, setDismissedBanner] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("registration-banner-dismissed") === "true";
+    }
+    return false;
+  });
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -34,12 +47,6 @@ export default function Home() {
     };
 
     checkAuth();
-
-    // Check if banner was dismissed
-    const dismissed = localStorage.getItem("registration-banner-dismissed");
-    if (dismissed === "true") {
-      setDismissedBanner(true);
-    }
   }, []);
 
   // Show toast notification when account is linked via social sign-in

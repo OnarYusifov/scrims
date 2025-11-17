@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT } from "jose";
 
 const COOKIE_NAME = "trusted_device";
 const DAYS_14 = 14 * 24 * 60 * 60 * 1000;
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 			maxAge: DAYS_14 / 1000,
 		});
 		return response;
-	} catch (error) {
+	} catch {
 		return NextResponse.json({ error: "Unexpected error" }, { status: 400 });
 	}
 }

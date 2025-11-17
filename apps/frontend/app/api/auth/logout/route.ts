@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { signOut } from "@/auth";
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Use NextAuth's signOut to properly clear session cookies
     await signOut({ 

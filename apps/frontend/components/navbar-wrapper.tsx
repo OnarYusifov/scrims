@@ -45,7 +45,7 @@ export async function NavbarWrapper() {
               id: session.user.id || "",
               username: session.user.name || session.user.email?.split("@")[0] || "User",
               email: session.user.email || "",
-              image: session.user.image || undefined,
+              image: undefined,
             }
           : null
       }

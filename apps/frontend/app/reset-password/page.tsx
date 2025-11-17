@@ -26,7 +26,7 @@ export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
   const [otpValue, setOtpValue] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isResending, setIsResending] = useState(false);
+  const [_isResending, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   const emailFromQuery = searchParams.get("email") || "";

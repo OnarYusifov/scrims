@@ -77,11 +77,20 @@ export async function POST(request: NextRequest) {
       if (trusted && deviceId) {
         const secret = new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret");
         const { payload } = await jwtVerify(trusted, secret);
+        
+        // Type guard for trusted device payload
+        type TrustedDevicePayload = {
+          email?: string;
+          deviceId?: string;
+          expMs?: number;
+        };
+        
+        const devicePayload = payload as TrustedDevicePayload;
         const valid =
-          (payload as any).email === email &&
-          (payload as any).deviceId === deviceId &&
-          typeof (payload as any).expMs === "number" &&
-          (payload as any).expMs > Date.now();
+          devicePayload.email === email &&
+          devicePayload.deviceId === deviceId &&
+          typeof devicePayload.expMs === "number" &&
+          devicePayload.expMs > Date.now();
         if (valid) {
           return NextResponse.json({ message: "Login successful" });
         }

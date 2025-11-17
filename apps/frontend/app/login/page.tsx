@@ -58,7 +58,7 @@ export default function LoginPage() {
           // User is fully authenticated - redirect to home
           router.push("/");
         }
-      } catch (error) {
+      } catch {
         // Not authenticated, allow login page to show
       }
     };
@@ -99,7 +99,8 @@ export default function LoginPage() {
         router.refresh();
         
         // Also show error from result if available
-        const errorCode = (result as any)?.code as AuthErrorCode | undefined;
+        type SignInResult = typeof result & { code?: AuthErrorCode };
+        const errorCode = (result as SignInResult)?.code;
         const errorMessage = errorCode 
           ? getAuthErrorMessage(errorCode)
           : getAuthErrorMessage(AUTH_ERROR_CODES.AUTH_ERROR);

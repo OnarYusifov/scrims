@@ -6,23 +6,23 @@ import Discord from "next-auth/providers/discord";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { AUTH_ERROR_CODES, getAuthErrorMessage } from "./lib/auth-codes";
+import { AUTH_ERROR_CODES } from "./lib/auth-codes";
 
 // Custom error classes with error codes
 class MissingCredentialsError extends CredentialsSignin {
-  code = AUTH_ERROR_CODES.MISSING_CREDENTIALS;
+  override code = AUTH_ERROR_CODES.MISSING_CREDENTIALS;
 }
 
 class InvalidCredentialsError extends CredentialsSignin {
-  code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+  override code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
 }
 
 class EmailNotVerifiedError extends CredentialsSignin {
-  code = AUTH_ERROR_CODES.EMAIL_NOT_VERIFIED;
+  override code = AUTH_ERROR_CODES.EMAIL_NOT_VERIFIED;
 }
 
 class AuthError extends CredentialsSignin {
-  code = AUTH_ERROR_CODES.AUTH_ERROR;
+  override code = AUTH_ERROR_CODES.AUTH_ERROR;
 }
 
 /**
@@ -161,7 +161,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       // Social login (Discord/Google) - auto-verify email
       if (account?.provider === "discord" || account?.provider === "google") {
         // Ensure user has email
@@ -203,29 +203,44 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               });
             }
             // Account is already linked - set user.id so adapter uses existing user
-            (user as any).id = existingUser.id;
+            if (user && typeof user === 'object') {
+              (user as { id?: string }).id = existingUser.id;
+            }
           } else {
             // Account doesn't exist yet - create it manually linked to existing user
             // This prevents OAuthAccountNotLinked error from the adapter
             try {
+              // Type for OAuth account with token fields
+              type OAuthAccount = typeof account & {
+                access_token?: string | null;
+                refresh_token?: string | null;
+                expires_at?: number | null;
+                token_type?: string | null;
+                scope?: string | null;
+                id_token?: string | null;
+                session_state?: string | null;
+              };
+              
+              const oauthAccount = account as OAuthAccount;
               await prisma.account.create({
                 data: {
                   userId: existingUser.id,
                   type: account.type,
                   provider: account.provider,
                   providerAccountId: account.providerAccountId!,
-                  access_token: (account as any).access_token || null,
-                  refresh_token: (account as any).refresh_token || null,
-                  expires_at: (account as any).expires_at || null,
-                  token_type: (account as any).token_type || null,
-                  scope: (account as any).scope || null,
-                  id_token: (account as any).id_token || null,
-                  session_state: (account as any).session_state || null,
+                  access_token: oauthAccount.access_token || null,
+                  refresh_token: oauthAccount.refresh_token || null,
+                  expires_at: oauthAccount.expires_at || null,
+                  token_type: oauthAccount.token_type || null,
+                  scope: oauthAccount.scope || null,
+                  id_token: oauthAccount.id_token || null,
+                  session_state: oauthAccount.session_state || null,
                 },
               });
-            } catch (error: any) {
+            } catch (error) {
               // Handle race condition - account might have been created between check and create
-              if (error?.code === "P2002" || error?.message?.includes("Unique constraint")) {
+              const prismaError = error as { code?: string; message?: string };
+              if (prismaError?.code === "P2002" || prismaError?.message?.includes("Unique constraint")) {
                 // Account was created by another process - verify it's linked correctly
                 const createdAccount = await prisma.account.findFirst({
                   where: {
@@ -246,7 +261,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               }
             }
             // Set user.id so adapter uses existing user for session
-            (user as any).id = existingUser.id;
+            if (user && typeof user === 'object') {
+              (user as { id?: string }).id = existingUser.id;
+            }
           }
           // Allow sign in - account is now linked, adapter will create session
           return true;
@@ -258,30 +275,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Credentials login - handled by authorize function
       return true;
     },
-    async jwt({ token, user, account, trigger, error }) {
-      // If there's an error from signIn, store it in the token
-      if (error) {
-        // Check if error is a CredentialsSignin with a code
-        if (error instanceof CredentialsSignin && (error as any).code) {
-          const errorCode = (error as any).code as string;
-          token.error = {
-            code: errorCode,
-            message: getAuthErrorMessage(errorCode as any),
-          };
-        } else {
-          // Generic error
-          token.error = {
-            code: AUTH_ERROR_CODES.AUTH_ERROR,
-            message: getAuthErrorMessage(AUTH_ERROR_CODES.AUTH_ERROR),
-          };
-        }
-        return token;
-      }
-
+    async jwt({ token, user, account }) {
       // Initial sign in - clear any previous errors
       if (user) {
+        type UserWithRole = typeof user & { role?: string };
+        const userWithRole = user as UserWithRole;
         token.id = user.id;
-        token.role = (user as any).role || "user";
+        token.role = userWithRole.role || "user";
         token.email = user.email;
         token.username = user.name;
         // Clear any previous errors on successful login
@@ -308,10 +308,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       // If token has error, pass it to session
-      if (token.error) {
+      if (token.error && typeof token.error === 'object' && 'code' in token.error && 'message' in token.error) {
         session.error = {
-          code: token.error.code,
-          message: token.error.message,
+          code: token.error.code as string,
+          message: token.error.message as string,
         };
         return session;
       }
