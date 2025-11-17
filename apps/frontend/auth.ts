@@ -416,7 +416,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   events: {
-    async createUser({ user }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async createUser({ user }: { user: any }) {
       // This is called when a new user is created by the Prisma adapter
       // For OAuth logins, set emailVerified and username
       if (!user.email) {
