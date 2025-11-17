@@ -1,10 +1,11 @@
 "use client";
 
 import { AtSignIcon, ChevronLeftIcon } from "lucide-react";
-import Link from "next/link";
-import type React from "react";
+import Link from "next/link";;
+import { signIn } from "next-auth/react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
+import React from "react";
 import {
   InputGroup,
   InputGroupAddon,
@@ -15,12 +16,37 @@ import ASCIIText from "./ASCIIText";
 type AuthPageProps = {
   mode?: "login" | "register";
   children?: React.ReactNode;
+  showSocialButtons?: boolean;
+  hideTitle?: boolean;
+  topSlot?: React.ReactNode;
 };
 
-export function AuthPage({ mode = "login", children }: AuthPageProps) {
+export function AuthPage({ mode = "login", children, showSocialButtons = true, hideTitle = false, topSlot }: AuthPageProps) {
+  // Lock body scroll to prevent tiny scroll caused by password manager overlays
+  React.useEffect(() => {
+    const { scrollY } = window;
+    const original = {
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+      overflowY: document.body.style.overflowY,
+    };
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    document.body.style.overflowY = "hidden";
+    return () => {
+      document.body.style.position = original.position;
+      document.body.style.top = original.top;
+      document.body.style.width = original.width;
+      document.body.style.overflowY = original.overflowY;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   return (
-    <main className="relative h-screen md:overflow-hidden lg:grid lg:grid-cols-2">
-      <div className="relative hidden h-full flex-col border-r bg-secondary p-10 lg:flex dark:bg-secondary/20">
+    <main className="relative h-dvh overflow-hidden lg:grid lg:grid-cols-2 [contain:layout_paint_size]">
+      <div className="relative hidden h-dvh flex-col border-r bg-secondary p-10 lg:flex dark:bg-secondary/20">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
         <Logo className="mr-auto h-8" />
 
@@ -28,7 +54,7 @@ export function AuthPage({ mode = "login", children }: AuthPageProps) {
           <ASCIIText text="trb" asciiFontSize={22} />
         </div>
       </div>
-      <div className="relative flex h-screen flex-col justify-center overflow-hidden p-4">
+      <div className="relative flex h-dvh flex-col justify-center overflow-hidden p-4">
         <div
           aria-hidden
           className="-z-10 absolute inset-0 isolate opacity-60 contain-strict"
@@ -43,34 +69,53 @@ export function AuthPage({ mode = "login", children }: AuthPageProps) {
             Home
           </Link>
         </Button>
-        <div className="mx-auto w-full max-w-sm space-y-3 py-4">
+        <div className="mx-auto w-full max-w-sm space-y-6 py-4">
           <Logo className="h-8 lg:hidden" />
-          <div className="flex flex-col space-y-1">
-            <h1 className="font-bold text-2xl tracking-wide">
-              {mode === "login" ? "Sign In" : "Join Now!"}
-            </h1>
-            <p className="text-base text-muted-foreground">
-              {mode === "login"
-                ? "Login to your account"
-                : "Create your account"}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Button className="w-full" size="lg" type="button">
-              <GoogleIcon />
-              Continue with Google
-            </Button>
-            <Button className="w-full" size="lg" type="button">
-              <DiscordIcon />
-              Continue with Discord
-            </Button>
-          </div>
+          {!hideTitle && (
+            <div className="flex flex-col space-y-1">
+              <h1 className="font-bold text-2xl tracking-wide">
+                {mode === "login" ? "Sign In" : "Join Now!"}
+              </h1>
+              <p className="text-base text-muted-foreground">
+                {mode === "login"
+                  ? "Login to your account"
+                  : "Create your account"}
+              </p>
+            </div>
+          )}
+          {topSlot}
+          {showSocialButtons && (
+            <>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 gap-2"
+                  size="default"
+                  type="button"
+                  variant="outline"
+                  onClick={() => signIn("google", { callbackUrl: "/?linked=google" })}
+                >
+                  <GoogleIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Google</span>
+                </Button>
+                <Button
+                  className="flex-1 gap-2"
+                  size="default"
+                  type="button"
+                  variant="outline"
+                  onClick={() => signIn("discord", { callbackUrl: "/?linked=discord" })}
+                >
+                  <DiscordIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Discord</span>
+                </Button>
+              </div>
 
-          <div className="flex w-full items-center justify-center">
-            <div className="h-px w-full bg-border" />
-            <span className="px-2 text-muted-foreground text-xs">OR</span>
-            <div className="h-px w-full bg-border" />
-          </div>
+              <div className="flex w-full items-center justify-center">
+                <div className="h-px w-full bg-border" />
+                <span className="px-2 text-muted-foreground text-xs">OR</span>
+                <div className="h-px w-full bg-border" />
+              </div>
+            </>
+          )}
 
           {children || (
             <form className="space-y-2">
@@ -92,38 +137,6 @@ export function AuthPage({ mode = "login", children }: AuthPageProps) {
               </Button>
             </form>
           )}
-          {mode === "login" ? (
-            <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link href="/register" className="text-primary hover:underline">
-                Register
-              </Link>
-            </p>
-          ) : (
-            <p className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link href="/login" className="text-primary hover:underline">
-                Login
-              </Link>
-            </p>
-          )}
-          <p className="mt-8 text-muted-foreground text-sm">
-            By clicking continue, you agree to our{" "}
-            <a
-              className="underline underline-offset-4 hover:text-primary"
-              href="#"
-            >
-              Terms of Service
-            </a>{" "}
-            and{" "}
-            <a
-              className="underline underline-offset-4 hover:text-primary"
-              href="#"
-            >
-              Privacy Policy
-            </a>
-            .
-          </p>
         </div>
       </div>
     </main>

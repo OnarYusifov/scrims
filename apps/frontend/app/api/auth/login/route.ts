@@ -1,46 +1,123 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loginSchema } from "@trayb/types";
+import { signIn } from "@/auth";
+import { jwtVerify } from "jose";
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3001";
-
+/**
+ * Login endpoint - uses Auth.js credentials provider
+ * 
+ * Flow:
+ * 1. Validate credentials
+ * 2. Auth.js checks emailVerified status
+ * 3. If verified, creates session and sets cookies
+ * 4. If not verified, returns error
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const validatedData = loginSchema.parse(body);
+    const { email, password, deviceId } = body;
 
-    const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(validatedData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: data.error || "Login failed" },
-        { status: response.status }
+        { error: "Email and password are required. Please fill in all fields." },
+        { status: 400 }
       );
     }
 
-    // Set HTTP-only cookie with token
-    const nextResponse = NextResponse.json(data);
-    nextResponse.cookies.set("auth-token", data.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/",
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address." },
+        { status: 400 }
+      );
+    }
+
+    // Validate password is not empty (plain password expected)
+    if (password.length === 0) {
+      return NextResponse.json(
+        { error: "Password cannot be empty." },
+        { status: 400 }
+      );
+    }
+
+    // Use Auth.js signIn with credentials provider
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
     });
 
-    return nextResponse;
+    if (result?.error === "EMAIL_NOT_VERIFIED") {
+      return NextResponse.json(
+        { 
+          error: "Email not verified. Please check your email for the verification code and verify your account before logging in.",
+          requiresVerification: true 
+        },
+        { status: 403 }
+      );
+    }
+
+    if (result?.error === "CredentialsSignin") {
+      return NextResponse.json(
+        { error: "Invalid email or password. Please check your credentials and try again." },
+        { status: 401 }
+      );
+    }
+
+    if (result?.error) {
+      return NextResponse.json(
+        { error: `Authentication failed: ${result.error}. Please try again.` },
+        { status: 401 }
+      );
+    }
+
+    // Device trust check
+    try {
+      const trusted = request.cookies.get("trusted_device")?.value;
+      if (trusted && deviceId) {
+        const secret = new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret");
+        const { payload } = await jwtVerify(trusted, secret);
+        const valid =
+          (payload as any).email === email &&
+          (payload as any).deviceId === deviceId &&
+          typeof (payload as any).expMs === "number" &&
+          (payload as any).expMs > Date.now();
+        if (valid) {
+          return NextResponse.json({ message: "Login successful" });
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+
+    // If untrusted device -> request device verification
+    return NextResponse.json(
+      {
+        requiresDeviceVerification: true,
+        email,
+      },
+      { status: 202 },
+    );
   } catch (error) {
     console.error("Login error:", error);
+    
+    // Provide more descriptive error messages
+    if (error instanceof Error) {
+      if (error.message.includes("JSON")) {
+        return NextResponse.json(
+          { error: "Invalid request format. Please try again." },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(
+        { error: `Login failed: ${error.message}. Please try again.` },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Invalid request" },
-      { status: 400 }
+      { error: "An unexpected error occurred during login. Please try again later." },
+      { status: 500 }
     );
   }
 }

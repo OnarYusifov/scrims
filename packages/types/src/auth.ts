@@ -30,3 +30,59 @@ export const registerSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 
+// Email verification schema (OTP code)
+export const verifyEmailSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  code: z.string().length(6, "Verification code must be 6 digits").regex(/^\d+$/, "Verification code must contain only numbers"),
+});
+
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+
+// Resend verification email schema
+export const resendVerificationSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
+
+// Verify login OTP schema
+export const verifyLoginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  code: z.string().length(6, "Verification code must be 6 digits").regex(/^\d+$/, "Verification code must contain only numbers"),
+});
+
+export type VerifyLoginInput = z.infer<typeof verifyLoginSchema>;
+
+// Forgot password schema
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+// Verify password reset OTP schema
+export const verifyPasswordResetSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  code: z.string().length(6, "Verification code must be 6 digits").regex(/^\d+$/, "Verification code must contain only numbers"),
+});
+
+export type VerifyPasswordResetInput = z.infer<typeof verifyPasswordResetSchema>;
+
+// Reset password schema
+export const resetPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  code: z.string().length(6, "Verification code must be 6 digits").regex(/^\d+$/, "Verification code must contain only numbers"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+

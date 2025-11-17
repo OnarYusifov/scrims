@@ -25,17 +25,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Set HTTP-only cookie with token
-    const nextResponse = NextResponse.json(data);
-    nextResponse.cookies.set("auth-token", data.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/",
-    });
-
-    return nextResponse;
+    // Don't set cookie yet - user needs to verify email first
+    // Return the response as-is (includes redirectTo and email)
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Register error:", error);
     return NextResponse.json(

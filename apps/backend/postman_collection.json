@@ -1,0 +1,149 @@
+{
+	"info": {
+		"name": "Scrims Backend API",
+		"description": "API collection for Scrims backend including SMTP testing",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/health",
+					"host": ["{{baseUrl}}"],
+					"path": ["health"]
+				}
+			}
+		},
+		{
+			"name": "Test SMTP Connection",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"hello@trayb.az\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/test/smtp",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "test", "smtp"]
+				}
+			}
+		},
+		{
+			"name": "Debug Environment Variables",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/debug/env",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "debug", "env"]
+				}
+			}
+		},
+		{
+			"name": "Register User",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"Test1234\",\n  \"confirmPassword\": \"Test1234\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/register",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "auth", "register"]
+				}
+			}
+		},
+		{
+			"name": "Verify Email",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"token\": \"your-verification-token-here\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/verify-email",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "auth", "verify-email"]
+				}
+			}
+		},
+		{
+			"name": "Resend Verification Email",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/resend-verification",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "auth", "resend-verification"]
+				}
+			}
+		},
+		{
+			"name": "Login",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test1234\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/login",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "auth", "login"]
+				}
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3001",
+			"type": "string"
+		}
+	],
+	"auth": {
+		"type": "noauth"
+	}
+}
+

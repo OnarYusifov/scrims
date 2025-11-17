@@ -11,15 +11,115 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  email     String   @unique
-  password  String
-  discord   String?  // Discord user ID or username
-  role      String   @default("user") // user, admin, etc.
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                      String    @id @default(cuid())
+  username                String    @unique
+  email                   String    @unique
+  password                String?   // Nullable for social login users
+  discord                 String?   // Discord user ID or username
+  role                    String    @default("user") // user, admin, etc.
+  emailVerified           DateTime? // DateTime for Auth.js compatibility (null = not verified, Date = verified)
+  verificationToken       String?   // Keep for backward compatibility, but use verificationCode
+  verificationCode        String?   // 6-digit OTP code for email verification
+  verificationCodeExpiry  DateTime? // OTP expiry (typically 10-15 minutes)
+  loginCode               String?   // 6-digit OTP code for login
+  loginCodeExpiry         DateTime? // Login OTP expiry (typically 10-15 minutes)
+  passwordResetCode       String?   // 6-digit OTP code for password reset
+  passwordResetCodeExpiry DateTime? // Password reset OTP expiry (typically 10-15 minutes)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  // Auth.js relations
+  accounts                Account[]
+  sessions                Session[]
+  passwordHistory         PasswordHistory[]
+  
+  // User badges
+  userBadges              UserBadge[]
 
   @@map("users")
+}
+
+// Auth.js required tables
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Password history to prevent reusing last 5 passwords
+model PasswordHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  password  String   // Hashed password
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("password_history")
+}
+
+// Badge definitions - managed by admin
+model Badge {
+  id          String      @id @default(cuid())
+  label       String      // e.g., "Early Member", "Founder", "Beta Tester"
+  variant     String      @default("default") // "default" | "secondary" | "destructive" | "outline"
+  icon        String?     // Optional icon identifier or emoji
+  description String?     // Description for admin panel
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Many-to-many relationship with users
+  userBadges  UserBadge[]
+
+  @@map("badges")
+}
+
+// User-Badge relationship (many-to-many)
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId]) // Prevent duplicate badges per user
+  @@index([userId])
+  @@index([badgeId])
+  @@map("user_badges")
 }
 

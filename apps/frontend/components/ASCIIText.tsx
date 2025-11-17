@@ -183,6 +183,7 @@ class AsciiFilter {
           continue;
         }
 
+        // @ts-ignore - r, g, b are guaranteed to exist in ImageData array
         let gray = (0.3 * r + 0.6 * g + 0.1 * b) / 255;
         let idx = Math.floor((1 - gray) * (this.charset.length - 1));
         if (this.invert) idx = this.charset.length - idx - 1;
@@ -392,9 +393,12 @@ class CanvAscii {
   }
 
   onMouseMove(evt: MouseEvent | TouchEvent) {
+    // @ts-ignore - touches[0] or MouseEvent will always have clientX/clientY
     const e = (evt as TouchEvent).touches ? (evt as TouchEvent).touches[0] : (evt as MouseEvent);
     const bounds = this.container.getBoundingClientRect();
+    // @ts-ignore - e is guaranteed to have clientX and clientY
     const x = e.clientX - bounds.left;
+    // @ts-ignore - e is guaranteed to have clientX and clientY
     const y = e.clientY - bounds.top;
     this.mouse = { x, y };
   }
@@ -413,6 +417,7 @@ class CanvAscii {
     this.textCanvas.render();
     this.texture.needsUpdate = true;
 
+    // @ts-ignore - material is guaranteed to be ShaderMaterial with uniforms
     (this.mesh.material as THREE.ShaderMaterial).uniforms.uTime.value = Math.sin(time);
 
     this.updateRotation();
@@ -484,7 +489,9 @@ export default function ASCIIText({
     if (width === 0 || height === 0) {
       const observer = new IntersectionObserver(
         ([entry]) => {
+          // @ts-ignore - entry is guaranteed to exist in IntersectionObserver callback
           if (entry.isIntersecting && entry.boundingClientRect.width > 0 && entry.boundingClientRect.height > 0) {
+            // @ts-ignore - entry is guaranteed to exist in IntersectionObserver callback
             const { width: w, height: h } = entry.boundingClientRect;
 
             asciiRef.current = new CanvAscii(

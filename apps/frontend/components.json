@@ -21,6 +21,7 @@
   "registries": {
     "@efferd": "https://efferd.com/r/{name}.json",
     "@svgl": "https://svgl.app/r/{name}.json",
-    "@react-bits": "https://reactbits.dev/r/{name}.json"
+    "@react-bits": "https://reactbits.dev/r/{name}.json",
+    "@animate-ui": "https://animate-ui.com/r/{name}.json"
   }
 }
