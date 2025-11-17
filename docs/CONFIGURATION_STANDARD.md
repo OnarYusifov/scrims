@@ -6,28 +6,31 @@ This document defines the **standard configuration** that all developers and AI 
 
 ## Port Configuration
 
-### Standard Ports (DO NOT CHANGE)
+### Port Configuration (Environment-Based)
 
-- **Frontend (Next.js)**: Port `3000`
-- **Backend (Fastify)**: Port `3001`
+Ports are configured via environment variables from the **root `.env` file**:
+
+- **Frontend (Next.js)**: Uses `FRONTEND_PORT` or `PORT` from root `.env` (defaults to `3000`)
+- **Backend (Fastify)**: Uses `BACKEND_PORT` or `PORT` from root `.env` (defaults to `3001`)
 
 ### How Ports Are Configured
 
 #### Frontend (`apps/frontend`)
-- **Development**: `next dev -p 3000` (hardcoded in package.json)
-- **Production**: `next start -p 3000` (hardcoded in package.json)
-- **Environment Variable**: Next.js can use `PORT` env var, but we hardcode `-p 3000` for consistency
+- **Scripts**: `next dev` and `next start` (no `-p` flag - Next.js reads `PORT` automatically)
+- **Environment Variable**: `FRONTEND_PORT` or `PORT` from root `.env`
+- **Default**: `3000` if not set
+- **Location**: `apps/frontend/next.config.ts` sets `process.env.PORT` from `FRONTEND_PORT`
 
 #### Backend (`apps/backend`)
-- **Port**: Uses `process.env.PORT || 3001` (defaults to 3001)
+- **Port**: Uses `process.env.BACKEND_PORT || process.env.PORT || 3001`
 - **Host**: Uses `process.env.HOST || "0.0.0.0"` (defaults to 0.0.0.0)
-- **Location**: `apps/backend/src/index.ts` line 81
+- **Location**: `apps/backend/src/index.ts` line 82
 
 ### ✅ Correct Configuration
 
 ```typescript
 // apps/backend/src/index.ts
-const port = Number(process.env.PORT) || 3001;  // ✅ Correct
+const port = Number(process.env.BACKEND_PORT || process.env.PORT) || 3001;  // ✅ Correct
 const host = process.env.HOST || "0.0.0.0";     // ✅ Correct
 ```
 
@@ -35,18 +38,24 @@ const host = process.env.HOST || "0.0.0.0";     // ✅ Correct
 // apps/frontend/package.json
 {
   "scripts": {
-    "dev": "next dev -p 3000",    // ✅ Correct
-    "start": "next start -p 3000" // ✅ Correct
+    "dev": "next dev",    // ✅ Correct - Next.js reads PORT from process.env
+    "start": "next start" // ✅ Correct - Next.js reads PORT from process.env
   }
 }
 ```
 
+```env
+# Root .env file
+FRONTEND_PORT=3000  # or 5000 for collaborator
+BACKEND_PORT=3001   # or 5001 for collaborator
+```
+
 ### ❌ DO NOT CHANGE
 
-- ❌ Do NOT hardcode different ports
-- ❌ Do NOT remove the `-p 3000` flag from frontend scripts
-- ❌ Do NOT change the backend default port from 3001
-- ❌ Do NOT use environment variables to override these defaults in development
+- ❌ Do NOT hardcode ports in package.json scripts (use env vars)
+- ❌ Do NOT use `-p` flag in Next.js scripts (Next.js reads PORT automatically)
+- ❌ Do NOT create per-app `.env` files (use root `.env` only)
+- ❌ Do NOT set ports in multiple places (only root `.env`)
 
 ## Environment Variable Loading
 
@@ -149,12 +158,14 @@ SMTP_PASSWORD="..."
 SMTP_FROM="..."
 ```
 
-### Port Variables (Optional - defaults work)
+### Port Variables (Set in Root `.env`)
 
-- `PORT` - Backend port (defaults to 3001, don't set unless needed)
+- `FRONTEND_PORT` - Frontend port (defaults to 3000 if not set)
+- `BACKEND_PORT` - Backend port (defaults to 3001 if not set)
+- `PORT` - Fallback for both (if FRONTEND_PORT/BACKEND_PORT not set)
 - `HOST` - Backend host (defaults to 0.0.0.0, don't set unless needed)
 
-**Note**: Frontend port is hardcoded in package.json scripts, not from env vars.
+**Note**: Both frontend and backend now read ports from root `.env` file.
 
 ## Common Configuration Conflicts
 

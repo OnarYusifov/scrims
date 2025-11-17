@@ -6,19 +6,22 @@ This document ensures **both AI assistants** (yours and your collaborator's) use
 
 ## Standard Configuration (MUST FOLLOW)
 
-### Port Configuration
+### Port Configuration (Environment-Based)
 
-**Frontend**: Always port `3000`
-- Hardcoded in `apps/frontend/package.json`: `"dev": "next dev -p 3000"`
-- Hardcoded in `apps/frontend/package.json`: `"start": "next start -p 3000"`
-- **DO NOT** use `PORT` env var for frontend
-- **DO NOT** remove `-p 3000` flag
+**Ports are configured via root `.env` file - NO HARDCODED PORTS**
 
-**Backend**: Always port `3001`
-- Code: `const port = Number(process.env.PORT) || 3001;` in `apps/backend/src/index.ts`
-- Defaults to 3001 if `PORT` env var not set
-- **DO NOT** change the default from 3001
-- **DO NOT** hardcode a different port
+**Frontend**: Uses `FRONTEND_PORT` or `PORT` from root `.env`
+- Scripts: `"dev": "next dev"` and `"start": "next start"` (no `-p` flag)
+- Next.js automatically reads `PORT` from `process.env`
+- Default: `3000` if not set
+- Set in root `.env`: `FRONTEND_PORT=3000` (or `5000` for collaborator)
+
+**Backend**: Uses `BACKEND_PORT` or `PORT` from root `.env`
+- Code: `const port = Number(process.env.BACKEND_PORT || process.env.PORT) || 3001;`
+- Default: `3001` if not set
+- Set in root `.env`: `BACKEND_PORT=3001` (or `5001` for collaborator)
+
+**IMPORTANT**: Both developers can use different ports by setting them in their root `.env` file
 
 ### Environment Variable Loading
 
@@ -52,8 +55,9 @@ import "@trayb/config/load-env";
 
 **Required Variables**:
 ```env
-# Ports (optional - defaults work)
-# PORT=3001  # Only set if you need to override backend port
+# Ports (set these to match your setup)
+FRONTEND_PORT=3000  # or 5000 for collaborator
+BACKEND_PORT=3001   # or 5001 for collaborator
 # HOST=0.0.0.0  # Only set if you need to override backend host
 
 # URLs
@@ -100,13 +104,17 @@ SMTP_FROM="..."
 
 **Check**:
 ```bash
-# Backend should show: "🚀 Backend server running on http://0.0.0.0:3001"
-# Frontend should show: "Local: http://localhost:3000"
+# Check what ports are configured
+grep -E "FRONTEND_PORT|BACKEND_PORT" .env
+
+# Backend should show: "🚀 Backend server running on http://0.0.0.0:${BACKEND_PORT:-3001}"
+# Frontend should show: "Local: http://localhost:${FRONTEND_PORT:-3000}"
 ```
 
 **Fix**:
-- Backend: Ensure `apps/backend/src/index.ts` has: `const port = Number(process.env.PORT) || 3001;`
-- Frontend: Ensure `apps/frontend/package.json` has: `"dev": "next dev -p 3000"`
+- Set `FRONTEND_PORT` and `BACKEND_PORT` in root `.env` file
+- Backend: Ensure `apps/backend/src/index.ts` has: `const port = Number(process.env.BACKEND_PORT || process.env.PORT) || 3001;`
+- Frontend: Ensure `apps/frontend/package.json` has: `"dev": "next dev"` (no `-p` flag)
 
 ### Conflict 2: Environment Variable Not Loading
 
@@ -157,16 +165,19 @@ SMTP_FROM="..."
 
 1. **Check current configuration first**:
    ```bash
-   # Check ports
-   grep -r "3000\|3001" apps/*/package.json apps/*/src/index.ts
+   # Check ports in .env
+   grep -E "FRONTEND_PORT|BACKEND_PORT" .env
+   
+   # Check scripts (should NOT have -p flag)
+   grep "next dev\|next start" apps/frontend/package.json
    
    # Check env loading
    grep -r "@trayb/config/load-env" apps/
    ```
 
 2. **Follow the standard**:
-   - Use port 3000 for frontend (hardcoded)
-   - Use port 3001 for backend (default)
+   - Set `FRONTEND_PORT` and `BACKEND_PORT` in root `.env` file
+   - No hardcoded ports in package.json scripts
    - Use root `.env` file only
    - Import `@trayb/config/load-env` first
 
@@ -177,11 +188,11 @@ SMTP_FROM="..."
 
 ### ❌ DON'T:
 
-1. **Don't change ports** without updating this document
-2. **Don't create per-app .env files**
+1. **Don't hardcode ports** in package.json scripts (use env vars)
+2. **Don't create per-app .env files** (use root `.env` only)
 3. **Don't modify env loading logic** without discussion
-4. **Don't hardcode different ports**
-5. **Don't use different configs** for dev/prod (same loader works for both)
+4. **Don't use `-p` flag** in Next.js scripts (Next.js reads PORT automatically)
+5. **Don't set ports in multiple places** (only root `.env`)
 
 ## Verification Checklist
 
@@ -208,9 +219,9 @@ When you (AI assistant) see configuration changes from collaborator:
 ## Quick Reference
 
 ```bash
-# Standard ports
-Frontend: 3000 (hardcoded in package.json)
-Backend: 3001 (default in code, can override with PORT env var)
+# Port configuration (set in root .env)
+FRONTEND_PORT=3000  # or 5000 for collaborator
+BACKEND_PORT=3001   # or 5001 for collaborator
 
 # Env file location
 Root: /home/yunar/scrims/.env
@@ -219,21 +230,21 @@ Root: /home/yunar/scrims/.env
 Package: @trayb/config/load-env
 Import: import "@trayb/config/load-env"; (first import)
 
-# URL defaults
-FRONTEND_URL: http://localhost:3000
-BACKEND_URL: http://localhost:3001
-API_URL: http://localhost:3001
+# URL defaults (update based on ports)
+FRONTEND_URL: http://localhost:${FRONTEND_PORT:-3000}
+BACKEND_URL: http://localhost:${BACKEND_PORT:-3001}
+API_URL: http://localhost:${BACKEND_PORT:-3001}
 ```
 
 ## Summary for Both AI Assistants
 
 **MANDATORY RULES**:
-1. Frontend = port 3000 (hardcoded)
-2. Backend = port 3001 (default)
-3. Use root `.env` file only
+1. Set `FRONTEND_PORT` and `BACKEND_PORT` in root `.env` file
+2. No hardcoded ports in package.json scripts
+3. Use root `.env` file only (no per-app env files)
 4. Import `@trayb/config/load-env` first
-5. Never create per-app env files
-6. Never change default ports without documentation
+5. Never use `-p` flag in Next.js scripts
+6. Never create per-app `.env` files
 
 **If you see violations**: Revert to standard and document why.
 
