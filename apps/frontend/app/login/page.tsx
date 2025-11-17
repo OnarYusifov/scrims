@@ -243,8 +243,8 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="username"
-                    // @ts-expect-error - Complex union type for LoginInput | RegisterInput
-                    render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
+                    // @ts-expect-error - TypeScript can't infer RegisterInput fields correctly
+                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
@@ -257,8 +257,8 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="email"
-                    // @ts-expect-error - Complex union type for LoginInput | RegisterInput
-                    render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
+                    // @ts-expect-error - TypeScript can't infer RegisterInput fields correctly
+                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
@@ -271,8 +271,8 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="password"
-                    // @ts-expect-error - Complex union type for LoginInput | RegisterInput
-                    render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
+                    // @ts-expect-error - TypeScript can't infer RegisterInput fields correctly
+                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
@@ -285,8 +285,8 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="confirmPassword"
-                    // @ts-expect-error - Complex union type for LoginInput | RegisterInput
-                    render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
+                    // @ts-expect-error - TypeScript can't infer RegisterInput fields correctly
+                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Confirm Password</FormLabel>
                         <FormControl>

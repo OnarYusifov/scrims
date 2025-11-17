@@ -1,6 +1,4 @@
-import NextAuth from "next-auth";
-// @ts-expect-error - CredentialsSignin may not be exported in this version
-import { CredentialsSignin } from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@trayb/db";
 import Credentials from "next-auth/providers/credentials";
@@ -11,24 +9,20 @@ import { z } from "zod";
 import { AUTH_ERROR_CODES } from "./lib/auth-codes";
 
 // Custom error classes with error codes
-// @ts-expect-error - CredentialsSignin type may not be available
 class MissingCredentialsError extends CredentialsSignin {
-  code = AUTH_ERROR_CODES.MISSING_CREDENTIALS;
+  override code = AUTH_ERROR_CODES.MISSING_CREDENTIALS;
 }
 
-// @ts-expect-error - CredentialsSignin type may not be available
 class InvalidCredentialsError extends CredentialsSignin {
-  code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+  override code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
 }
 
-// @ts-expect-error - CredentialsSignin type may not be available
 class EmailNotVerifiedError extends CredentialsSignin {
-  code = AUTH_ERROR_CODES.EMAIL_NOT_VERIFIED;
+  override code = AUTH_ERROR_CODES.EMAIL_NOT_VERIFIED;
 }
 
-// @ts-expect-error - CredentialsSignin type may not be available
 class AuthError extends CredentialsSignin {
-  code = AUTH_ERROR_CODES.AUTH_ERROR;
+  override code = AUTH_ERROR_CODES.AUTH_ERROR;
 }
 
 /**
@@ -167,7 +161,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async signIn({ user, account }: { user: any; account: any }) {
       // Social login (Discord/Google) - auto-verify email
       if (account?.provider === "discord" || account?.provider === "google") {
         // Ensure user has email
