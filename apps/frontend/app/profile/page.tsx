@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -33,6 +34,14 @@ export default function ProfilePage() {
     label: string;
     variant?: "default" | "secondary" | "destructive" | "outline";
     icon?: ReactNode;
+  }>>([]);
+
+  // Games for user - will be fetched from API later
+  const [games, setGames] = useState<Array<{
+    id: string;
+    name: string;
+    provider: string;
+    icon?: string;
   }>>([]);
 
 
@@ -389,6 +398,39 @@ export default function ProfilePage() {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Games Card Section - Below Banner */}
+      <div className="container mx-auto px-4 sm:px-6 md:px-8 py-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Connected Games</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {games.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {games.map((game) => (
+                  <div
+                    key={game.id}
+                    className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card hover:bg-accent transition-colors cursor-pointer group"
+                  >
+                    <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">
+                      {game.icon || "🎮"}
+                    </div>
+                    <span className="text-sm font-medium text-center">
+                      {game.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">No games connected yet</p>
+                <p className="text-xs mt-1">Connect your game accounts to see them here</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

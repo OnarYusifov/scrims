@@ -19,6 +19,7 @@
     "hooks": "@/hooks"
   },
   "registries": {
+    "default": "https://ui.shadcn.com/r/{name}.json",
     "@efferd": "https://efferd.com/r/{name}.json",
     "@svgl": "https://svgl.app/r/{name}.json",
     "@react-bits": "https://reactbits.dev/r/{name}.json",
