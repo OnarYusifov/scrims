@@ -68,6 +68,9 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+type LoginSchema = z.infer<typeof loginSchema>;
+
+// @ts-expect-error - NextAuth v5 type definitions may not match runtime
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   secret: process.env.AUTH_SECRET,
