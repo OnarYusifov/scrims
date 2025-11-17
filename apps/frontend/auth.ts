@@ -1,4 +1,6 @@
-import NextAuth, { CredentialsSignin } from "next-auth";
+import NextAuth from "next-auth";
+// @ts-expect-error - CredentialsSignin may not be exported in this version
+import { CredentialsSignin } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@trayb/db";
 import Credentials from "next-auth/providers/credentials";

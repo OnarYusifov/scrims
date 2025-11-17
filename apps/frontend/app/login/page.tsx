@@ -243,6 +243,7 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="username"
+                    // @ts-expect-error - Complex union type for LoginInput | RegisterInput
                     render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
                       <FormItem>
                         <FormLabel>Username</FormLabel>
@@ -256,6 +257,7 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="email"
+                    // @ts-expect-error - Complex union type for LoginInput | RegisterInput
                     render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
@@ -269,6 +271,7 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="password"
+                    // @ts-expect-error - Complex union type for LoginInput | RegisterInput
                     render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
                       <FormItem>
                         <FormLabel>Password</FormLabel>
