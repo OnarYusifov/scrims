@@ -1,0 +1,58 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-validation:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper diff checking
+
+      - name: Check PR target branch
+        run: |
+          if [ "${{ github.base_ref }}" != "dev" ] && [ "${{ github.base_ref }}" != "main" ]; then
+            echo "❌ PR must target 'dev' or 'main' branch"
+            exit 1
+          fi
+          echo "✅ PR target branch is valid"
+
+      - name: Check for direct commits to protected branches
+        run: |
+          # Check if PR is trying to merge directly into dev/main from another protected branch
+          BASE_REF="${{ github.base_ref }}"
+          HEAD_REF="${{ github.head_ref }}"
+          
+          if [ "$HEAD_REF" = "dev" ] || [ "$HEAD_REF" = "main" ]; then
+            echo "❌ Cannot create PR from protected branch ($HEAD_REF)"
+            echo "Please create a feature branch first"
+            exit 1
+          fi
+          echo "✅ PR is from feature branch"
+
+      - name: Check commit messages
+        run: |
+          # Check if commits follow conventional commit format
+          git log ${{ github.base_ref }}..HEAD --pretty=format:"%s" | while read commit_msg; do
+            if ! echo "$commit_msg" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+"; then
+              echo "⚠️ Warning: Commit message doesn't follow conventional commits:"
+              echo "   $commit_msg"
+              echo "   Format: type(scope): description"
+              echo "   Types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert"
+            fi
+          done
+
+      - name: Check for secrets
+        run: |
+          # Basic check for common secret patterns
+          if git diff ${{ github.base_ref }}..HEAD | grep -iE "(password|secret|token|api[_-]?key|private[_-]?key)" | grep -vE "(test|example|dummy|placeholder)"; then
+            echo "⚠️ Warning: Potential secrets detected in diff"
+            echo "Please ensure no real secrets are committed"
+          fi
+
