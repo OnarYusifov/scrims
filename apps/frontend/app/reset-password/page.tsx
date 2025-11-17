@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type ControllerRenderProps } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { resetPasswordSchema, type ResetPasswordInput } from "@trayb/types";
 import { VerifyPageLayout } from "@/components/verify-page-layout";
@@ -250,7 +250,7 @@ export default function ResetPasswordPage() {
             <FormField
               control={passwordForm.control}
               name="password"
-              render={({ field }) => (
+                    render={({ field }: { field: ControllerRenderProps<ResetPasswordInput, keyof ResetPasswordInput> }) => (
                 <FormItem>
                   <FormLabel>New Password</FormLabel>
                   <FormControl>
@@ -267,7 +267,7 @@ export default function ResetPasswordPage() {
             <FormField
               control={passwordForm.control}
               name="confirmPassword"
-              render={({ field }) => (
+                    render={({ field }: { field: ControllerRenderProps<ResetPasswordInput, keyof ResetPasswordInput> }) => (
                 <FormItem>
                   <FormLabel>Confirm New Password</FormLabel>
                   <FormControl>

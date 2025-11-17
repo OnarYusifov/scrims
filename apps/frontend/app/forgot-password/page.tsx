@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type ControllerRenderProps } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { forgotPasswordSchema, type ForgotPasswordInput } from "@trayb/types";
 import { AuthPage } from "@/components/auth-page";
@@ -83,7 +83,7 @@ export default function ForgotPasswordPage() {
               <FormField
                 control={form.control}
                 name="email"
-                render={({ field }) => (
+                    render={({ field }: { field: ControllerRenderProps<ForgotPasswordInput, keyof ForgotPasswordInput> }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>

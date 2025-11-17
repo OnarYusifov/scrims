@@ -68,7 +68,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
       return { message: "Device verification code sent." };
     } catch (error) {
       fastify.log.error(error);
-      return reply.code(400).send({ error: "Failed to start device verification" });
+      return (reply as any).code(400).send({ error: "Failed to start device verification" });
     }
   });
 
@@ -101,14 +101,14 @@ export async function registerRoutes(fastify: FastifyInstance) {
         where: { identifier, token: code, expires: { gt: new Date() } },
       });
       if (!vt) {
-        return reply.code(400).send({ error: "Invalid or expired code" });
+        return reply.code(400 as any).send({ error: "Invalid or expired code" });
       }
       // One-time use
       await prisma.verificationToken.deleteMany({ where: { identifier } });
       return { success: true };
     } catch (error) {
       fastify.log.error(error);
-      return reply.code(400).send({ error: "Verification failed" });
+      return reply.code(400 as any).send({ error: "Verification failed" });
     }
   });
 
@@ -169,7 +169,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
     try {
       const authHeader = request.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return reply.code(401).send({ authenticated: false, verified: false });
+        return reply.code(401 as any).send({ authenticated: false, verified: false });
       }
 
       const token = authHeader.substring(7);
@@ -181,7 +181,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
       try {
         decoded = await jwtVerify(token, secret);
       } catch {
-        return reply.code(401).send({ authenticated: false, verified: false });
+        return reply.code(401 as any).send({ authenticated: false, verified: false });
       }
 
       const userId = decoded.payload.userId as string;
@@ -197,7 +197,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
       });
 
       if (!user) {
-        return reply.code(401).send({ authenticated: false, verified: false });
+        return reply.code(401 as any).send({ authenticated: false, verified: false });
       }
 
       return {
@@ -212,7 +212,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
       };
     } catch (error) {
       fastify.log.error(error);
-      return reply.code(401).send({ authenticated: false, verified: false });
+      return reply.code(401 as any).send({ authenticated: false, verified: false });
     }
   });
 
@@ -268,21 +268,21 @@ export async function registerRoutes(fastify: FastifyInstance) {
       });
 
       if (!user) {
-        return reply.code(401).send({ error: "Invalid email or password" });
+        return reply.code(401 as any).send({ error: "Invalid email or password" });
       }
 
       // Verify password (password is required for credentials login)
       if (!user.password) {
-        return reply.code(401).send({ error: "Invalid email or password" });
+        return reply.code(401 as any).send({ error: "Invalid email or password" });
       }
       const isValidPassword = await bcrypt.compare(body.password, user.password);
       if (!isValidPassword) {
-        return reply.code(401).send({ error: "Invalid email or password" });
+        return reply.code(401 as any).send({ error: "Invalid email or password" });
       }
 
       // Check if email is verified
       if (!user.emailVerified) {
-        return reply.code(403).send({ 
+        return reply.code(403 as any).send({ 
           error: "Email not verified. Please check your email for the verification link.",
           requiresVerification: true 
         });
@@ -311,7 +311,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error({ err: error }, "Failed to send login OTP email");
-        return reply.code(500).send({ 
+        return reply.code(500 as any).send({ 
           error: "Failed to send login verification code. Please try again." 
         });
       }
@@ -325,11 +325,11 @@ export async function registerRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: error.message || "Login failed. Please check your credentials and try again." 
         });
       }
-      return reply.code(400).send({ 
+      return reply.code(400 as any).send({ 
         error: "Login failed. Please check your credentials and try again." 
       });
     }
@@ -383,7 +383,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
       });
 
       if (!user) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: "Invalid or expired login code" 
         });
       }
@@ -423,11 +423,11 @@ export async function registerRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: error.message || "Login verification failed. Please check the code and try again." 
         });
       }
-      return reply.code(400).send({ 
+      return reply.code(400 as any).send({ 
         error: "Login verification failed. Please check the code and try again." 
       });
     }
@@ -471,7 +471,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
       }
 
       if (!user.emailVerified) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: "Email is not verified. Please verify your email first." 
         });
       }
@@ -499,7 +499,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error({ err: error }, "Failed to send login OTP email");
-        return reply.code(500).send({ 
+        return reply.code(500 as any).send({ 
           error: "Failed to send login code" 
         });
       }
@@ -510,11 +510,11 @@ export async function registerRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: error.message || "Failed to resend login code. Please try again." 
         });
       }
-      return reply.code(400).send({ 
+      return reply.code(400 as any).send({ 
         error: "Failed to resend login code. Please try again." 
       });
     }

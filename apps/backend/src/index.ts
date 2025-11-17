@@ -34,8 +34,6 @@ export async function buildServer() {
 				},
 			],
 		},
-		exposeRoute: true,
-		routePrefix: "/api/docs/json",
 	});
 
 	// Register Swagger UI (Docs portal)
