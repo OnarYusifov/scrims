@@ -12,7 +12,18 @@ import { PasswordResetOTP } from "../emails/PasswordResetOTP.js";
  * 4. Sends via Resend API
  */
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialization - only create Resend instance when actually needed
+let resendInstance: Resend | null = null;
+
+function getResend(): Resend {
+  if (!resendInstance) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY environment variable is not set");
+    }
+    resendInstance = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resendInstance;
+}
 
 export interface SendPasswordResetOTPParams {
   email: string;
@@ -52,6 +63,7 @@ export async function sendPasswordResetOTP({
   );
 
   // Send via Resend
+  const resend = getResend();
   const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,
     to: email,

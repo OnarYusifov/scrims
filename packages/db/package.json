@@ -10,8 +10,8 @@
     "check-types": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio",
+    "db:migrate": "cd ../.. && prisma migrate dev --schema=packages/db/prisma/schema.prisma",
+    "db:studio": "cd ../.. && prisma studio --schema=packages/db/prisma/schema.prisma",
     "db:delete-users": "bun run scripts/delete-users.ts"
   },
   "devDependencies": {

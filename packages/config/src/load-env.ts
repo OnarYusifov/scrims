@@ -81,11 +81,15 @@ export function loadEnvFromRoot(fromFile?: string | URL): string {
   }
   
   const rootDir = findRootDir(startDir);
-  const envPath = join(rootDir, ".env");
   
-  if (existsSync(envPath)) {
+  // Helper function to load env file
+  const loadEnvFile = (envFilePath: string, allowOverride: boolean = false): number => {
+    if (!existsSync(envFilePath)) {
+      return 0;
+    }
+    
     try {
-      const envFile = readFileSync(envPath, "utf-8");
+      const envFile = readFileSync(envFilePath, "utf-8");
       let loadedCount = 0;
       
       for (const line of envFile.split("\n")) {
@@ -106,20 +110,26 @@ export function loadEnvFromRoot(fromFile?: string | URL): string {
           value = value.slice(1, -1);
         }
         
-        // Only set if not already in process.env (allows override)
-        if (key && !process.env[key]) {
+        // Set variable if allowOverride is true OR if it doesn't exist in process.env
+        if (key && (allowOverride || !process.env[key])) {
           process.env[key] = value;
           loadedCount++;
         }
       }
       
-      if (loadedCount > 0) {
-        console.log(`✅ Loaded ${loadedCount} environment variable(s) from ${envPath}`);
-      }
+      return loadedCount;
     } catch (error) {
-      console.warn(`⚠️  Could not load .env from ${envPath}:`, error);
+      console.warn(`⚠️  Could not load .env from ${envFilePath}:`, error);
+      return 0;
     }
-  } else {
+  };
+  
+  // Load .env (only set if not already in process.env, allows Dokploy override)
+  const envPath = join(rootDir, ".env");
+  const envCount = loadEnvFile(envPath, false);
+  if (envCount > 0) {
+    console.log(`✅ Loaded ${envCount} environment variable(s) from ${envPath}`);
+  } else if (!existsSync(envPath)) {
     // Don't warn in production (Dokploy will inject env vars directly)
     if (process.env.NODE_ENV !== "production") {
       console.warn(`⚠️  .env file not found at ${envPath}. Using process.env only.`);
