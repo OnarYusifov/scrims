@@ -35,7 +35,7 @@ loadEnvFile(join(rootDir, ".env"), false);
 
 // Next.js automatically reads PORT from process.env
 // If FRONTEND_PORT is set, use it; otherwise PORT; otherwise Next.js defaults to 3000
-if (process.env.FRONTEND_PORT && !process.env.PORT) {
+if (process.env.FRONTEND_PORT) {
   process.env.PORT = process.env.FRONTEND_PORT;
 }
 
