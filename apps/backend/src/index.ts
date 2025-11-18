@@ -9,10 +9,10 @@ import * as reactDOMServer from "react-dom/server";
 
 // Make reactDOMServer available in multiple ways for @react-email/render compatibility
 if (typeof globalThis !== "undefined") {
-  (globalThis as any).reactDOMServer = reactDOMServer;
+  (globalThis as Record<string, unknown>).reactDOMServer = reactDOMServer;
   // Also set on global for Node.js compatibility
   if (typeof global !== "undefined") {
-    (global as any).reactDOMServer = reactDOMServer;
+    (global as Record<string, unknown>).reactDOMServer = reactDOMServer;
   }
 }
 
