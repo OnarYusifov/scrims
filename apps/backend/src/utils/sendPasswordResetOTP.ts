@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 import { render } from "@react-email/render";
 import { PasswordResetOTP } from "../emails/PasswordResetOTP.js";
+// Ensure react-dom/server is available for @react-email/render
+import "react-dom/server";
 
 /**
  * Resend wrapper for sending password reset OTP emails
@@ -75,6 +77,7 @@ export async function sendPasswordResetOTP({
     throw new Error(`Failed to send password reset OTP email: ${error.message}`);
   }
 }
+
 
 
 

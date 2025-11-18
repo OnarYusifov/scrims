@@ -28,6 +28,7 @@
     "jose": "^5.9.6",
     "nodemailer": "^7.0.10",
     "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "react-email": "^5.0.4",
     "resend": "^6.4.2",
     "socket.io": "^4.8.1",
