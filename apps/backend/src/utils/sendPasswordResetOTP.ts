@@ -2,7 +2,13 @@ import { Resend } from "resend";
 import { render } from "@react-email/render";
 import { PasswordResetOTP } from "../emails/PasswordResetOTP.js";
 // Ensure react-dom/server is available for @react-email/render
-import "react-dom/server";
+// Import and assign to global to ensure it's available
+import * as reactDOMServer from "react-dom/server";
+
+// Make reactDOMServer available globally for @react-email/render
+if (typeof globalThis !== "undefined" && !globalThis.reactDOMServer) {
+  (globalThis as any).reactDOMServer = reactDOMServer;
+}
 
 /**
  * Resend wrapper for sending password reset OTP emails

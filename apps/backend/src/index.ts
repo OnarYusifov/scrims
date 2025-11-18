@@ -2,6 +2,13 @@
 // This ensures all apps use the same root .env file
 import "@trayb/config/load-env";
 
+// Ensure react-dom/server is available globally for @react-email/render
+// This must be imported before any email utilities
+import * as reactDOMServer from "react-dom/server";
+if (typeof globalThis !== "undefined") {
+  (globalThis as any).reactDOMServer = reactDOMServer;
+}
+
 import Fastify from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";

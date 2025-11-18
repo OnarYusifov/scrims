@@ -2,7 +2,13 @@ import { Resend } from "resend";
 import { render } from "@react-email/render";
 import { VerificationOTP } from "../emails/VerificationOTP.js";
 // Ensure react-dom/server is available for @react-email/render
-import "react-dom/server";
+// Import and assign to global to ensure it's available
+import * as reactDOMServer from "react-dom/server";
+
+// Make reactDOMServer available globally for @react-email/render
+if (typeof globalThis !== "undefined" && !globalThis.reactDOMServer) {
+  (globalThis as any).reactDOMServer = reactDOMServer;
+}
 
 /**
  * Resend wrapper for sending OTP verification emails
@@ -56,6 +62,12 @@ export async function sendOTP({
   }
 
   // Render React Email template to HTML
+  // Ensure react-dom/server is available before rendering
+  if (typeof globalThis !== "undefined" && !(globalThis as any).reactDOMServer) {
+    const reactDOMServer = await import("react-dom/server");
+    (globalThis as any).reactDOMServer = reactDOMServer;
+  }
+  
   const emailHtml = await render(
     VerificationOTP({
       username,
