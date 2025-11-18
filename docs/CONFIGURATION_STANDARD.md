@@ -181,7 +181,7 @@ SMTP_FROM="..."
 
 **Solution**: 
 - Backend always uses 3001 (or `process.env.PORT` if set)
-- Frontend always uses 3000 (hardcoded in scripts)
+- Frontend uses `FRONTEND_PORT` or `PORT` from env (defaults to 3000 if not set)
 - Never override these defaults
 
 ### Conflict 3: Environment Variable Loading Order
