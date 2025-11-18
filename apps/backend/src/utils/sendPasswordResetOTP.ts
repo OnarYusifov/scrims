@@ -5,6 +5,15 @@ import { PasswordResetOTP } from "../emails/PasswordResetOTP.js";
 // Import and assign to global to ensure it's available
 import * as reactDOMServer from "react-dom/server";
 
+// Helper function to get frontend URL from env ports
+function getFrontendUrl(): string {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+  const port = Number(process.env.FRONTEND_PORT);
+  if (!port) throw new Error("FRONTEND_PORT must be set in root .env file");
+  return `http://localhost:${port}`;
+}
+
 // Make reactDOMServer available globally for @react-email/render
 if (typeof globalThis !== "undefined" && !globalThis.reactDOMServer) {
   (globalThis as any).reactDOMServer = reactDOMServer;
@@ -72,7 +81,7 @@ export async function sendPasswordResetOTP({
     PasswordResetOTP({
       username,
       otpCode,
-      resetUrl: resetUrl || `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password`,
+      resetUrl: resetUrl || `${getFrontendUrl()}/reset-password`,
     })
   );
 

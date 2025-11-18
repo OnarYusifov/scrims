@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-ryaxa}
     ports:
-      - "5434:5432"  # Host:Container - using 5434 to avoid conflict with existing 5433
+      - "${POSTGRES_PORT:-5434}:5432"  # Host:Container - port from .env file
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
     container_name: ryaxa-redis
     restart: unless-stopped
     ports:
-      - "6380:6379"  # Host:Container - using 6380 to avoid conflict with existing 6379
+      - "${REDIS_PORT:-6380}:6379"  # Host:Container - port from .env file
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes

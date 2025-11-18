@@ -34,10 +34,17 @@ const loadEnvFile = (envPath: string, allowOverride: boolean = false) => {
 loadEnvFile(join(rootDir, ".env"), false);
 
 // Next.js automatically reads PORT from process.env
-// If FRONTEND_PORT is set, use it; otherwise PORT; otherwise Next.js defaults to 3000
-if (process.env.FRONTEND_PORT) {
-  process.env.PORT = process.env.FRONTEND_PORT;
+// Set PORT from FRONTEND_PORT (required from root .env)
+if (!process.env.FRONTEND_PORT) {
+  throw new Error("FRONTEND_PORT must be set in root .env file");
 }
+process.env.PORT = process.env.FRONTEND_PORT;
+
+// Set NEXT_PUBLIC_BACKEND_PORT from BACKEND_PORT for client-side code
+if (!process.env.BACKEND_PORT) {
+  throw new Error("BACKEND_PORT must be set in root .env file");
+}
+process.env.NEXT_PUBLIC_BACKEND_PORT = process.env.BACKEND_PORT;
 
 const nextConfig: NextConfig = {};
 

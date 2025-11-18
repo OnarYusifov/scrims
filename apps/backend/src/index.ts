@@ -27,6 +27,24 @@ import helmet from "@fastify/helmet";
 import { Server } from "socket.io";
 import { registerRoutes } from "./routes/index.js";
 
+// Helper function to get backend URL from env ports
+function getBackendUrl(): string {
+  if (process.env.API_URL) return process.env.API_URL;
+  if (process.env.NODE_ENV === "production") return "https://api.trayb.az";
+  const port = Number(process.env.BACKEND_PORT);
+  if (!port) throw new Error("BACKEND_PORT must be set in root .env file");
+  return `http://localhost:${port}`;
+}
+
+// Helper function to get frontend URL from env ports
+function getFrontendUrl(): string {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+  const port = Number(process.env.FRONTEND_PORT);
+  if (!port) throw new Error("FRONTEND_PORT must be set in root .env file");
+  return `http://localhost:${port}`;
+}
+
 export async function buildServer() {
   const fastify = Fastify({
     logger: true,
@@ -47,7 +65,7 @@ export async function buildServer() {
 			},
 			servers: [
 				{
-					url: process.env.API_URL || (process.env.NODE_ENV === "production" ? "https://api.trayb.az" : "http://localhost:3001"),
+					url: getBackendUrl(),
 					description: "API server",
 				},
 			],
@@ -80,7 +98,7 @@ async function start() {
     const io = new Server(httpServer, {
       path: "/ws",
       cors: {
-        origin: process.env.NEXTAUTH_URL || "http://localhost:3000",
+        origin: getFrontendUrl(),
         credentials: true,
       },
     });
@@ -94,8 +112,9 @@ async function start() {
       });
     });
 
-    // Use BACKEND_PORT from env, fallback to PORT, then default to 3001
-    const port = Number(process.env.BACKEND_PORT) || Number(process.env.PORT) || 3001;
+    // Use BACKEND_PORT from root .env file (required)
+    const port = Number(process.env.BACKEND_PORT);
+    if (!port) throw new Error("BACKEND_PORT must be set in root .env file");
     const host = process.env.HOST || "0.0.0.0";
 
     // Start the server

@@ -21,6 +21,15 @@ import { generateOTP, verifyOTP, checkOTP } from "../utils/generateOTP.js";
 import { sendOTP } from "../utils/sendOTP.js";
 import { sendPasswordResetOTP } from "../utils/sendPasswordResetOTP.js";
 
+// Helper function to get frontend URL from env ports
+function getFrontendUrl(): string {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+  const port = Number(process.env.FRONTEND_PORT);
+  if (!port) throw new Error("FRONTEND_PORT must be set in root .env file");
+  return `http://localhost:${port}`;
+}
+
 export async function authRoutes(fastify: FastifyInstance) {
   // Register endpoint - generates OTP and sends via Resend
   fastify.post("/auth/register", async (request, reply) => {
@@ -44,7 +53,7 @@ export async function authRoutes(fastify: FastifyInstance) {
               email: existingUser.email,
               username: existingUser.username,
               otpCode,
-              verificationUrl: `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email`,
+              verificationUrl: `${getFrontendUrl()}/verify-email`,
             });
           } catch (error) {
             fastify.log.error({ err: error }, "Failed to send OTP email");
@@ -87,7 +96,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           email: user.email,
           username: user.username,
           otpCode,
-          verificationUrl: `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email`,
+          verificationUrl: `${getFrontendUrl()}/verify-email`,
         });
       } catch (error) {
         fastify.log.error({ err: error }, "Failed to send OTP email");
@@ -196,7 +205,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           email: user.email,
           username: user.username,
           otpCode,
-          verificationUrl: `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email`,
+          verificationUrl: `${getFrontendUrl()}/verify-email`,
         });
       } catch (error) {
         fastify.log.error({ err: error }, "Failed to send OTP email");
@@ -247,7 +256,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           email: user.email,
           username: user.username,
           otpCode,
-          resetUrl: `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?email=${encodeURIComponent(user.email)}`,
+          resetUrl: `${getFrontendUrl()}/reset-password?email=${encodeURIComponent(user.email)}`,
         });
       } catch (error) {
         fastify.log.error({ err: error }, "Failed to send password reset OTP email");

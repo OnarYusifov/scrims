@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPasswordResetSchema } from "@trayb/types";
 
-const API_BASE_URL = process.env.API_URL || process.env.BACKEND_URL || "http://localhost:3001";
+// Helper function to get backend URL from env ports
+function getBackendUrl(): string {
+  if (process.env.API_URL) return process.env.API_URL;
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
+  const port = Number(process.env.BACKEND_PORT);
+  if (!port) throw new Error("BACKEND_PORT must be set in root .env file");
+  return `http://localhost:${port}`;
+}
+
+const API_BASE_URL = getBackendUrl();
 
 export async function POST(request: NextRequest) {
   try {
