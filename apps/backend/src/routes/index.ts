@@ -519,5 +519,83 @@ export async function registerRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  // Proxy NextAuth.js routes to frontend
+  // These routes are handled by NextAuth.js in the frontend, not the backend
+  // NextAuth.js routes that need to be proxied:
+  const nextAuthRoutes = [
+    "/api/auth/error",
+    "/api/auth/providers",
+    "/api/auth/signin",
+    "/api/auth/signout",
+    "/api/auth/session",
+    "/api/auth/csrf",
+  ];
+
+  // Helper function to proxy request to frontend
+  const proxyToFrontend = async (request: any, reply: any, path: string) => {
+    // Use localhost for same-container communication, not the public URL
+    const frontendPort = process.env.FRONTEND_PORT || process.env.PORT || 3000;
+    const frontendUrl = `http://localhost:${frontendPort}`;
+    const targetUrl = `${frontendUrl}${path}${request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''}`;
+    
+    try {
+      const headers: Record<string, string> = {};
+      // Copy relevant headers, excluding connection-specific ones
+      for (const [key, value] of Object.entries(request.headers)) {
+        if (!['host', 'connection', 'content-length'].includes(key.toLowerCase()) && value) {
+          headers[key] = Array.isArray(value) ? value[0] : value;
+        }
+      }
+
+      const response = await fetch(targetUrl, {
+        method: request.method,
+        headers,
+        body: request.method !== 'GET' && request.method !== 'HEAD' && request.body
+          ? JSON.stringify(request.body)
+          : undefined,
+      });
+
+      const data = await response.text();
+      const contentType = response.headers.get('content-type') || 'application/json';
+      
+      reply.code(response.status as any);
+      reply.header('content-type', contentType);
+      
+      // Copy other relevant headers
+      response.headers.forEach((value, key) => {
+        if (!['content-encoding', 'transfer-encoding'].includes(key.toLowerCase())) {
+          reply.header(key, value);
+        }
+      });
+      
+      // Try to parse as JSON, otherwise send as text
+      try {
+        const jsonData = JSON.parse(data);
+        return jsonData;
+      } catch {
+        return data;
+      }
+    } catch (error) {
+      fastify.log.error({ err: error, url: targetUrl }, "Failed to proxy to frontend");
+      return reply.code(502 as any).send({ 
+        error: "Bad Gateway",
+        message: "Failed to proxy request to frontend"
+      });
+    }
+  };
+
+  // Register NextAuth.js routes that should be proxied to frontend
+  for (const route of nextAuthRoutes) {
+    fastify.all(route, async (request, reply) => {
+      return proxyToFrontend(request, reply, route);
+    });
+  }
+
+  // Proxy OAuth callback routes (dynamic: /api/auth/callback/[provider])
+  fastify.all("/api/auth/callback/:provider", async (request, reply) => {
+    const provider = (request.params as any).provider;
+    return proxyToFrontend(request, reply, `/api/auth/callback/${provider}`);
+  });
 }
 
