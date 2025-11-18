@@ -4,12 +4,12 @@
 
 ### Ports (FIXED - DO NOT CHANGE)
 
-- **Frontend**: Port `3000` (hardcoded in `apps/frontend/package.json`)
+- **Frontend**: Port `3000` (default, configurable via `FRONTEND_PORT` in root `.env`)
 - **Backend**: Port `3001` (default in `apps/backend/src/index.ts`)
 
 ### Environment Loading (CENTRALIZED)
 
-- **Location**: Root `.env` file at `/home/yunar/scrims/.env`
+- **Location**: Root `.env` file at `<project-root>/.env`
 - **Loader**: `@trayb/config/load-env` package
 - **Usage**: Import first in all apps: `import "@trayb/config/load-env";`
 
@@ -20,7 +20,7 @@
 ```bash
 # Check frontend port
 grep -A 1 '"dev"' apps/frontend/package.json
-# Should show: "dev": "next dev -p 3000"
+# Should show: "dev": "next dev"
 
 # Check backend port
 grep "PORT\|3001" apps/backend/src/index.ts
@@ -56,7 +56,7 @@ git diff origin/dev...HEAD -- apps/*/package.json apps/*/src/index.ts apps/*/nex
 ### Conflict: Port Changed
 
 **If collaborator changed ports**:
-- Frontend: Revert to `-p 3000` in package.json
+- Frontend: Ensure uses environment-based port configuration without the `-p` flag
 - Backend: Revert to `|| 3001` default
 
 ### Conflict: Different Env Loading
@@ -110,9 +110,9 @@ When merging their profile changes:
 ## Quick Fix Commands
 
 ```bash
-# Fix frontend port if changed
-sed -i 's/"dev": "next dev[^"]*"/"dev": "next dev -p 3000"/' apps/frontend/package.json
-sed -i 's/"start": "next start[^"]*"/"start": "next start -p 3000"/' apps/frontend/package.json
+# Fix frontend port if changed (Do not hardcode -p 3000. Restore to default: "dev": "next dev", "start": "next start")
+sed -i 's/"dev": "next dev[^"]*"/"dev": "next dev"/' apps/frontend/package.json
+sed -i 's/"start": "next start[^"]*"/"start": "next start"/' apps/frontend/package.json
 
 # Fix backend port if changed
 sed -i 's/const port = [^;]*;/const port = Number(process.env.PORT) || 3001;/' apps/backend/src/index.ts

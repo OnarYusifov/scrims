@@ -22,7 +22,7 @@ Ports are now configured via environment variables from the **root `.env` file**
 
 ## Configuration in Root `.env` File
 
-Add these to `/home/yunar/scrims/.env`:
+Add these to your root `.env` file (e.g. `./.env`):
 
 ```env
 # Port Configuration

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 # Quick sync script for friend's machine
 
 echo "🔄 Syncing environment configuration..."

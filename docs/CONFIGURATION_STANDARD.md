@@ -65,7 +65,7 @@ BACKEND_PORT=3001   # or 5001 for collaborator
 
 #### How It Works
 
-1. **Root `.env` file location**: `/home/yunar/scrims/.env` (monorepo root)
+1. **Root `.env` file location**: `./.env` (monorepo root)
 2. **Loader package**: `@trayb/config/load-env`
 3. **Loading order**: Environment variables are loaded BEFORE any app code runs
 
@@ -209,7 +209,7 @@ When you see configuration changes:
 1. **Check if ports are changed**: Should be 3000 (frontend) and 3001 (backend)
 2. **Check if env loading is modified**: Should use `@trayb/config/load-env`
 3. **Check if new .env files are created**: Should only use root `.env`
-4. **Verify port usage**: Backend uses `process.env.PORT || 3001`, Frontend uses `-p 3000`
+4. **Verify port usage**: Backend uses `process.env.BACKEND_PORT || process.env.PORT || 3001`, Frontend uses `FRONTEND_PORT` or `PORT` from env (defaults to 3000 if not set)
 
 If conflicts are found:
 - Revert to standard configuration
@@ -254,7 +254,7 @@ In Docker (Dokploy):
 ✅ **DO**:
 - Use root `.env` file only
 - Import `@trayb/config/load-env` first
-- Use port 3000 for frontend (hardcoded)
+- Use `FRONTEND_PORT` (or `PORT`) for frontend, defaulting to 3000
 - Use port 3001 for backend (default)
 - Use `process.env` with fallbacks
 

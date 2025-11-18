@@ -5,8 +5,8 @@
 **Good news**: Your feature branch already includes the collaborator's profile changes!
 
 - Your branch: `feature/setup-pr-workflow-and-ci`
-- Base: `origin/dev` (commit 3438927)
-- Collaborator's profile changes: Already merged in (commit dbfa94a)
+- Base: `origin/dev` (latest version)
+- Collaborator's profile changes: Already merged in
 - Your new changes: 5 commits ahead (PR workflow, env config, docs)
 
 ## Step 1: Verify No Conflicts

@@ -51,7 +51,7 @@ import "@trayb/config/load-env";
 
 ### Environment Variables (Root `.env` File)
 
-**Location**: `/home/yunar/scrims/.env` (monorepo root)
+**Location**: `./.env` (monorepo root)
 
 **Required Variables**:
 ```env
@@ -224,7 +224,7 @@ FRONTEND_PORT=3000  # or 5000 for collaborator
 BACKEND_PORT=3001   # or 5001 for collaborator
 
 # Env file location
-Root: /home/yunar/scrims/.env
+Root: `./.env` (monorepo root)
 
 # Env loader
 Package: @trayb/config/load-env

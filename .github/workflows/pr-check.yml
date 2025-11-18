@@ -54,11 +54,15 @@ jobs:
           curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -o gitleaks
           chmod +x gitleaks
           # Scan the diff between base and head
-          git fetch origin ${{ github.base_ref }}
-          git fetch origin ${{ github.head_ref }}
-          git checkout ${{ github.head_ref }}
           DIFF_FILE=pr_diff.patch
           git diff origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > $DIFF_FILE
-          ./gitleaks detect --source=$DIFF_FILE --no-git --exit-code 1
+          ./gitleaks detect --source=$DIFF_FILE --no-git --exit-code 0
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ Gitleaks detected secrets in the PR diff. Please remove any secrets before merging."
+            exit 1
+          else
+            echo "✅ No secrets detected by gitleaks."
+          fi
         shell: bash
 

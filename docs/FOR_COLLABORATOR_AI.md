@@ -18,7 +18,7 @@ Ports are now **fully environment-based** from the root `.env` file. No hardcode
 
 ### In Root `.env` File
 
-Add these variables to `/home/yunar/scrims/.env`:
+Add these variables to `<project-root>/.env`:
 
 ```env
 # Your setup (5000/5001)
