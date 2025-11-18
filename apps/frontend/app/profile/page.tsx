@@ -612,7 +612,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Games Card Section - Below Banner */}
-      <div className="container mx-auto px-4 sm:px-6 md:px-8 py-6">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 md:px-8 py-6">
         <Card>
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -694,8 +694,6 @@ export default function ProfilePage() {
           <CardContent>
             <div className="flex flex-col gap-6">
               {displayedGames.map((game) => {
-                const coverHeight = getImageDisplayHeight(game.imageWidth, game.imageHeight, 128);
-                const isCounterStrikeCard = game.slug === "counter-strike-2";
                 // Use 'cs2' as the URL slug for Counter-Strike 2
                 const urlSlug = game.slug === "counter-strike-2" ? "cs2" : game.slug;
                 return (
@@ -705,23 +703,9 @@ export default function ProfilePage() {
                     className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                   >
                     <div
-                      className="relative overflow-hidden rounded-2xl border border-white/10 bg-background/30 shadow-lg transition-all group-hover:border-primary/40"
-                      style={game.imageUrl ? { minHeight: `${coverHeight + 24}px` } : undefined}
+                      className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-all group-hover:border-primary/40"
                     >
-                      {game.imageUrl && (
-                        <div className="absolute inset-0">
-                          <Image
-                            src={game.imageUrl}
-                            alt={`${game.name} cover art`}
-                            fill
-                            className={`object-cover ${isCounterStrikeCard ? "object-left" : ""}`}
-                            sizes="(min-width: 1024px) 18rem, (min-width: 640px) 12rem, 100vw"
-                            style={isCounterStrikeCard ? undefined : { objectPosition: "left -12px" }}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/60 to-background/10" />
-                        </div>
-                      )}
-                      <div className="relative z-10 flex flex-col gap-4 rounded-2xl bg-background/40 p-5 backdrop-blur-sm lg:bg-background/20">
+                      <div className="flex flex-col gap-4 p-5">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <p className="text-lg font-semibold">{game.name}</p>

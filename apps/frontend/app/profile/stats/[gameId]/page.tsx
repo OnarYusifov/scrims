@@ -507,20 +507,10 @@ export default function ProfileGameStatsPage({
       </div>
 
       {/* Game Stats Section - Below Banner */}
-      <div className="container mx-auto px-4 sm:px-6 md:px-8 py-6">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 md:px-8 py-6">
 
-        <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-card text-white shadow-2xl">
-          <Image
-            src={game.coverImage}
-            alt={`${game.name} hero artwork`}
-            fill
-            priority
-            className="object-cover"
-            sizes="100vw"
-            style={{ objectPosition: game.name === "Counter-Strike 2" ? "left 40%" : "90% 10%" }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/98 to-black/85" />
-          <div className="relative z-10 flex flex-col gap-6 p-8 lg:flex-row lg:items-end lg:justify-between backdrop-blur-sm bg-black/20 lg:bg-black/10">
+        <section className="rounded-3xl border border-white/10 bg-black/80 backdrop-blur-sm shadow-2xl">
+          <div className="flex flex-col gap-6 p-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl space-y-4">
               <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-white/70">
                 <span>{game.provider}</span>
