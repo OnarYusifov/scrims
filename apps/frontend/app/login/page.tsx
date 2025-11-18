@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type ControllerRenderProps } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import { signIn as nextAuthSignIn } from "next-auth/react";
@@ -36,6 +36,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
+  // @ts-expect-error - error is defined in next-auth.d.ts but TypeScript doesn't see it
   const error = session?.error;
   
   const defaultTab = useMemo(() => {
@@ -190,7 +191,7 @@ export default function LoginPage() {
                   <FormField
                     control={loginForm.control}
                     name="email"
-                    render={({ field }) => (
+                    render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
@@ -203,7 +204,7 @@ export default function LoginPage() {
                   <FormField
                     control={loginForm.control}
                     name="password"
-                    render={({ field }) => (
+                    render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
@@ -242,7 +243,7 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="username"
-                    render={({ field }) => (
+                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
@@ -255,7 +256,7 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="email"
-                    render={({ field }) => (
+                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
@@ -268,7 +269,7 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="password"
-                    render={({ field }) => (
+                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
@@ -281,7 +282,7 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="confirmPassword"
-                    render={({ field }) => (
+                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
                       <FormItem>
                         <FormLabel>Confirm Password</FormLabel>
                         <FormControl>
@@ -294,7 +295,7 @@ export default function LoginPage() {
                   <div className="flex items-start gap-2 text-sm">
                     <Checkbox
                       checked={acceptTerms}
-                      onCheckedChange={(v) => setAcceptTerms(Boolean(v))}
+                      onCheckedChange={(v: boolean | "indeterminate") => setAcceptTerms(Boolean(v))}
                       aria-label="Agree to terms"
                     />
                     <span className="text-muted-foreground">

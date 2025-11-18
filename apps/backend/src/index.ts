@@ -34,8 +34,6 @@ export async function buildServer() {
 				},
 			],
 		},
-		exposeRoute: true,
-		routePrefix: "/api/docs/json",
 	});
 
 	// Register Swagger UI (Docs portal)
@@ -78,7 +76,8 @@ async function start() {
       });
     });
 
-    const port = Number(process.env.PORT) || 3001;
+    // Use BACKEND_PORT from env, fallback to PORT, then default to 3001
+    const port = Number(process.env.BACKEND_PORT) || Number(process.env.PORT) || 3001;
     const host = process.env.HOST || "0.0.0.0";
 
     // Start the server

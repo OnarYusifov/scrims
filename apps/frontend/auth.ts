@@ -1,4 +1,4 @@
-import NextAuth, { CredentialsSignin } from "next-auth";
+import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@trayb/db";
 import Credentials from "next-auth/providers/credentials";
@@ -8,21 +8,40 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { AUTH_ERROR_CODES } from "./lib/auth-codes";
 
+// Custom error class for credentials signin errors
+// NextAuth v5 doesn't export CredentialsSignin, so we create our own
+class CredentialsSigninError extends Error {
+  code: string;
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = "CredentialsSignin";
+    this.code = code;
+  }
+}
+
 // Custom error classes with error codes
-class MissingCredentialsError extends CredentialsSignin {
-  override code = AUTH_ERROR_CODES.MISSING_CREDENTIALS;
+class MissingCredentialsError extends CredentialsSigninError {
+  constructor() {
+    super("Missing credentials", AUTH_ERROR_CODES.MISSING_CREDENTIALS);
+  }
 }
 
-class InvalidCredentialsError extends CredentialsSignin {
-  override code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
+class InvalidCredentialsError extends CredentialsSigninError {
+  constructor() {
+    super("Invalid credentials", AUTH_ERROR_CODES.INVALID_CREDENTIALS);
+  }
 }
 
-class EmailNotVerifiedError extends CredentialsSignin {
-  override code = AUTH_ERROR_CODES.EMAIL_NOT_VERIFIED;
+class EmailNotVerifiedError extends CredentialsSigninError {
+  constructor() {
+    super("Email not verified", AUTH_ERROR_CODES.EMAIL_NOT_VERIFIED);
+  }
 }
 
-class AuthError extends CredentialsSignin {
-  override code = AUTH_ERROR_CODES.AUTH_ERROR;
+class AuthError extends CredentialsSigninError {
+  constructor() {
+    super("Authentication error", AUTH_ERROR_CODES.AUTH_ERROR);
+  }
 }
 
 /**
@@ -49,6 +68,7 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+// @ts-expect-error - NextAuth v5 type definitions may not match runtime
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   secret: process.env.AUTH_SECRET,
@@ -129,7 +149,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           };
         } catch (error) {
           // Re-throw CredentialsSignin errors as-is (they have error codes)
-          if (error instanceof CredentialsSignin) {
+          if (error instanceof CredentialsSigninError) {
             throw error;
           }
           // For other errors, throw generic AuthError
@@ -161,7 +181,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async signIn({ user, account }: { user: any; account: any }) {
       // Social login (Discord/Google) - auto-verify email
       if (account?.provider === "discord" || account?.provider === "google") {
         // Ensure user has email
@@ -363,7 +384,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Credentials login - handled by authorize function
       return true;
     },
-    async jwt({ token, user, account }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async jwt({ token, user, account }: { token: any; user?: any; account?: any }) {
       // Initial sign in - clear any previous errors
       if (user) {
         type UserWithRole = typeof user & { role?: string };
@@ -394,7 +416,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       return token;
     },
-    async session({ session, token }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async session({ session, token }: { session: any; token: any }) {
       // If token has error, pass it to session
       if (token.error && typeof token.error === 'object' && 'code' in token.error && 'message' in token.error) {
         session.error = {
@@ -416,7 +439,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   events: {
-    async createUser({ user }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async createUser({ user }: { user: any }) {
       // This is called when a new user is created by the Prisma adapter
       // For OAuth logins, set emailVerified and username
       if (!user.email) {

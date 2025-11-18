@@ -94,7 +94,7 @@ export default function DeviceVerifyPage() {
 					inputMode="numeric"
 					placeholder="Enter 6-digit code"
 					value={code}
-					onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
 				/>
 				<div className="flex gap-2">
 					<Button className="flex-1" onClick={onVerify} disabled={verifying || code.length !== 6}>

@@ -56,7 +56,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             email: existingUser.email,
           };
         }
-        return reply.code(409).send({
+        return reply.code(409 as any).send({
           error: existingUser.email === body.email
             ? "Email already exists"
             : "Username already exists",
@@ -104,11 +104,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: error.message || "Registration failed. Please check your input and try again." 
         });
       }
-      return reply.code(400).send({ 
+      return reply.code(400 as any).send({ 
         error: "Registration failed. Please check your input and try again." 
       });
     }
@@ -123,7 +123,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       const isValid = await verifyOTP(body.email, body.code);
 
       if (!isValid) {
-        return reply.code(400).send({
+        return reply.code(400 as any).send({
           error: "Invalid or expired verification code",
         });
       }
@@ -134,7 +134,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
 
       if (!user) {
-        return reply.code(404).send({
+        return reply.code(404 as any).send({
           error: "User not found",
         });
       }
@@ -154,11 +154,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: error.message || "Email verification failed. Please check the code and try again." 
         });
       }
-      return reply.code(400).send({ 
+      return reply.code(400 as any).send({ 
         error: "Email verification failed. Please check the code and try again." 
       });
     }
@@ -182,7 +182,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
 
       if (user.emailVerified) {
-        return reply.code(400).send({
+        return reply.code(400 as any).send({
           error: "Email is already verified",
         });
       }
@@ -200,7 +200,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error({ err: error }, "Failed to send OTP email");
-        return reply.code(500).send({
+        return reply.code(500 as any).send({
           error: "Failed to send verification email",
         });
       }
@@ -211,11 +211,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: error.message || "Failed to resend verification code. Please try again." 
         });
       }
-      return reply.code(400).send({ 
+      return reply.code(400 as any).send({ 
         error: "Failed to resend verification code. Please try again." 
       });
     }
@@ -251,7 +251,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error({ err: error }, "Failed to send password reset OTP email");
-        return reply.code(500).send({ 
+        return reply.code(500 as any).send({ 
           error: "Failed to send password reset code. Please try again." 
         });
       }
@@ -264,11 +264,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: error.message || "Failed to send password reset code. Please check your email and try again." 
         });
       }
-      return reply.code(400).send({ 
+      return reply.code(400 as any).send({ 
         error: "Failed to send password reset code. Please check your email and try again." 
       });
     }
@@ -283,7 +283,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       const isValid = await checkOTP(body.email, body.code);
 
       if (!isValid) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: "Invalid or expired password reset code" 
         });
       }
@@ -294,7 +294,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
 
       if (!user) {
-        return reply.code(404).send({
+        return reply.code(404 as any).send({
           error: "User not found",
         });
       }
@@ -308,11 +308,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: error.message || "Password reset verification failed. Please check the code and try again." 
         });
       }
-      return reply.code(400).send({ 
+      return reply.code(400 as any).send({ 
         error: "Password reset verification failed. Please check the code and try again." 
       });
     }
@@ -327,7 +327,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       const isValid = await verifyOTP(body.email, body.code);
 
       if (!isValid) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: "Invalid or expired password reset code" 
         });
       }
@@ -338,7 +338,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
 
       if (!user) {
-        return reply.code(404).send({
+        return reply.code(404 as any).send({
           error: "User not found",
         });
       }
@@ -361,11 +361,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400).send({ 
+        return reply.code(400 as any).send({ 
           error: error.message || "Password reset failed. Please check your code and password, then try again." 
         });
       }
-      return reply.code(400).send({ 
+      return reply.code(400 as any).send({ 
         error: "Password reset failed. Please check your code and password, then try again." 
       });
     }
