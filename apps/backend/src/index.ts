@@ -29,7 +29,7 @@ export async function buildServer() {
 			},
 			servers: [
 				{
-					url: process.env.API_URL || "https://api.trayb.az" || "http://localhost:3001",
+					url: process.env.API_URL || (process.env.NODE_ENV === "production" ? "https://api.trayb.az" : "http://localhost:3001"),
 					description: "API server",
 				},
 			],
