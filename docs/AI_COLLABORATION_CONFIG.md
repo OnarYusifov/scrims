@@ -198,8 +198,8 @@ grep -E "FRONTEND_PORT|BACKEND_PORT" .env
 
 Before committing configuration changes:
 
-- [ ] Frontend port is 3000 (check `package.json`)
-- [ ] Backend port defaults to 3001 (check `src/index.ts`)
+- [ ] `FRONTEND_PORT` and `BACKEND_PORT` are set in root `.env` file
+- [ ] No hardcoded ports or `-p` flags in any package.json scripts
 - [ ] Backend imports `@trayb/config/load-env` first
 - [ ] Frontend `next.config.ts` loads root `.env`
 - [ ] No per-app `.env` files exist
