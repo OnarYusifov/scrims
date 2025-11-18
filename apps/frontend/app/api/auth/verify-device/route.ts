@@ -14,17 +14,24 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Helper function to get backend URL from env ports
+		// Lazy evaluation - only called when route handler runs (not during build)
 		function getBackendUrl(): string {
 			if (process.env.API_URL) return process.env.API_URL;
 			if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
 			const port = Number(process.env.BACKEND_PORT);
-			if (!port) throw new Error("BACKEND_PORT must be set in root .env file");
+			if (!port) {
+				// Only throw error in development/runtime, not during build
+				if (process.env.NODE_ENV !== "production" && !process.env.CI) {
+					throw new Error("BACKEND_PORT must be set in root .env file");
+				}
+				// During build/CI, return a placeholder (won't be used)
+				return "http://localhost:3001";
+			}
 			return `http://localhost:${port}`;
 		}
 
 		// Verify code via backend
-		const API_BASE_URL = getBackendUrl();
-		const res = await fetch(`${API_BASE_URL}/auth/device/verify`, {
+		const res = await fetch(`${getBackendUrl()}/auth/device/verify`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ email, deviceId, code }),
