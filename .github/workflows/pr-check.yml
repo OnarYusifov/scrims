@@ -48,11 +48,17 @@ jobs:
             fi
           done
 
-      - name: Check for secrets
+      - name: Scan for secrets with gitleaks
         run: |
-          # Basic check for common secret patterns
-          if git diff ${{ github.base_ref }}..HEAD | grep -iE "(password|secret|token|api[_-]?key|private[_-]?key)" | grep -vE "(test|example|dummy|placeholder)"; then
-            echo "⚠️ Warning: Potential secrets detected in diff"
-            echo "Please ensure no real secrets are committed"
-          fi
+          # Install gitleaks
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -o gitleaks
+          chmod +x gitleaks
+          # Scan the diff between base and head
+          git fetch origin ${{ github.base_ref }}
+          git fetch origin ${{ github.head_ref }}
+          git checkout ${{ github.head_ref }}
+          DIFF_FILE=pr_diff.patch
+          git diff origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > $DIFF_FILE
+          ./gitleaks detect --source=$DIFF_FILE --no-git --exit-code 1
+        shell: bash
 
