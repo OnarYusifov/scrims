@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 import { render } from "@react-email/render";
 import { VerificationOTP } from "../emails/VerificationOTP.js";
+// Ensure react-dom/server is available for @react-email/render
+import "react-dom/server";
 
 /**
  * Resend wrapper for sending OTP verification emails
@@ -75,6 +77,7 @@ export async function sendOTP({
     throw new Error(`Failed to send OTP email: ${error.message}`);
   }
 }
+
 
 
 

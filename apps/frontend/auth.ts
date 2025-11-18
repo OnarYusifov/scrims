@@ -73,12 +73,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   secret: process.env.AUTH_SECRET,
   trustHost: true, // Required for OAuth to work properly
+  // Explicitly set base URL for OAuth callbacks
+  basePath: "/api/auth",
+  baseUrl: process.env.AUTH_URL || process.env.NEXTAUTH_URL || process.env.FRONTEND_URL,
   session: {
     strategy: "jwt",
   },
   pages: {
     signIn: "/login",
     verifyRequest: "/verify-email",
+    error: "/login", // Redirect errors to login page
   },
   providers: [
     Credentials({
@@ -185,9 +189,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user, account }: { user: any; account: any }) {
       // Social login (Discord/Google) - auto-verify email
       if (account?.provider === "discord" || account?.provider === "google") {
+        // Log OAuth attempt for debugging
+        console.log(`[auth] OAuth signIn attempt: provider=${account?.provider}, email=${user?.email}`);
+        
         // Ensure user has email
         if (!user.email) {
-          console.error("OAuth user missing email:", user);
+          console.error("[auth] OAuth user missing email:", user);
           return false;
         }
 

@@ -39,3 +39,7 @@ yarn-error.log*
 
 # Documentation files in docsryaxa directory
 docsryaxa/**/*.md
+
+# Environment files with secrets
+DOKPLOY_ENV*.txt
+PRODUCTION_ENV*.txt
