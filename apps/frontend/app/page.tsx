@@ -127,7 +127,7 @@ export default function Home() {
         {/* Hero Section */}
         <section className="mb-12">
           <h1 className="text-4xl font-bold tracking-tight mb-2">
-            Welcome to Trayb
+            Welcome to TRAYB
           </h1>
           <p className="text-muted-foreground text-lg">
             Watch competitive matches, follow your favorite teams, and compete in tournaments.

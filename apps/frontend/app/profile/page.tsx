@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Share2 } from "lucide-react";
@@ -11,6 +12,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/animate-ui/components/radix/dialog";
+import { XIcon } from "lucide-react";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -37,12 +48,185 @@ export default function ProfilePage() {
   }>>([]);
 
   // Games for user - will be fetched from API later
-  const [games, setGames] = useState<Array<{
+  type ConnectedGame = {
     id: string;
+    slug: string;
     name: string;
     provider: string;
     icon?: string;
-  }>>([]);
+    imageUrl?: string;
+    imageWidth?: number;
+    imageHeight?: number;
+    leaderboardPlacement?: string;
+    eloRating?: number;
+    eloDelta?: number;
+    currentForm?: Array<"W" | "L">;
+    winRate?: string;
+    crownTier?: string;
+    lastSync?: string;
+  };
+
+  const [games, setGames] = useState<ConnectedGame[]>([]);
+  type AvailableGame = {
+    id: string;
+    slug: string;
+    name: string;
+    description: string;
+    provider: string;
+    imageUrl: string;
+    infoUrl: string;
+    imageWidth: number;
+    imageHeight: number;
+    summary: string;
+    genre: string;
+    platform: string;
+    releaseInfo: string;
+    followers: number;
+    subscriptions: number;
+    friendsOnline: number;
+    overviewStats: Array<{ label: string; value: string; description: string }>;
+    statsBreakdown: Array<{ label: string; value: string }>;
+    starterStats: {
+      leaderboardPlacement: string;
+      eloRating: number;
+      eloDelta: number;
+      currentForm: Array<"W" | "L">;
+      winRate: string;
+      crownTier: string;
+      lastSync: string;
+    };
+  };
+  const [showGameSelector, setShowGameSelector] = useState(false);
+  const availableGames: AvailableGame[] = [
+    {
+      id: "counter-strike-2",
+      slug: "counter-strike-2",
+      name: "Counter-Strike 2",
+      description: "Free-to-play tactical shooter developed by Valve on Source 2.",
+      provider: "Valve",
+      imageUrl: "/games/counter-strike-2-285x380.jpg",
+      infoUrl: "https://en.wikipedia.org/wiki/Counter-Strike_2",
+      imageWidth: 285,
+      imageHeight: 380,
+      summary:
+        "Monitor your Premier climb, FACEIT-ready stats, and match history directly inside TRAYB.",
+      genre: "Tactical Shooter",
+      platform: "PC • Steam",
+      releaseInfo: "Live since Sep 2023",
+      followers: 12800,
+      subscriptions: 42,
+      friendsOnline: 12,
+      overviewStats: [
+        { label: "Premier Rank", value: "Diamond II", description: "Top 3% EU" },
+        { label: "Matches (30d)", value: "54", description: "36W / 18L" },
+        { label: "Headshot %", value: "51%", description: "Average this season" },
+      ],
+      statsBreakdown: [
+        { label: "Average KD", value: "1.29" },
+        { label: "Utility Damage", value: "79" },
+        { label: "Clutch Success", value: "34%" },
+        { label: "Entry Success", value: "57%" },
+      ],
+      starterStats: {
+        leaderboardPlacement: "#112 EU Premier",
+        eloRating: 2748,
+        eloDelta: +36,
+        currentForm: ["W", "W", "L", "W", "W"],
+        winRate: "68%",
+        crownTier: "Diamond II",
+        lastSync: "Synced 2h ago",
+      },
+    },
+    {
+      id: "valorant",
+      slug: "valorant",
+      name: "Valorant",
+      description: "Character-based 5v5 tactical shooter from Riot Games.",
+      provider: "Riot Games",
+      imageUrl: "/games/valorant-285x380.jpg",
+      infoUrl: "https://en.wikipedia.org/wiki/Valorant",
+      imageWidth: 285,
+      imageHeight: 380,
+      summary:
+        "Valorant metrics mirror FACEIT dashboards: detailed streaks, map stats, and party insights.",
+      genre: "Hero Shooter",
+      platform: "PC • Riot Client",
+      releaseInfo: "Live since Jun 2020",
+      followers: 8200,
+      subscriptions: 18,
+      friendsOnline: 5,
+      overviewStats: [
+        { label: "Competitive Rank", value: "Immortal I", description: "Top 1% LATAM" },
+        { label: "Matches (30d)", value: "38", description: "22W / 16L" },
+        { label: "First Blood Rate", value: "44%", description: "Controller / Duelist hybrid" },
+      ],
+      statsBreakdown: [
+        { label: "Average Combat Score", value: "261" },
+        { label: "Econ Rating", value: "67" },
+        { label: "Clutch Success", value: "28%" },
+        { label: "Ability Damage", value: "54" },
+      ],
+      starterStats: {
+        leaderboardPlacement: "#980 Global Competitive",
+        eloRating: 2013,
+        eloDelta: -12,
+        currentForm: ["L", "W", "W", "W", "L"],
+        winRate: "58%",
+        crownTier: "Immortal I",
+        lastSync: "Synced 47m ago",
+      },
+    },
+  ];
+
+  const sampleConnectedGameCards: ConnectedGame[] = availableGames.map((game) => ({
+    id: `${game.id}-concept`,
+    slug: game.slug,
+    name: game.name,
+    provider: game.provider,
+    imageUrl: game.imageUrl,
+    imageWidth: game.imageWidth,
+    imageHeight: game.imageHeight,
+    leaderboardPlacement: game.starterStats.leaderboardPlacement,
+    eloRating: game.starterStats.eloRating,
+    eloDelta: game.starterStats.eloDelta,
+    currentForm: game.starterStats.currentForm,
+    winRate: game.starterStats.winRate,
+    crownTier: game.starterStats.crownTier,
+    lastSync: game.starterStats.lastSync,
+  }));
+
+  const displayedGames = games.length > 0 ? games : sampleConnectedGameCards;
+
+  const isGameConnected = (gameId: string) => games.some((game) => game.id === gameId);
+
+  const handleConnectGame = (game: AvailableGame) => {
+    if (isGameConnected(game.id)) {
+      toast.info(`${game.name} is already connected`);
+      setShowGameSelector(false);
+      return;
+    }
+    setGames((prev) => [
+      ...prev,
+      {
+        id: game.id,
+        slug: game.slug,
+        name: game.name,
+        provider: game.provider,
+        imageUrl: game.imageUrl,
+        imageWidth: game.imageWidth,
+        imageHeight: game.imageHeight,
+        leaderboardPlacement: game.starterStats.leaderboardPlacement,
+        eloRating: game.starterStats.eloRating,
+        eloDelta: game.starterStats.eloDelta,
+        currentForm: game.starterStats.currentForm,
+        winRate: game.starterStats.winRate,
+        crownTier: game.starterStats.crownTier,
+        lastSync: game.starterStats.lastSync,
+      },
+    ]);
+    toast.success(`${game.name} connected`);
+    setShowGameSelector(false);
+  };
 
 
   useEffect(() => {
@@ -146,6 +330,33 @@ export default function ProfilePage() {
       return "/banners/wallhaven-6dqjml.png";
     }
     return null;
+  };
+
+  const getImageDisplayHeight = (imageWidth?: number, imageHeight?: number, targetWidth = 96) => {
+    if (!imageWidth || !imageHeight || imageWidth === 0) {
+      return 115;
+    }
+    return Math.round((imageHeight / imageWidth) * targetWidth);
+  };
+
+  const formatFormLetters = (form?: Array<"W" | "L">) => {
+    if (!form || form.length === 0) return null;
+    return (
+      <div className="flex gap-1.5">
+        {form.map((entry, index) => (
+          <span
+            key={`${entry}-${index}`}
+            className={`flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold ${
+              entry === "W"
+                ? "bg-emerald-500/15 text-emerald-400"
+                : "bg-red-500/15 text-red-400"
+            }`}
+          >
+            {entry}
+          </span>
+        ))}
+      </div>
+    );
   };
 
   // Detect if background is light or dark to determine text color
@@ -403,35 +614,187 @@ export default function ProfilePage() {
       {/* Games Card Section - Below Banner */}
       <div className="container mx-auto px-4 sm:px-6 md:px-8 py-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Connected Games</CardTitle>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Connected Games</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Showcase the games linked to your TRAYB profile.
+              </p>
+            </div>
+            <Dialog open={showGameSelector} onOpenChange={setShowGameSelector}>
+              <DialogTrigger asChild>
+                <Button size="sm">Add game</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-xl p-0" showCloseButton={false}>
+                <DialogHeader>
+                  <div>
+                    <DialogTitle>Connect a game</DialogTitle>
+                    <DialogDescription>
+                      Choose a title to showcase on your profile.
+                    </DialogDescription>
+                  </div>
+                  <DialogClose asChild>
+                    <Button variant="ghost" size="icon">
+                      <XIcon className="h-4 w-4" />
+                    </Button>
+                  </DialogClose>
+                </DialogHeader>
+                <div className="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-5">
+                  {availableGames.map((game) => {
+                    const connected = isGameConnected(game.id);
+                    const imageDisplayHeight = getImageDisplayHeight(game.imageWidth, game.imageHeight);
+                    return (
+                      <div
+                        key={game.id}
+                        className="relative flex overflow-hidden rounded-2xl border bg-muted/30 p-4"
+                        style={game.imageUrl ? { minHeight: `${imageDisplayHeight}px` } : undefined}
+                      >
+                        {game.imageUrl && (
+                          <Image
+                            src={game.imageUrl}
+                            alt={`${game.name} cover art`}
+                            width={96}
+                            height={imageDisplayHeight}
+                            className="absolute inset-y-0 left-0 h-full w-24 object-cover"
+                          />
+                        )}
+                        <div className={`relative z-10 flex flex-1 flex-col justify-between ${game.imageUrl ? "pl-24" : ""}`}>
+                          <div>
+                            <p className="font-semibold">{game.name}</p>
+                            <p className="text-xs text-muted-foreground">by {game.provider}</p>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-3">
+                            <Button
+                              size="sm"
+                              onClick={() => handleConnectGame(game)}
+                              disabled={connected}
+                            >
+                              {connected ? "Connected" : "Connect"}
+                            </Button>
+                            <a
+                              className="text-sm text-primary underline-offset-4 hover:underline"
+                              href={game.infoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Learn more
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-xs text-muted-foreground">
+                    More titles coming soon. Have a request? Let us know!
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardHeader>
           <CardContent>
-            {games.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {games.map((game) => (
-                  <div
+            <div className="flex flex-col gap-6">
+              {displayedGames.map((game) => {
+                const coverHeight = getImageDisplayHeight(game.imageWidth, game.imageHeight, 128);
+                const isCounterStrikeCard = game.slug === "counter-strike-2";
+                // Use 'cs2' as the URL slug for Counter-Strike 2
+                const urlSlug = game.slug === "counter-strike-2" ? "cs2" : game.slug;
+                return (
+                  <Link
                     key={game.id}
-                    className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card hover:bg-accent transition-colors cursor-pointer group"
+                    href={`/profile/stats/${urlSlug}`}
+                    className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                   >
-                    <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">
-                      {game.icon || "🎮"}
+                    <div
+                      className="relative overflow-hidden rounded-2xl border border-white/10 bg-background/30 shadow-lg transition-all group-hover:border-primary/40"
+                      style={game.imageUrl ? { minHeight: `${coverHeight + 24}px` } : undefined}
+                    >
+                      {game.imageUrl && (
+                        <div className="absolute inset-0">
+                          <Image
+                            src={game.imageUrl}
+                            alt={`${game.name} cover art`}
+                            fill
+                            className={`object-cover ${isCounterStrikeCard ? "object-left" : ""}`}
+                            sizes="(min-width: 1024px) 18rem, (min-width: 640px) 12rem, 100vw"
+                            style={isCounterStrikeCard ? undefined : { objectPosition: "left -12px" }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/60 to-background/10" />
+                        </div>
+                      )}
+                      <div className="relative z-10 flex flex-col gap-4 rounded-2xl bg-background/40 p-5 backdrop-blur-sm lg:bg-background/20">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-lg font-semibold">{game.name}</p>
+                            <p className="text-sm text-muted-foreground">via {game.provider}</p>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                            <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-400">
+                              Linked
+                            </span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                          <div className="rounded-xl border border-white/5 bg-gradient-to-br from-background to-background/30 p-3">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                              Leaderboard placement
+                            </p>
+                            <p className="text-base font-semibold">
+                              {game.leaderboardPlacement || "—"}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-white/5 bg-gradient-to-br from-background to-background/30 p-3">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">ELO</p>
+                            <p className="text-base font-semibold">
+                              {game.eloRating ? game.eloRating.toLocaleString() : "—"}
+                              {typeof game.eloDelta === "number" && (
+                                <span
+                                  className={`ml-2 text-xs font-medium ${
+                                    game.eloDelta >= 0 ? "text-emerald-400" : "text-red-400"
+                                  }`}
+                                >
+                                  {game.eloDelta >= 0 ? "+" : ""}
+                                  {game.eloDelta}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-white/5 bg-gradient-to-br from-background to-background/30 p-3">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                              Current form
+                            </p>
+                            {formatFormLetters(game.currentForm) || <p className="text-base font-semibold">—</p>}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                          <div className="rounded-xl border border-white/5 bg-background/40 p-3">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                              Win rate
+                            </p>
+                            <p className="text-base font-semibold">{game.winRate || "—"}</p>
+                          </div>
+                          <div className="rounded-xl border border-white/5 bg-background/40 p-3">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                              Competitive tier
+                            </p>
+                            <p className="text-base font-semibold">{game.crownTier || "—"}</p>
+                          </div>
+                          <div className="rounded-xl border border-white/5 bg-background/40 p-3">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                              Status
+                            </p>
+                            <p className="text-base font-semibold">{game.lastSync || "Awaiting sync"}</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-sm font-medium text-center">
-                      {game.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="text-sm">No games connected yet</p>
-                <p className="text-xs mt-1">Connect your game accounts to see them here</p>
-              </div>
-            )}
+                  </Link>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       </div>
+
     </div>
   );
 }
