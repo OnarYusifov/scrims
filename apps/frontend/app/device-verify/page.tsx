@@ -25,7 +25,8 @@ export default function DeviceVerifyPage() {
 			setError(null);
 			setSuccess(null);
 			try {
-				const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/auth/device/start`, {
+				const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+				const res = await fetch(`${apiUrl}/auth/device/start`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({ email, deviceId }),
@@ -108,7 +109,8 @@ export default function DeviceVerifyPage() {
 							setError(null);
 							setSuccess(null);
 							try {
-								const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/auth/device/start`, {
+								const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+				const res = await fetch(`${apiUrl}/auth/device/start`, {
 									method: "POST",
 									headers: { "Content-Type": "application/json" },
 									body: JSON.stringify({ email, deviceId }),

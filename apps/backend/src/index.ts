@@ -29,8 +29,8 @@ export async function buildServer() {
 			},
 			servers: [
 				{
-					url: process.env.API_URL || "http://localhost:3001",
-					description: "Development server",
+					url: process.env.API_URL || "https://api.trayb.az" || "http://localhost:3001",
+					description: "API server",
 				},
 			],
 		},
@@ -38,7 +38,7 @@ export async function buildServer() {
 
 	// Register Swagger UI (Docs portal)
   await fastify.register(swaggerUI, {
-    routePrefix: "/api/docs",
+    routePrefix: "/docs",
     uiConfig: {
       docExpansion: "list",
       deepLinking: false,
@@ -84,7 +84,7 @@ async function start() {
     await fastify.listen({ port, host });
 
     console.log(`🚀 Backend server running on http://${host}:${port}`);
-    console.log(`📚 API docs available at http://${host}:${port}/api/docs`);
+    console.log(`📚 API docs available at http://${host}:${port}/docs`);
     console.log(`🔌 Socket.io available on /ws path`);
   } catch (err) {
     console.error("Error starting server:", err);

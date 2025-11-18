@@ -23,7 +23,7 @@ import { sendPasswordResetOTP } from "../utils/sendPasswordResetOTP.js";
 
 export async function authRoutes(fastify: FastifyInstance) {
   // Register endpoint - generates OTP and sends via Resend
-  fastify.post("/api/auth/register", async (request, reply) => {
+  fastify.post("/auth/register", async (request, reply) => {
     try {
       const body = registerSchema.parse(request.body);
 
@@ -115,7 +115,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   });
 
   // Verify email endpoint - verifies OTP and marks email as verified
-  fastify.post("/api/auth/verify-email", async (request, reply) => {
+  fastify.post("/auth/verify-email", async (request, reply) => {
     try {
       const body = verifyEmailSchema.parse(request.body);
 
@@ -165,7 +165,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   });
 
   // Resend verification email endpoint
-  fastify.post("/api/auth/resend-verification", async (request, reply) => {
+  fastify.post("/auth/resend-verification", async (request, reply) => {
     try {
       const body = resendVerificationSchema.parse(request.body);
 
@@ -222,7 +222,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   });
 
   // Forgot password endpoint - sends password reset OTP
-  fastify.post("/api/auth/forgot-password", async (request, reply) => {
+  fastify.post("/auth/forgot-password", async (request, reply) => {
     try {
       const body = forgotPasswordSchema.parse(request.body);
 
@@ -275,7 +275,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   });
 
   // Verify password reset OTP endpoint - uses VerificationToken (doesn't delete token yet)
-  fastify.post("/api/auth/verify-password-reset", async (request, reply) => {
+  fastify.post("/auth/verify-password-reset", async (request, reply) => {
     try {
       const body = verifyPasswordResetSchema.parse(request.body);
 
@@ -319,7 +319,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   });
 
   // Reset password endpoint - uses VerificationToken, auto-verifies email
-  fastify.post("/api/auth/reset-password", async (request, reply) => {
+  fastify.post("/auth/reset-password", async (request, reply) => {
     try {
       const body = resetPasswordSchema.parse(request.body);
 

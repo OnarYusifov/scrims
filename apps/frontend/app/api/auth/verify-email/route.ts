@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyEmailSchema } from "@trayb/types";
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3001";
+const API_BASE_URL = process.env.API_URL || process.env.BACKEND_URL || "http://localhost:3001";
 
 /**
  * Verify email OTP endpoint
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const validatedData = verifyEmailSchema.parse(body);
 
     // Verify OTP via backend (checks VerificationToken table)
-    const response = await fetch(`${BACKEND_URL}/api/auth/verify-email`, {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

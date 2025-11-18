@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resetPasswordSchema } from "@trayb/types";
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3001";
+const API_BASE_URL = process.env.API_URL || process.env.BACKEND_URL || "http://localhost:3001";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validatedData = resetPasswordSchema.parse(body);
 
-    const response = await fetch(`${BACKEND_URL}/api/auth/reset-password`, {
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

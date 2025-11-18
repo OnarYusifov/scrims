@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Verify code via backend
-		const res = await fetch(`${process.env.BACKEND_URL || "http://localhost:5001"}/api/auth/device/verify`, {
+		const API_BASE_URL = process.env.API_URL || process.env.BACKEND_URL || "http://localhost:3001";
+		const res = await fetch(`${API_BASE_URL}/auth/device/verify`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ email, deviceId, code }),
