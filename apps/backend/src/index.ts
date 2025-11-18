@@ -4,10 +4,21 @@ import "@trayb/config/load-env";
 
 // Ensure react-dom/server is available globally for @react-email/render
 // This must be imported before any email utilities
+// @react-email/render checks for reactDOMServer in various ways, so we need to ensure it's available
 import * as reactDOMServer from "react-dom/server";
+
+// Make reactDOMServer available in multiple ways for @react-email/render compatibility
 if (typeof globalThis !== "undefined") {
   (globalThis as any).reactDOMServer = reactDOMServer;
+  // Also set on global for Node.js compatibility
+  if (typeof global !== "undefined") {
+    (global as any).reactDOMServer = reactDOMServer;
+  }
 }
+
+// Ensure the module is available for @react-email/render's internal checks
+// @react-email/render uses Object.hasOwn to check for renderToReadableStream
+// We need to ensure reactDOMServer is accessible when the module loads
 
 import Fastify from "fastify";
 import swagger from "@fastify/swagger";

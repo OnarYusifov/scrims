@@ -62,6 +62,12 @@ export async function sendPasswordResetOTP({
   }
 
   // Render React Email template to HTML
+  // Ensure react-dom/server is available before rendering
+  if (typeof globalThis !== "undefined" && !(globalThis as any).reactDOMServer) {
+    const reactDOMServer = await import("react-dom/server");
+    (globalThis as any).reactDOMServer = reactDOMServer;
+  }
+  
   const emailHtml = await render(
     PasswordResetOTP({
       username,
