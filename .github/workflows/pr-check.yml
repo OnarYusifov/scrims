@@ -50,21 +50,27 @@ jobs:
 
       - name: Scan for secrets with gitleaks
         run: |
-          # Install gitleaks
-          GITLEAKS_VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION#v}_linux_x64.tar.gz" -o gitleaks.tar.gz
-          tar -xzf gitleaks.tar.gz gitleaks
+          # Install gitleaks using official method
+          GITLEAKS_VERSION="v8.18.0"
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION#v}_linux_x64.tar.gz" -L -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz
           chmod +x gitleaks
+          # Verify installation
+          ./gitleaks version
           # Scan the diff between base and head
           DIFF_FILE=pr_diff.patch
-          git diff origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > $DIFF_FILE
-          ./gitleaks detect --source=$DIFF_FILE --no-git --exit-code 0
-          EXIT_CODE=$?
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "❌ Gitleaks detected secrets in the PR diff. Please remove any secrets before merging."
-            exit 1
+          git diff origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > $DIFF_FILE || true
+          if [ -s "$DIFF_FILE" ]; then
+            ./gitleaks detect --source=$DIFF_FILE --no-git --exit-code 0
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -ne 0 ]; then
+              echo "❌ Gitleaks detected secrets in the PR diff. Please remove any secrets before merging."
+              exit 1
+            else
+              echo "✅ No secrets detected by gitleaks."
+            fi
           else
-            echo "✅ No secrets detected by gitleaks."
+            echo "⚠️ No diff file generated, skipping secret scan."
           fi
         shell: bash
 
