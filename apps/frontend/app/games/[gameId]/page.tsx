@@ -123,7 +123,7 @@ export default function GameDetailPage({
     gameId: string;
   };
 }) {
-  const game = gamesCatalog[params.gameId];
+  const game = gamesCatalog[params.gameId as keyof typeof gamesCatalog];
 
   if (!game) {
     notFound();
