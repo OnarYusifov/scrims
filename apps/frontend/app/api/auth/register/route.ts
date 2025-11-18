@@ -1,14 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { registerSchema } from "@trayb/types";
 
-const API_BASE_URL = process.env.API_URL || process.env.BACKEND_URL || "http://localhost:3001";
+// Helper function to get backend URL from env ports
+// Lazy evaluation - only called when route handler runs (not during build)
+function getBackendUrl(): string {
+  if (process.env.API_URL) return process.env.API_URL;
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
+  const port = Number(process.env.BACKEND_PORT);
+  if (!port) {
+    // Only throw error in development/runtime, not during build
+    if (process.env.NODE_ENV !== "production" && !process.env.CI) {
+      throw new Error("BACKEND_PORT must be set in root .env file");
+    }
+    // During build/CI, return a placeholder (won't be used)
+    return "http://localhost:3001";
+  }
+  return `http://localhost:${port}`;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validatedData = registerSchema.parse(body);
 
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await fetch(`${getBackendUrl()}/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

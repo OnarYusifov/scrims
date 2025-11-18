@@ -34,9 +34,20 @@ const loadEnvFile = (envPath: string, allowOverride: boolean = false) => {
 loadEnvFile(join(rootDir, ".env"), false);
 
 // Next.js automatically reads PORT from process.env
-// If FRONTEND_PORT is set, use it; otherwise PORT; otherwise Next.js defaults to 3000
+// Set PORT from FRONTEND_PORT (required only in dev, not during build)
+// During build, PORT is not needed, so we only set it if FRONTEND_PORT exists
 if (process.env.FRONTEND_PORT) {
   process.env.PORT = process.env.FRONTEND_PORT;
+} else if (process.env.NODE_ENV !== "production" && !process.env.CI) {
+  // Only throw error in development (not in CI/build)
+  // CI/build doesn't need PORT, it's only needed when running dev server
+  throw new Error("FRONTEND_PORT must be set in root .env file");
+}
+
+// Set NEXT_PUBLIC_BACKEND_PORT from BACKEND_PORT for client-side code
+// Only set if BACKEND_PORT exists (not required during build)
+if (process.env.BACKEND_PORT) {
+  process.env.NEXT_PUBLIC_BACKEND_PORT = process.env.BACKEND_PORT;
 }
 
 const nextConfig: NextConfig = {};

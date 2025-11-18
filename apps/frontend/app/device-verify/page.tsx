@@ -25,7 +25,14 @@ export default function DeviceVerifyPage() {
 			setError(null);
 			setSuccess(null);
 			try {
-				const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+				// Helper to get backend URL from env ports (client-side)
+				const getBackendUrl = () => {
+					if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+					const port = Number(process.env.NEXT_PUBLIC_BACKEND_PORT);
+					if (!port) throw new Error("BACKEND_PORT must be set in root .env file (NEXT_PUBLIC_BACKEND_PORT is derived from it)");
+					return `http://localhost:${port}`;
+				};
+				const apiUrl = getBackendUrl();
 				const res = await fetch(`${apiUrl}/auth/device/start`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -109,8 +116,15 @@ export default function DeviceVerifyPage() {
 							setError(null);
 							setSuccess(null);
 							try {
-								const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-				const res = await fetch(`${apiUrl}/auth/device/start`, {
+								// Helper to get backend URL from env ports (client-side)
+								const getBackendUrl = () => {
+									if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+									const port = Number(process.env.NEXT_PUBLIC_BACKEND_PORT);
+									if (!port) throw new Error("BACKEND_PORT must be set in root .env file (NEXT_PUBLIC_BACKEND_PORT is derived from it)");
+									return `http://localhost:${port}`;
+								};
+								const apiUrl = getBackendUrl();
+								const res = await fetch(`${apiUrl}/auth/device/start`, {
 									method: "POST",
 									headers: { "Content-Type": "application/json" },
 									body: JSON.stringify({ email, deviceId }),

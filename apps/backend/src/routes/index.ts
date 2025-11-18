@@ -14,10 +14,19 @@ import { sendLoginOTP } from "../utils/email.js";
 import { sendOTP } from "../utils/sendOTP.js";
 import { randomInt } from "crypto";
 
+// Helper function to get frontend URL from env ports
+function getFrontendUrl(): string {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+  const port = Number(process.env.FRONTEND_PORT);
+  if (!port) throw new Error("FRONTEND_PORT must be set in root .env file");
+  return `http://localhost:${port}`;
+}
+
 export async function registerRoutes(fastify: FastifyInstance) {
   // Register CORS
   await fastify.register(cors, {
-    origin: process.env.NEXTAUTH_URL || "http://localhost:3000",
+    origin: getFrontendUrl(),
     credentials: true,
   });
 
@@ -63,7 +72,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
         email: user.email,
         username: user.username,
         otpCode: code,
-        verificationUrl: `${process.env.FRONTEND_URL || "http://localhost:3000"}/device-verify`,
+        verificationUrl: `${getFrontendUrl()}/device-verify`,
       });
       return { message: "Device verification code sent." };
     } catch (error) {

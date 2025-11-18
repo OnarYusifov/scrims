@@ -12,6 +12,6 @@
       "@trayb/db": ["../../packages/db/src"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "src/types/**/*"],
   "exclude": ["node_modules", "dist"]
 }

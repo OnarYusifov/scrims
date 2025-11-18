@@ -1,5 +1,14 @@
 import nodemailer from "nodemailer";
 
+// Helper function to get frontend URL from env ports
+function getFrontendUrl(): string {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+  const port = Number(process.env.FRONTEND_PORT);
+  if (!port) throw new Error("FRONTEND_PORT must be set in root .env file");
+  return `http://localhost:${port}`;
+}
+
 // Create reusable transporter using SMTP
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -37,7 +46,7 @@ export const sendVerificationEmail = async ({
   verificationCode,
 }: SendVerificationEmailParams): Promise<void> => {
   const transporter = createTransporter();
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+  const baseUrl = getFrontendUrl();
   const verificationUrl = `${baseUrl}/verify-email`;
 
   const mailOptions = {
@@ -103,7 +112,7 @@ export const sendLoginOTP = async ({
   loginCode,
 }: SendLoginOTPParams): Promise<void> => {
   const transporter = createTransporter();
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+  const baseUrl = getFrontendUrl();
   const loginUrl = `${baseUrl}/verify-email?type=login`;
 
   const mailOptions = {
@@ -169,7 +178,7 @@ export const sendPasswordResetOTP = async ({
   resetCode,
 }: SendPasswordResetOTPParams): Promise<void> => {
   const transporter = createTransporter();
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+  const baseUrl = getFrontendUrl();
   const resetUrl = `${baseUrl}/reset-password?email=${encodeURIComponent(email)}`;
 
   const mailOptions = {
