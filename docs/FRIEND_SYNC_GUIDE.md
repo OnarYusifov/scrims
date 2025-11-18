@@ -36,11 +36,34 @@ git fetch origin
 git pull origin dev
 ```
 
-If you have local changes that conflict, you may need to:
+### If you get "refusing to merge unrelated histories" error:
+
+This happens when your local repository has a different history than the remote. Use this command:
+
+```bash
+# Allow merging unrelated histories
+git pull origin dev --allow-unrelated-histories
+```
+
+If you still have conflicts after this, you may need to:
 - Stash your changes: `git stash`
-- Pull: `git pull origin dev`
+- Pull: `git pull origin dev --allow-unrelated-histories`
 - Apply your changes: `git stash pop`
 - Resolve any conflicts manually
+
+### Alternative: Start Fresh (if you don't have important local changes)
+
+If you don't have important local changes and want to start fresh:
+
+```bash
+# Backup your current work (if any)
+# Then remove the local repository and clone fresh
+cd ..
+rm -rf scrims  # Only if you don't have important changes!
+git clone <repository-url> scrims
+cd scrims
+git checkout dev
+```
 
 ## Step 4: Install/Update Dependencies
 
