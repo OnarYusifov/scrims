@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getSteamAuthUrl } from "@/lib/steam-provider";
+import { resolveSteamOrigin } from "./utils";
 
 /**
  * GET /api/auth/steam - Initiate Steam authentication
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const manualSteamId = searchParams.get("steamId");
-    const isLocalhost = request.url.includes("localhost") || request.url.includes("127.0.0.1");
+    const { origin, isLocalhost } = resolveSteamOrigin(request);
 
     // Development mode: Allow manual Steam ID input for localhost
     if (isLocalhost && manualSteamId && process.env.NODE_ENV === "development") {
@@ -32,12 +33,15 @@ export async function GET(request: NextRequest) {
 
       // Skip OpenID and directly link the account
       return NextResponse.redirect(
-        new URL(`/api/auth/steam/callback?steamId=${manualSteamId}&dev=true`, request.url)
+        new URL(
+          `/api/auth/steam/callback?steamId=${manualSteamId}&dev=true`,
+          origin
+        )
       );
     }
 
     // Production mode: Use Steam OpenID
-    const returnUrl = new URL("/api/auth/steam/callback", request.url).toString();
+    const returnUrl = new URL("/api/auth/steam/callback", origin).toString();
     const steamAuthUrl = getSteamAuthUrl(returnUrl);
 
     return NextResponse.redirect(steamAuthUrl);

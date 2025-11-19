@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@trayb/db";
 import { extractSteamId, getSteamProfile } from "@/lib/steam-provider";
 import openid from "openid";
+import { buildExternalUrl, resolveSteamOrigin } from "../utils";
 
 /**
  * GET /api/auth/steam/callback - Handle Steam OpenID callback
@@ -15,6 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
+    const { origin } = resolveSteamOrigin(request);
     const isDevMode = searchParams.get("dev") === "true";
     const manualSteamId = searchParams.get("steamId");
 
@@ -36,8 +38,8 @@ export async function GET(request: NextRequest) {
       }
 
       // Verify OpenID response (skip in dev mode)
-      const returnUrl = new URL("/api/auth/steam/callback", request.url).toString();
-      const realm = new URL(request.url).origin;
+      const returnUrl = new URL("/api/auth/steam/callback", origin).toString();
+      const realm = origin;
       const relyingParty = new openid.RelyingParty(
         returnUrl,
         realm,
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest) {
       );
 
       // Build the assertion URL with all OpenID parameters
-      const assertionUrl = request.url;
+      const assertionUrl = buildExternalUrl(request, origin);
 
       const isValid = await new Promise<boolean>((resolve) => {
         relyingParty.verifyAssertion(assertionUrl, (error, result) => {
