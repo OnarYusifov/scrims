@@ -777,7 +777,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Games Card Section - Below Banner */}
-      <div className="container mx-auto max-w-7xl px-4 sm:px-6 md:px-8 py-6">
+      <div className="mx-auto px-4 sm:px-6 md:px-8 py-6">
         <Card>
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>

@@ -507,7 +507,7 @@ export default function ProfileGameStatsPage({
       </div>
 
       {/* Game Stats Section - Below Banner */}
-      <div className="container mx-auto max-w-7xl px-4 sm:px-6 md:px-8 py-6">
+      <div className="mx-auto px-4 sm:px-6 md:px-8 py-6">
 
         <section className="relative rounded-3xl border border-white/10 bg-black/80 backdrop-blur-sm shadow-2xl">
           {(resolvedParams.gameId === "cs2" || resolvedParams.gameId === "counter-strike-2") && (
