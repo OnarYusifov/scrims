@@ -4,7 +4,7 @@ import { prisma } from "@trayb/db";
 import { z } from "zod";
 
 const unlinkSchema = z.object({
-	provider: z.enum(["google", "discord"]),
+	provider: z.enum(["google", "discord", "steam"]),
 });
 
 export async function POST(request: NextRequest) {

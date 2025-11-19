@@ -32,6 +32,12 @@ export async function GET(_request: NextRequest) {
         role: true,
         emailVerified: true,
         createdAt: true,
+        accounts: {
+          select: {
+            provider: true,
+            providerAccountId: true,
+          },
+        },
       },
     });
 
@@ -51,6 +57,7 @@ export async function GET(_request: NextRequest) {
         email: user.email,
         role: user.role,
         createdAt: user.createdAt.toISOString(),
+        accounts: user.accounts,
       },
     });
   } catch (error) {

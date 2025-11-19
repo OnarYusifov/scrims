@@ -23,26 +23,26 @@ const conceptGames = {
     summary:
       "Monitor your Premier climb, FACEIT-ready stats, and match history directly inside TRAYB.",
     coverImage: "/games/counter-strike-2-285x380.jpg",
-    leaderboardPlacement: "#112 EU Premier",
-    eloRating: 2748,
-    eloDelta: +36,
-    winRate: "68%",
-    crownTier: "Diamond II",
-    lastSync: "Synced 2h ago",
-    followers: 12800,
-    subscriptions: 42,
-    friendsOnline: 12,
-    currentForm: ["W", "W", "L", "W", "W"] as Array<"W" | "L">,
+    leaderboardPlacement: "", // No rank for new players
+    eloRating: 800, // Default ELO for new players
+    eloDelta: 0, // No change initially
+    winRate: "0%", // No wins yet
+    crownTier: "", // No rank/tier
+    lastSync: "Not synced", // Not synced yet
+    followers: 0,
+    subscriptions: 0,
+    friendsOnline: 0,
+    currentForm: [] as Array<"W" | "L">, // Empty form array
     overviewStats: [
-      { label: "Premier Rank", value: "Diamond II", description: "Top 3% EU" },
-      { label: "Matches (30d)", value: "54", description: "36W / 18L" },
-      { label: "Headshot %", value: "51%", description: "Average this season" },
+      { label: "Premier Rank", value: "—", description: "No rank yet" },
+      { label: "Matches (30d)", value: "0", description: "0W / 0L" },
+      { label: "Headshot %", value: "0%", description: "No matches played" },
     ],
     statsBreakdown: [
-      { label: "Average KD", value: "1.29" },
-      { label: "Utility Damage", value: "79" },
-      { label: "Clutch Success", value: "34%" },
-      { label: "Entry Success", value: "57%" },
+      { label: "Average KD", value: "0.00" },
+      { label: "Utility Damage", value: "0" },
+      { label: "Clutch Success", value: "0%" },
+      { label: "Entry Success", value: "0%" },
     ],
   },
   valorant: {
@@ -54,26 +54,26 @@ const conceptGames = {
     summary:
       "Valorant metrics mirror FACEIT dashboards: detailed streaks, map stats, and party insights.",
     coverImage: "/games/valorant-285x380.jpg",
-    leaderboardPlacement: "#980 Global Competitive",
-    eloRating: 2013,
-    eloDelta: -12,
-    winRate: "58%",
-    crownTier: "Immortal I",
-    lastSync: "Synced 47m ago",
-    followers: 8200,
-    subscriptions: 18,
-    friendsOnline: 5,
-    currentForm: ["L", "W", "W", "W", "L"] as Array<"W" | "L">,
+    leaderboardPlacement: "", // No rank for new players
+    eloRating: 800, // Default ELO for new players
+    eloDelta: 0, // No change initially
+    winRate: "0%", // No wins yet
+    crownTier: "", // No rank/tier
+    lastSync: "Not synced", // Not synced yet
+    followers: 0,
+    subscriptions: 0,
+    friendsOnline: 0,
+    currentForm: [] as Array<"W" | "L">, // Empty form array
     overviewStats: [
-      { label: "Competitive Rank", value: "Immortal I", description: "Top 1% LATAM" },
-      { label: "Matches (30d)", value: "38", description: "22W / 16L" },
-      { label: "First Blood Rate", value: "44%", description: "Controller / Duelist hybrid" },
+      { label: "Competitive Rank", value: "—", description: "No rank yet" },
+      { label: "Matches (30d)", value: "0", description: "0W / 0L" },
+      { label: "First Blood Rate", value: "0%", description: "No matches played" },
     ],
     statsBreakdown: [
-      { label: "Average Combat Score", value: "261" },
-      { label: "Econ Rating", value: "67" },
-      { label: "Clutch Success", value: "28%" },
-      { label: "Ability Damage", value: "54" },
+      { label: "Average Combat Score", value: "0" },
+      { label: "Econ Rating", value: "0" },
+      { label: "Clutch Success", value: "0%" },
+      { label: "Ability Damage", value: "0" },
     ],
   },
 } satisfies Record<
@@ -509,7 +509,43 @@ export default function ProfileGameStatsPage({
       {/* Game Stats Section - Below Banner */}
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 md:px-8 py-6">
 
-        <section className="rounded-3xl border border-white/10 bg-black/80 backdrop-blur-sm shadow-2xl">
+        <section className="relative rounded-3xl border border-white/10 bg-black/80 backdrop-blur-sm shadow-2xl">
+          {(resolvedParams.gameId === "cs2" || resolvedParams.gameId === "counter-strike-2") && (
+            <img
+              src="/logos/cs2-logo.png"
+              alt="Counter-Strike 2 logo"
+              className="absolute top-8 right-8 h-7 w-7 lg:h-9 lg:w-9 rounded-[2px] object-contain z-10"
+              style={{ 
+                top: '2rem', // Align with text line (p-8 = 2rem)
+                right: '2rem' // Align with buttons (p-8 = 2rem)
+              }}
+              onError={(e) => {
+                // Fallback to external URL if local file doesn't exist
+                const target = e.target as HTMLImageElement;
+                if (!target.src.includes('wikia.nocookie.net')) {
+                  target.src = 'https://static.wikia.nocookie.net/logopedia/images/4/49/Counter-Strike_2_%28Icon%29.png/revision/latest?cb=20230330015359';
+                }
+              }}
+            />
+          )}
+          {(resolvedParams.gameId === "valorant") && (
+            <img
+              src="/logos/valorant-logo.png"
+              alt="Valorant logo"
+              className="absolute top-8 right-8 h-7 w-7 lg:h-9 lg:w-9 rounded-[2px] object-contain z-10"
+              style={{ 
+                top: '2rem', // Align with text line (p-8 = 2rem)
+                right: '2rem' // Align with buttons (p-8 = 2rem)
+              }}
+              onError={(e) => {
+                // Fallback to external URL if local file doesn't exist
+                const target = e.target as HTMLImageElement;
+                if (!target.src.includes('icons8.com')) {
+                  target.src = 'https://img.icons8.com/?size=48&id=aUZxT3Erwill&format=png';
+                }
+              }}
+            />
+          )}
           <div className="flex flex-col gap-6 p-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl space-y-4">
               <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-white/70">
@@ -521,19 +557,25 @@ export default function ProfileGameStatsPage({
                 <span>•</span>
                 <span>{game.releaseInfo}</span>
               </div>
-              <h1 className="text-4xl font-bold tracking-tight text-white lg:text-5xl mb-3 sm:mb-4">
-                {game.name}
-              </h1>
+              <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                <h1 className="text-4xl font-bold tracking-tight text-white lg:text-5xl">
+                  {game.name}
+                </h1>
+              </div>
               <div className="flex flex-wrap items-center gap-3">
                 <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-500/40">
                   Linked on TRAYB
                 </Badge>
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                  {game.leaderboardPlacement}
-                </Badge>
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                  {game.crownTier}
-                </Badge>
+                {game.leaderboardPlacement && (
+                  <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                    {game.leaderboardPlacement}
+                  </Badge>
+                )}
+                {game.crownTier && (
+                  <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                    {game.crownTier}
+                  </Badge>
+                )}
               </div>
             </div>
             <div className="flex gap-3">
@@ -547,7 +589,7 @@ export default function ProfileGameStatsPage({
           </div>
         </section>
 
-        <section className="mt-8 rounded-2xl border border-border bg-card/80 p-6 shadow-lg">
+        <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-lg">
           <Tabs defaultValue="overview" className="w-full">
             <TabsList className="w-full justify-start gap-1 overflow-x-auto">
               <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -560,7 +602,7 @@ export default function ProfileGameStatsPage({
             <TabsContent value="overview" className="pt-6">
               <div className="grid gap-4 md:grid-cols-3">
                 {game.overviewStats.map((stat: { label: string; value: string; description: string }) => (
-                  <Card key={stat.label} className="border-white/5 bg-muted/20">
+                  <Card key={stat.label} className="border-border/50 bg-card dark:border-white/5 dark:bg-muted/20">
                     <CardHeader>
                       <CardTitle className="text-sm uppercase text-muted-foreground">
                         {stat.label}
@@ -574,7 +616,7 @@ export default function ProfileGameStatsPage({
                 ))}
               </div>
               <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                <Card className="border-white/5 bg-muted/30">
+                <Card className="border-border/50 bg-card dark:border-white/5 dark:bg-muted/30">
                   <CardHeader>
                     <CardTitle className="text-sm uppercase text-muted-foreground">
                       Competitive snapshot
@@ -585,15 +627,17 @@ export default function ProfileGameStatsPage({
                       <div>
                         <p className="text-muted-foreground mb-1">ELO</p>
                         <p className="text-lg font-semibold">
-                          {game.eloRating.toLocaleString()}{" "}
-                          <span
-                            className={`text-xs ${
-                              game.eloDelta >= 0 ? "text-emerald-500" : "text-red-400"
-                            }`}
-                          >
-                            {game.eloDelta >= 0 ? "+" : ""}
-                            {game.eloDelta}
-                          </span>
+                          {game.eloRating.toLocaleString()}
+                          {game.eloDelta !== 0 && (
+                            <span
+                              className={`ml-1 text-xs ${
+                                game.eloDelta >= 0 ? "text-emerald-500" : "text-red-400"
+                              }`}
+                            >
+                              {game.eloDelta >= 0 ? "+" : ""}
+                              {game.eloDelta}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div>
@@ -611,7 +655,7 @@ export default function ProfileGameStatsPage({
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="border-white/5 bg-muted/30">
+                <Card className="border-border/50 bg-card dark:border-white/5 dark:bg-muted/30">
                   <CardHeader>
                     <CardTitle className="text-sm uppercase text-muted-foreground">
                       Network
@@ -644,7 +688,7 @@ export default function ProfileGameStatsPage({
             <TabsContent value="statistics" className="pt-6">
               <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
                 {game.statsBreakdown.map((stat: { label: string; value: string }) => (
-                  <Card key={stat.label} className="border-white/5 bg-background/60">
+                  <Card key={stat.label} className="border-border/50 bg-card dark:border-white/5 dark:bg-background/60">
                     <CardHeader>
                       <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
                         {stat.label}
@@ -656,7 +700,7 @@ export default function ProfileGameStatsPage({
                   </Card>
                 ))}
               </div>
-              <div className="mt-6 rounded-2xl border border-white/5 bg-background/40 p-6">
+              <div className="mt-6 rounded-2xl border border-border/50 bg-muted/50 dark:border-white/5 dark:bg-background/40 p-6">
                 <p className="text-sm uppercase tracking-wide text-muted-foreground mb-2">
                   Season insights
                 </p>
@@ -682,7 +726,7 @@ export default function ProfileGameStatsPage({
             </TabsContent>
 
             <TabsContent value="followers" className="pt-6">
-              <div className="rounded-2xl border border-white/5 bg-background/50 p-6">
+              <div className="rounded-2xl border border-border/50 bg-muted/50 dark:border-white/5 dark:bg-background/50 p-6">
                 <p className="text-muted-foreground">
                   Followers from TRAYB and connected platforms will appear here once they opt into
                   visibility.
@@ -691,7 +735,7 @@ export default function ProfileGameStatsPage({
             </TabsContent>
 
             <TabsContent value="friends" className="pt-6">
-              <div className="rounded-2xl border border-white/5 bg-background/50 p-6">
+              <div className="rounded-2xl border border-border/50 bg-muted/50 dark:border-white/5 dark:bg-background/50 p-6">
                 <p className="text-muted-foreground">
                   FACEIT-style party widgets and voice channel pins will appear once friends link
                   their accounts. Send invites from the overview tab.

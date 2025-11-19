@@ -20,8 +20,11 @@ import {
   DialogDescription,
   DialogTrigger,
   DialogClose,
+  DialogFooter,
 } from "@/components/animate-ui/components/radix/dialog";
 import { XIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { FlipButton } from "@/components/ui/flip-button";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -178,33 +181,156 @@ export default function ProfilePage() {
     },
   ];
 
-  const sampleConnectedGameCards: ConnectedGame[] = availableGames.map((game) => ({
-    id: `${game.id}-concept`,
-    slug: game.slug,
-    name: game.name,
-    provider: game.provider,
-    imageUrl: game.imageUrl,
-    imageWidth: game.imageWidth,
-    imageHeight: game.imageHeight,
-    leaderboardPlacement: game.starterStats.leaderboardPlacement,
-    eloRating: game.starterStats.eloRating,
-    eloDelta: game.starterStats.eloDelta,
-    currentForm: game.starterStats.currentForm,
-    winRate: game.starterStats.winRate,
-    crownTier: game.starterStats.crownTier,
-    lastSync: game.starterStats.lastSync,
-  }));
+  // Template games are hidden but kept as template for when players connect games
+  const displayedGames = games; // Only show actually connected games, not template samples
 
-  const displayedGames = games.length > 0 ? games : sampleConnectedGameCards;
+  const [steamLinked, setSteamLinked] = useState(false);
+  const [showSteamIdDialog, setShowSteamIdDialog] = useState(false);
+  const [steamIdInput, setSteamIdInput] = useState("");
+  const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
+  const [gameToUnlink, setGameToUnlink] = useState<ConnectedGame | null>(null);
 
-  const isGameConnected = (gameId: string) => games.some((game) => game.id === gameId);
+  const isGameConnected = (gameId: string) => {
+    // For Counter-Strike 2, check if Steam is linked
+    if (gameId === "counter-strike-2") {
+      return steamLinked || games.some((game) => game.id === gameId);
+    }
+    return games.some((game) => game.id === gameId);
+  };
 
-  const handleConnectGame = (game: AvailableGame) => {
+  // Check if Steam is linked on mount and add CS2 if connected
+  useEffect(() => {
+    const checkSteamLink = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const data = await response.json();
+          // Check if user has Steam account linked
+          if (data.user?.accounts) {
+            const hasSteam = data.user.accounts.some(
+              (acc: { provider: string }) => acc.provider === "steam"
+            );
+            setSteamLinked(hasSteam);
+            
+            // If Steam is linked and CS2 is not in games list, add it
+            if (hasSteam) {
+              const cs2Game = availableGames.find((g) => g.id === "counter-strike-2");
+              if (cs2Game) {
+                setGames((prev) => {
+                  // Check if CS2 is already in the list
+                  if (prev.some((g) => g.id === "counter-strike-2")) {
+                    return prev;
+                  }
+                  // Add CS2 with default values
+                  return [
+                    ...prev,
+                    {
+                      id: cs2Game.id,
+                      slug: cs2Game.slug,
+                      name: cs2Game.name,
+                      provider: cs2Game.provider,
+                      imageUrl: cs2Game.imageUrl,
+                      imageWidth: cs2Game.imageWidth,
+                      imageHeight: cs2Game.imageHeight,
+                      leaderboardPlacement: undefined,
+                      eloRating: 800,
+                      eloDelta: 0,
+                      currentForm: [],
+                      winRate: "0%",
+                      crownTier: undefined,
+                      lastSync: "Not synced",
+                    },
+                  ];
+                });
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check Steam link:", error);
+      }
+    };
+    checkSteamLink();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
+  // Check for Steam link success/error in URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("steam_linked") === "true") {
+      toast.success("Steam account linked successfully!");
+      setSteamLinked(true);
+      // Update games list if CS2 should be marked as connected
+      const cs2Game = availableGames.find((g) => g.id === "counter-strike-2");
+      if (cs2Game && !isGameConnected(cs2Game.id)) {
+        setGames((prev) => [
+          ...prev,
+          {
+            id: cs2Game.id,
+            slug: cs2Game.slug,
+            name: cs2Game.name,
+            provider: cs2Game.provider,
+            imageUrl: cs2Game.imageUrl,
+            imageWidth: cs2Game.imageWidth,
+            imageHeight: cs2Game.imageHeight,
+            leaderboardPlacement: undefined, // No rank for new players
+            eloRating: 800, // Default ELO for new players
+            eloDelta: 0, // No change initially
+            currentForm: [], // Empty form array
+            winRate: "0%", // No wins yet
+            crownTier: undefined, // No rank/tier
+            lastSync: "Not synced", // Not synced yet
+          },
+        ]);
+      }
+      // Clean up URL
+      router.replace("/profile");
+    } else if (params.get("error")) {
+      const error = params.get("error");
+      if (error === "steam_auth_failed") {
+        toast.error("Steam authentication failed. Please try again.");
+      } else if (error === "steam_verification_failed") {
+        toast.error("Steam verification failed. Please try again.");
+      } else if (error === "steam_already_linked") {
+        toast.error("This Steam account is already linked to another user.");
+      } else if (error === "steam_profile_failed") {
+        toast.error("Failed to fetch Steam profile. Please check your Steam API key.");
+      } else if (error === "steam_callback_failed") {
+        toast.error("Steam callback failed. Please try again.");
+      }
+      router.replace("/profile");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]); // Only depend on router, games and steamLinked are checked inside
+
+  const handleConnectGame = async (game: AvailableGame) => {
     if (isGameConnected(game.id)) {
       toast.info(`${game.name} is already connected`);
       setShowGameSelector(false);
       return;
     }
+
+    // For Counter-Strike 2, use Steam authentication
+    if (game.id === "counter-strike-2" || game.slug === "counter-strike-2") {
+      try {
+        const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+        
+        // On localhost, show dialog for manual Steam ID entry (dev mode)
+        if (isLocalhost) {
+          setSteamIdInput("");
+          setShowSteamIdDialog(true);
+        } else {
+          // Production: Use normal Steam OpenID
+          window.location.href = "/api/auth/steam";
+        }
+      } catch (error) {
+        console.error("Steam auth error:", error);
+        toast.error("Failed to initiate Steam authentication");
+      }
+      return;
+    }
+
+    // For other games, use the old method with default values
     setGames((prev) => [
       ...prev,
       {
@@ -215,17 +341,56 @@ export default function ProfilePage() {
         imageUrl: game.imageUrl,
         imageWidth: game.imageWidth,
         imageHeight: game.imageHeight,
-        leaderboardPlacement: game.starterStats.leaderboardPlacement,
-        eloRating: game.starterStats.eloRating,
-        eloDelta: game.starterStats.eloDelta,
-        currentForm: game.starterStats.currentForm,
-        winRate: game.starterStats.winRate,
-        crownTier: game.starterStats.crownTier,
-        lastSync: game.starterStats.lastSync,
+        leaderboardPlacement: undefined, // No rank for new players
+        eloRating: 800, // Default ELO for new players
+        eloDelta: 0, // No change initially
+        currentForm: [], // Empty form array
+        winRate: "0%", // No wins yet
+        crownTier: undefined, // No rank/tier
+        lastSync: "Not synced", // Not synced yet
       },
     ]);
     toast.success(`${game.name} connected`);
     setShowGameSelector(false);
+  };
+
+  const handleUnlinkClick = (game: ConnectedGame) => {
+    setGameToUnlink(game);
+    setShowUnlinkDialog(true);
+  };
+
+  const handleUnlinkConfirm = async () => {
+    if (!gameToUnlink) return;
+
+    try {
+      // For Counter-Strike 2, unlink Steam account
+      if (gameToUnlink.id === "counter-strike-2" || gameToUnlink.slug === "counter-strike-2") {
+        const response = await fetch("/api/auth/unlink", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider: "steam" }),
+        });
+
+        if (response.ok) {
+          setSteamLinked(false);
+          setGames((prev) => prev.filter((g) => g.id !== gameToUnlink.id));
+          toast.success(`${gameToUnlink.name} unlinked successfully`);
+        } else {
+          const error = await response.json();
+          toast.error(error.error || "Failed to unlink Steam account");
+        }
+      } else {
+        // For other games, just remove from list
+        setGames((prev) => prev.filter((g) => g.id !== gameToUnlink.id));
+        toast.success(`${gameToUnlink.name} unlinked successfully`);
+      }
+      
+      setShowUnlinkDialog(false);
+      setGameToUnlink(null);
+    } catch (error) {
+      console.error("Unlink error:", error);
+      toast.error("Failed to unlink game");
+    }
   };
 
 
@@ -692,8 +857,15 @@ export default function ProfilePage() {
             </Dialog>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-6">
-              {displayedGames.map((game) => {
+            {displayedGames.length === 0 ? (
+              <div className="py-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No games connected yet. Click &quot;Add game&quot; to connect your first game.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6">
+                {displayedGames.map((game) => {
                 // Use 'cs2' as the URL slug for Counter-Strike 2
                 const urlSlug = game.slug === "counter-strike-2" ? "cs2" : game.slug;
                 return (
@@ -708,17 +880,55 @@ export default function ProfilePage() {
                       <div className="flex flex-col gap-4 p-5">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <p className="text-lg font-semibold">{game.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-lg font-semibold">{game.name}</p>
+                              {(game.slug === "counter-strike-2" || game.name === "Counter-Strike 2" || game.id === "counter-strike-2" || game.id?.includes("counter-strike")) && (
+                                <img
+                                  src="/logos/cs2-logo.png"
+                                  alt="Counter-Strike 2 logo"
+                                  className="h-5 w-5 rounded-[2px] object-contain ml-1"
+                                  onError={(e) => {
+                                    // Fallback to external URL if local file doesn't exist
+                                    const target = e.target as HTMLImageElement;
+                                    if (!target.src.includes('wikia.nocookie.net')) {
+                                      target.src = 'https://static.wikia.nocookie.net/logopedia/images/4/49/Counter-Strike_2_%28Icon%29.png/revision/latest?cb=20230330015359';
+                                    }
+                                  }}
+                                />
+                              )}
+                              {(game.slug === "valorant" || game.name === "Valorant" || game.id === "valorant" || game.id?.includes("valorant")) && (
+                                <img
+                                  src="/logos/valorant-logo.png"
+                                  alt="Valorant logo"
+                                  className="h-5 w-5 rounded-[2px] object-contain ml-1"
+                                  onError={(e) => {
+                                    // Fallback to external URL if local file doesn't exist
+                                    const target = e.target as HTMLImageElement;
+                                    if (!target.src.includes('icons8.com')) {
+                                      target.src = 'https://img.icons8.com/?size=48&id=aUZxT3Erwill&format=png';
+                                    }
+                                  }}
+                                />
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground">via {game.provider}</p>
                           </div>
                           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-                            <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-400">
-                              Linked
-                            </span>
+                            <FlipButton
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleUnlinkClick(game);
+                              }}
+                              frontText="LINKED"
+                              backText="UNLINK"
+                              className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-400 transition-colors duration-200 hover:bg-red-500/10 hover:text-red-400 cursor-pointer min-w-[70px] h-[28px]"
+                              title="Click to unlink"
+                            />
                           </div>
                         </div>
                         <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-                          <div className="rounded-xl border border-white/5 bg-gradient-to-br from-background to-background/30 p-3">
+                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-gradient-to-br dark:from-background dark:to-background/30 p-3 shadow-sm">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
                               Leaderboard placement
                             </p>
@@ -726,11 +936,11 @@ export default function ProfilePage() {
                               {game.leaderboardPlacement || "—"}
                             </p>
                           </div>
-                          <div className="rounded-xl border border-white/5 bg-gradient-to-br from-background to-background/30 p-3">
+                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-gradient-to-br dark:from-background dark:to-background/30 p-3 shadow-sm">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">ELO</p>
                             <p className="text-base font-semibold">
-                              {game.eloRating ? game.eloRating.toLocaleString() : "—"}
-                              {typeof game.eloDelta === "number" && (
+                              {game.eloRating ? game.eloRating.toLocaleString() : "800"}
+                              {typeof game.eloDelta === "number" && game.eloDelta !== 0 && (
                                 <span
                                   className={`ml-2 text-xs font-medium ${
                                     game.eloDelta >= 0 ? "text-emerald-400" : "text-red-400"
@@ -742,7 +952,7 @@ export default function ProfilePage() {
                               )}
                             </p>
                           </div>
-                          <div className="rounded-xl border border-white/5 bg-gradient-to-br from-background to-background/30 p-3">
+                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-gradient-to-br dark:from-background dark:to-background/30 p-3 shadow-sm">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
                               Current form
                             </p>
@@ -750,19 +960,19 @@ export default function ProfilePage() {
                           </div>
                         </div>
                         <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-                          <div className="rounded-xl border border-white/5 bg-background/40 p-3">
+                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-background/40 p-3 shadow-sm">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">
                               Win rate
                             </p>
-                            <p className="text-base font-semibold">{game.winRate || "—"}</p>
+                            <p className="text-base font-semibold">{game.winRate || "0%"}</p>
                           </div>
-                          <div className="rounded-xl border border-white/5 bg-background/40 p-3">
+                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-background/40 p-3 shadow-sm">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">
                               Competitive tier
                             </p>
                             <p className="text-base font-semibold">{game.crownTier || "—"}</p>
                           </div>
-                          <div className="rounded-xl border border-white/5 bg-background/40 p-3">
+                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-background/40 p-3 shadow-sm">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">
                               Status
                             </p>
@@ -774,10 +984,112 @@ export default function ProfilePage() {
                   </Link>
                 );
               })}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Steam ID Input Dialog for Localhost */}
+      <Dialog open={showSteamIdDialog} onOpenChange={setShowSteamIdDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter Steam ID</DialogTitle>
+            <DialogDescription>
+              Steam OpenID doesn&apos;t work on localhost. Enter your Steam ID (17 digits) for testing.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Steam ID (17 digits)
+              </label>
+              <Input
+                type="text"
+                placeholder="76561198000000000"
+                value={steamIdInput}
+                onChange={(e) => setSteamIdInput(e.target.value.replace(/\D/g, ""))}
+                maxLength={17}
+                pattern="\d{17}"
+              />
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium text-foreground">How to find your Steam ID:</p>
+                <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                  <li>
+                    Go to{" "}
+                    <a
+                      href="https://steamid.io/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline"
+                    >
+                      steamid.io
+                    </a>
+                    {" "}and paste your Steam profile URL
+                  </li>
+                  <li>Copy the <strong>SteamID64</strong> value (17 digits)</li>
+                  <li>Or check your Steam profile URL: if it&apos;s <code className="text-xs bg-muted px-1 rounded">steamcommunity.com/profiles/76561198000000000</code>, the number is your Steam ID</li>
+                </ol>
+                <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                  💡 Tip: You can also use ngrok for full OpenID support (see docs/STEAM_AUTH_SETUP.md)
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowSteamIdDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (steamIdInput && /^\d{17}$/.test(steamIdInput)) {
+                    setShowSteamIdDialog(false);
+                    window.location.href = `/api/auth/steam?steamId=${steamIdInput}`;
+                  } else if (steamIdInput) {
+                    toast.error("Invalid Steam ID format. Steam ID should be 17 digits.");
+                  }
+                }}
+                disabled={!steamIdInput || !/^\d{17}$/.test(steamIdInput)}
+              >
+                Connect
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unlink Confirmation Dialog */}
+      <Dialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Unlink Game</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to unlink {gameToUnlink?.name}? You can add it again later.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="py-4">
+            <div className="flex justify-center gap-2 w-full">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowUnlinkDialog(false);
+                  setGameToUnlink(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleUnlinkConfirm}
+              >
+                Unlink
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
