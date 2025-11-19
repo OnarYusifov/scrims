@@ -1,0 +1,36 @@
+<svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark green background -->
+  <rect width="100" height="100" fill="#1a472a"/>
+  
+  <!-- Letter C - stylized, blocky with sharp angles -->
+  <path d="M 10 20 L 10 50 Q 10 60 20 60 L 30 60 L 30 50 L 20 50 Q 15 50 15 35 Q 15 25 20 25 L 30 25 L 30 20 L 20 20 Q 10 20 10 30 Z" 
+        fill="#000000" 
+        stroke="none"/>
+  <path d="M 20 25 L 25 25 L 25 30 L 20 30 Z" fill="#000000"/>
+  
+  <!-- Tactical operator silhouette - integrated with letters -->
+  <!-- Helmet/Head -->
+  <ellipse cx="45" cy="25" rx="8" ry="8" fill="#000000"/>
+  
+  <!-- Torso merging with C on left and S on right -->
+  <path d="M 35 30 L 35 50 L 40 50 L 40 60 L 50 60 L 50 50 L 55 50 L 55 30 Z" fill="#000000"/>
+  
+  <!-- Left arm merging with C -->
+  <path d="M 30 35 L 35 35 L 35 45 L 30 45 Z" fill="#000000"/>
+  
+  <!-- Right arm merging with S -->
+  <path d="M 55 35 L 60 35 L 60 45 L 55 45 Z" fill="#000000"/>
+  
+  <!-- Rifle - horizontal, extending over S -->
+  <rect x="50" y="40" width="20" height="3" fill="#000000"/>
+  <rect x="68" y="38" width="2" height="7" fill="#000000"/>
+  
+  <!-- Legs - crouched position -->
+  <path d="M 40 60 L 40 75 L 45 75 L 45 60 Z" fill="#000000"/>
+  <path d="M 50 60 L 50 75 L 55 75 L 55 60 Z" fill="#000000"/>
+  
+  <!-- Letter S - stylized, blocky with sharp angles, merging with operator -->
+  <path d="M 70 20 L 80 20 Q 90 20 90 30 L 85 30 Q 85 25 80 25 L 75 25 Q 70 25 70 35 L 80 35 Q 90 35 90 45 L 85 45 Q 85 50 80 50 L 70 50 Q 60 50 60 40 L 65 40 Q 65 45 70 45 L 75 45 Q 80 45 80 35 L 70 35 Q 60 35 60 25 Q 60 20 70 20 Z" 
+        fill="#000000" 
+        stroke="none"/>
+</svg>
