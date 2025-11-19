@@ -9,14 +9,16 @@ import { buildExternalUrl, resolveSteamOrigin } from "../utils";
  * GET /api/auth/steam/callback - Handle Steam OpenID callback
  */
 export async function GET(request: NextRequest) {
+  const { origin } = resolveSteamOrigin(request);
+  const buildUrl = (path: string) => new URL(path, origin);
+
   try {
     const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.redirect(new URL("/login?error=unauthorized", request.url));
-    }
-
     const searchParams = request.nextUrl.searchParams;
-    const { origin } = resolveSteamOrigin(request);
+
+    if (!session?.user?.id) {
+      return NextResponse.redirect(buildUrl("/login?error=unauthorized"));
+    }
     const isDevMode = searchParams.get("dev") === "true";
     const manualSteamId = searchParams.get("steamId");
 
@@ -32,9 +34,7 @@ export async function GET(request: NextRequest) {
       steamId = extractSteamId(claimedId);
 
       if (!steamId) {
-        return NextResponse.redirect(
-          new URL("/profile?error=steam_auth_failed", request.url)
-        );
+        return NextResponse.redirect(buildUrl("/profile?error=steam_auth_failed"));
       }
 
       // Verify OpenID response (skip in dev mode)
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
 
       if (!isValid) {
         return NextResponse.redirect(
-          new URL("/profile?error=steam_verification_failed", request.url)
+          buildUrl("/profile?error=steam_verification_failed")
         );
       }
     }
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     if (existingAccount && existingAccount.userId !== session.user.id) {
       return NextResponse.redirect(
-        new URL("/profile?error=steam_already_linked", request.url)
+        buildUrl("/profile?error=steam_already_linked")
       );
     }
 
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       steamProfile = await getSteamProfile(steamId);
       if (!steamProfile) {
         return NextResponse.redirect(
-          new URL("/profile?error=steam_profile_failed", request.url)
+          buildUrl("/profile?error=steam_profile_failed")
         );
       }
     }
@@ -149,12 +149,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.redirect(new URL("/profile?steam_linked=true", request.url));
+    return NextResponse.redirect(buildUrl("/profile?steam_linked=true"));
   } catch (error) {
     console.error("Steam callback error:", error);
-    return NextResponse.redirect(
-      new URL("/profile?error=steam_callback_failed", request.url)
-    );
+    return NextResponse.redirect(buildUrl("/profile?error=steam_callback_failed"));
   }
 }
 
