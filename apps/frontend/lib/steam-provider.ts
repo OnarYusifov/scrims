@@ -38,7 +38,7 @@ export function getSteamAuthUrl(returnUrl: string): string {
 export function extractSteamId(claimedId: string | null): string | null {
   if (!claimedId) return null;
   const match = claimedId.match(/\/id\/(\d+)$/);
-  return match ? match[1] : null;
+  return match && match[1] ? match[1] : null;
 }
 
 /**
