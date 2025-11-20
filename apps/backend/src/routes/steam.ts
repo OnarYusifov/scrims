@@ -2,8 +2,74 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "@trayb/db";
 import { verifySteamOpenId, getSteamProfile } from "../utils/steam.js";
 import { SignJWT } from "jose";
+import openid from "openid";
 
 export async function steamRoutes(fastify: FastifyInstance) {
+    // Initiate Steam OpenID authentication
+    fastify.get("/auth/steam", {
+        schema: {
+            tags: ["auth"],
+            summary: "Initiate Steam OpenID authentication",
+            querystring: {
+                type: "object",
+                properties: {
+                    returnUrl: { type: "string" },
+                    userId: { type: "string" },
+                },
+                required: ["returnUrl"],
+            },
+        },
+    }, async (request, reply) => {
+        try {
+            const params = request.query as { returnUrl: string; userId?: string };
+            const { returnUrl } = params;
+
+            if (!returnUrl) {
+                return reply.code(400).send({ error: "returnUrl is required" });
+            }
+
+            fastify.log.info(`[Steam Init] Starting Steam OpenID flow with returnUrl: ${returnUrl}`);
+
+            // Create relying party for Steam OpenID
+            // The returnUrl is where Steam will redirect after authentication
+            const relyingParty = new openid.RelyingParty(
+                returnUrl, // Return URL (where Steam redirects after auth)
+                null, // Realm (optional, inferred from returnUrl)
+                true, // Stateless
+                false, // Strict
+                [] // Extensions
+            );
+
+            // Get Steam OpenID provider URL
+            const steamProvider = "https://steamcommunity.com/openid";
+
+            // Authenticate with Steam - this generates the redirect URL to Steam
+            return new Promise<void>((resolve, reject) => {
+                relyingParty.authenticate(steamProvider, false, (error, authUrl) => {
+                    if (error) {
+                        fastify.log.error("Steam OpenID authentication error:", error);
+                        reply.code(500).send({ error: "Failed to initiate Steam authentication" });
+                        return reject(error);
+                    }
+
+                    if (!authUrl) {
+                        fastify.log.error("No auth URL returned from Steam OpenID");
+                        reply.code(500).send({ error: "Failed to get Steam authentication URL" });
+                        return reject(new Error("No auth URL returned"));
+                    }
+
+                    fastify.log.info(`[Steam Init] Redirecting to Steam: ${authUrl}`);
+                    // Redirect user to Steam's OpenID login page
+                    reply.redirect(authUrl);
+                    resolve();
+                });
+            });
+        } catch (error) {
+            fastify.log.error("Steam auth initiation error:", error);
+            return reply.code(500).send({ error: "Failed to initiate Steam authentication" });
+        }
+    });
+
     // Handle Steam OpenID callback
     fastify.get("/auth/steam/callback", {
         schema: {
