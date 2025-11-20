@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { X, Play, Users, Trophy, TrendingUp, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,15 +14,9 @@ import { toast } from "sonner";
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(true);
-  type User = {
-    id: string;
-    username: string | null;
-    email: string;
-    role: string | null;
-    createdAt: string;
-  } | null;
-  const [user, setUser] = useState<User>(null);
+  
   // Initialize from localStorage directly to avoid setState in effect
   const [dismissedBanner, setDismissedBanner] = useState(() => {
     if (typeof window !== "undefined") {
@@ -31,23 +26,8 @@ export default function Home() {
   });
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        const data = await response.json();
-
-        if (response.ok && data.authenticated && data.verified) {
-          setUser(data.user);
-        }
-        setLoading(false);
-      } catch (error) {
-        console.error("Auth check failed:", error);
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
+    setLoading(status === "loading");
+  }, [status]);
 
   // Show toast notification when account is linked via social sign-in
   useEffect(() => {
@@ -85,7 +65,7 @@ export default function Home() {
     );
   }
 
-  const isGuest = !user;
+  const isGuest = !session?.user;
 
   return (
     <div className="min-h-screen bg-background">

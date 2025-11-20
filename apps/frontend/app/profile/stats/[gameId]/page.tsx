@@ -2,6 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { Share2 } from "lucide-react";
@@ -171,7 +172,11 @@ export default function ProfileGameStatsPage({
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const response = await fetch("/api/auth/me");
+        // Disable browser caching - always fetch fresh session
+        const response = await fetch("/api/auth/me", {
+          cache: 'no-store',
+          credentials: 'include',
+        });
         const data = await response.json();
 
         if (response.ok && data.authenticated) {

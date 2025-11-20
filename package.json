@@ -29,6 +29,7 @@
   "module": "index.ts",
   "type": "module",
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
     "jose": "^6.1.2"
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
 import { useState, useEffect, Suspense } from "react";
 import { VerifyPageLayout } from "@/components/verify-page-layout";
 import { OTPForm } from "@/components/otp-form";
@@ -8,6 +9,7 @@ import { OTPForm } from "@/components/otp-form";
 function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
@@ -32,41 +34,27 @@ function VerifyEmailContent() {
       return;
     }
 
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        const data = await response.json();
+    // Set email from query if available
+    if (emailFromQuery) {
+      setEmail(emailFromQuery);
+      return;
+    }
 
-        if (data.authenticated && data.verified) {
-          // User is already verified - redirect to home
+    // For registration flow, check session
+    if (verificationType === "register") {
+      if (status === "loading") return;
+
+      // Use session directly - no need for API call
+      if (session?.user) {
+        // User is authenticated - redirect to home
           router.push("/");
           return;
         }
 
-        if (data.authenticated && !data.verified) {
-          // User is logged in but not verified - use their email
-          if (!emailFromQuery && data.user?.email) {
-            setEmail(data.user.email);
-          }
-        } else if (!data.authenticated && verificationType === "register") {
-          // Not authenticated and it's registration flow - redirect to login
+      // Not authenticated - redirect to login
           router.push("/login");
         }
-        // For login flow, allow unauthenticated (they're logging in)
-      } catch {
-        // Error checking auth - only redirect if it's registration flow
-        if (verificationType === "register") {
-          router.push("/login");
-        }
-      }
-    };
-
-    if (emailFromQuery) {
-      setEmail(emailFromQuery);
-    } else if (verificationType === "register") {
-      checkAuth();
-    }
-  }, [emailFromQuery, verificationType, router]);
+  }, [emailFromQuery, verificationType, session, status, router]);
 
   useEffect(() => {
     // Intercept form submission
@@ -93,20 +81,54 @@ function VerifyEmailContent() {
       }
 
       try {
-        // Use different endpoint based on verification type
-        const endpoint = verificationType === "login"
-          ? "/api/auth/verify-login"
-          : "/api/auth/verify-email";
+        if (verificationType === "login") {
+          // Login OTP flow: Backend verifies OTP and returns token + user
+          // Then we create NextAuth session directly using the token
+          const getBackendUrl = () => {
+            if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+            const port = Number(process.env.NEXT_PUBLIC_BACKEND_PORT);
+            if (!port) throw new Error("BACKEND_PORT must be set");
+            return `http://localhost:${port}`;
+          };
 
-        const response = await fetch(endpoint, {
+          // Verify OTP with backend - this returns token and user
+          const verifyResponse = await fetch(`${getBackendUrl()}/auth/verify-login`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, code: otpValue }),
+          });
+
+          const verifyResult = await verifyResponse.json();
+
+          if (!verifyResponse.ok) {
+            setError(verifyResult.error || "Verification failed");
+            return;
+          }
+
+          // OTP verified - backend returned token and user
+          // Now use this token as trustedDeviceToken to authenticate with NextAuth
+          // We'll call signIn with email and a dummy password, but the token will authenticate
+          const signInResult = await signIn("credentials", {
             email,
-            code: otpValue,
-          }),
+            password: "OTP_VERIFIED", // Dummy password - backend will use token instead
+            trustedDeviceToken: verifyResult.token,
+            redirect: false,
+          });
+
+          if (signInResult?.error) {
+            setError("Failed to create session. Please try logging in again.");
+            return;
+          }
+
+          // Session created - refresh and redirect
+          router.refresh();
+          router.push("/");
+        } else {
+          // Registration flow: Just verify email via backend
+          const response = await fetch("/api/auth/verify-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, code: otpValue }),
         });
 
         const result = await response.json();
@@ -116,15 +138,11 @@ function VerifyEmailContent() {
           return;
         }
 
-        // Success - email verified
-        // For registration flow, redirect to login (user can now log in)
-        // For login flow, user should already be authenticated
-        if (verificationType === "register") {
+          // Email verified - redirect to login
           router.push("/login?verified=true");
-        } else {
-          router.push("/");
         }
-      } catch {
+      } catch (err) {
+        console.error("Verification error:", err);
         setError("An error occurred. Please try again.");
       }
     };

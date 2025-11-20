@@ -7,7 +7,7 @@ interface SessionWithToken {
 		email?: string | null;
 		id?: string;
 	};
-	backendToken?: string;
+	accessToken?: string;
 }
 
 export async function GET() {
@@ -17,16 +17,16 @@ export async function GET() {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 
-		const backendToken = session.backendToken;
+		const accessToken = session.accessToken;
 
-		if (!backendToken) {
-			return NextResponse.json({ error: "No backend token available" }, { status: 401 });
+		if (!accessToken) {
+			return NextResponse.json({ error: "No access token available" }, { status: 401 });
 		}
 
 		// Call backend API
 		const response = await fetch(`${config.backendUrl}/user/me/linked-accounts`, {
 			headers: {
-				"Authorization": `Bearer ${backendToken}`,
+				"Authorization": `Bearer ${accessToken}`,
 			},
 		});
 

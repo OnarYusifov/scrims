@@ -18,17 +18,17 @@ export async function POST(request: NextRequest) {
 		const { provider } = unlinkSchema.parse(body);
 
 		// Call backend API
-		const backendToken = (session as { backendToken?: string }).backendToken;
+		const accessToken = (session as { accessToken?: string }).accessToken;
 
-		if (!backendToken) {
-			return NextResponse.json({ error: "No backend token available" }, { status: 401 });
+		if (!accessToken) {
+			return NextResponse.json({ error: "No access token available" }, { status: 401 });
 		}
 
 		const response = await fetch(`${config.backendUrl}/user/me/unlink`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"Authorization": `Bearer ${backendToken}`,
+				"Authorization": `Bearer ${accessToken}`,
 			},
 			body: JSON.stringify({ provider }),
 		});

@@ -15,28 +15,28 @@ model User {
   id                      String    @id @default(cuid())
   username                String    @unique
   email                   String    @unique
-  password                String?   // Nullable for social login users
-  image                   String?   // Profile picture URL (from OAuth providers)
-  discord                 String?   // Discord user ID or username
+  password                String? // Nullable for social login users
+  image                   String? // Profile picture URL (from OAuth providers)
+  discord                 String? // Discord user ID or username
   role                    String    @default("user") // user, admin, etc.
   emailVerified           DateTime? // DateTime for Auth.js compatibility (null = not verified, Date = verified)
-  verificationToken       String?   // Keep for backward compatibility, but use verificationCode
-  verificationCode        String?   // 6-digit OTP code for email verification
+  verificationToken       String? // Keep for backward compatibility, but use verificationCode
+  verificationCode        String? // 6-digit OTP code for email verification
   verificationCodeExpiry  DateTime? // OTP expiry (typically 10-15 minutes)
-  loginCode               String?   // 6-digit OTP code for login
+  loginCode               String? // 6-digit OTP code for login
   loginCodeExpiry         DateTime? // Login OTP expiry (typically 10-15 minutes)
-  passwordResetCode       String?   // 6-digit OTP code for password reset
+  passwordResetCode       String? // 6-digit OTP code for password reset
   passwordResetCodeExpiry DateTime? // Password reset OTP expiry (typically 10-15 minutes)
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
   // Auth.js relations
-  accounts                Account[]
-  sessions                Session[]
-  passwordHistory         PasswordHistory[]
-  
+  accounts        Account[]
+  sessions        Session[]
+  passwordHistory PasswordHistory[]
+
   // User badges
-  userBadges              UserBadge[]
+  userBadges UserBadge[]
 
   @@map("users")
 }
@@ -85,7 +85,7 @@ model VerificationToken {
 model PasswordHistory {
   id        String   @id @default(cuid())
   userId    String
-  password  String   // Hashed password
+  password  String // Hashed password
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -95,16 +95,16 @@ model PasswordHistory {
 
 // Badge definitions - managed by admin
 model Badge {
-  id          String      @id @default(cuid())
-  label       String      // e.g., "Early Member", "Founder", "Beta Tester"
-  variant     String      @default("default") // "default" | "secondary" | "destructive" | "outline"
-  icon        String?     // Optional icon identifier or emoji
-  description String?     // Description for admin panel
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
+  id          String   @id @default(cuid())
+  label       String // e.g., "Early Member", "Founder", "Beta Tester"
+  variant     String   @default("default") // "default" | "secondary" | "destructive" | "outline"
+  icon        String? // Optional icon identifier or emoji
+  description String? // Description for admin panel
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   // Many-to-many relationship with users
-  userBadges  UserBadge[]
+  userBadges UserBadge[]
 
   @@map("badges")
 }
@@ -115,13 +115,12 @@ model UserBadge {
   userId    String
   badgeId   String
   createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, badgeId]) // Prevent duplicate badges per user
   @@index([userId])
   @@index([badgeId])
   @@map("user_badges")
 }
-

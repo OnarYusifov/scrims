@@ -1,4 +1,4 @@
-import NextAuth, { type Session, type User } from "next-auth";
+import NextAuth, { type Session, type User, CredentialsSignin } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import type { AdapterUser } from "@auth/core/adapters";
 import type { Account } from "@auth/core/types";
@@ -9,51 +9,31 @@ import { z } from "zod";
 import { AUTH_ERROR_CODES } from "./lib/auth-codes";
 
 // Type extensions for custom properties
-interface UserWithBackendToken extends User {
+interface UserWithAccessToken extends User {
   role?: string;
-  backendToken?: string;
+  accessToken?: string | null;
 }
 
-interface SessionWithBackendToken extends Session {
-  backendToken?: string;
+interface SessionWithAccessToken extends Session {
+  accessToken?: string;
 }
 
-interface ErrorWithCode extends Error {
-  code: string;
+// Error classes extending CredentialsSignin from NextAuth
+// These errors will be automatically handled and stored in session.error
+class MissingCredentialsError extends CredentialsSignin {
+  override code = AUTH_ERROR_CODES.MISSING_CREDENTIALS;
 }
 
-// Custom error class for credentials signin errors
-class CredentialsSigninError extends Error {
-  code: string;
-  constructor(message: string, code: string) {
-    super(message);
-    this.name = "CredentialsSignin";
-    this.code = code;
-  }
+class InvalidCredentialsError extends CredentialsSignin {
+  override code = AUTH_ERROR_CODES.INVALID_CREDENTIALS;
 }
 
-class MissingCredentialsError extends CredentialsSigninError {
-  constructor() {
-    super("Missing credentials", AUTH_ERROR_CODES.MISSING_CREDENTIALS);
-  }
+class EmailNotVerifiedError extends CredentialsSignin {
+  override code = AUTH_ERROR_CODES.EMAIL_NOT_VERIFIED;
 }
 
-class InvalidCredentialsError extends CredentialsSigninError {
-  constructor() {
-    super("Invalid credentials", AUTH_ERROR_CODES.INVALID_CREDENTIALS);
-  }
-}
-
-class EmailNotVerifiedError extends CredentialsSigninError {
-  constructor() {
-    super("Email not verified", AUTH_ERROR_CODES.EMAIL_NOT_VERIFIED);
-  }
-}
-
-class AuthError extends CredentialsSigninError {
-  constructor() {
-    super("Authentication error", AUTH_ERROR_CODES.AUTH_ERROR);
-  }
+class AuthError extends CredentialsSignin {
+  override code = AUTH_ERROR_CODES.AUTH_ERROR;
 }
 
 export const loginSchema = z.object({
@@ -80,12 +60,44 @@ function getBackendUrl(): string {
   return `http://localhost:${port}`;
 }
 
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET,
   trustHost: true,
   basePath: "/api/auth",
   session: {
     strategy: "jwt",
+    maxAge: SESSION_MAX_AGE,
+  },
+  cookies: {
+    sessionToken: {
+      name: `authjs.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    callbackUrl: {
+      name: `authjs.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    csrfToken: {
+      name: `authjs.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
   },
   pages: {
     signIn: "/login",
@@ -131,28 +143,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
             if (errorData.error === "Email not verified") throw new EmailNotVerifiedError();
             if (errorData.requiresDeviceVerification) {
-              const error: ErrorWithCode = Object.assign(new Error("Device not trusted"), { code: "DEVICE_NOT_TRUSTED" });
-              throw error;
+              // Device verification required - throw invalid credentials for now
+              // Could create a specific error class for this later if needed
+              throw new InvalidCredentialsError();
             }
             throw new InvalidCredentialsError();
           }
 
           const data = await res.json();
 
-          // Store backend token in user object if available
-          const user: UserWithBackendToken = data.user;
-          if (data.token) {
-            user.backendToken = data.token;
-          }
+          // Store user data and access token
+          const user: UserWithAccessToken = {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.username,
+            role: data.user.role || "user",
+            accessToken: data.token || null,
+          };
 
           return user;
 
         } catch (error) {
-          // Log error for debugging
-          if (error instanceof Error && !(error instanceof CredentialsSigninError)) {
+          // Re-throw CredentialsSignin errors as-is (NextAuth will handle them)
+          if (error instanceof CredentialsSignin) {
+            throw error;
+          }
+          // Log unexpected errors
+          if (error instanceof Error) {
             console.error("[Auth] Credentials verification error:", error.message, error.stack);
           }
-          if (error instanceof CredentialsSigninError) throw error;
+          // For unexpected errors, throw AuthError
           throw new AuthError();
         }
       },
@@ -222,14 +242,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return false;
           }
 
-          // Store complete user data and JWT token in user object
+          // Store complete user data and access token in user object
           // These will be available in the JWT callback
-          const userWithToken = user as UserWithBackendToken;
+          const userWithToken = user as UserWithAccessToken;
           userWithToken.id = data.user.id;
           userWithToken.name = data.user.username;
           userWithToken.email = data.user.email;
           userWithToken.role = data.user.role;
-          userWithToken.backendToken = data.token; // Store JWT for backend API calls
+          userWithToken.accessToken = data.token; // Store access token for backend API calls
 
           console.log("[OAuth] User data stored successfully for:", user.email);
           return true;
@@ -243,33 +263,58 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user }: { token: JWT; user?: User | AdapterUser; account?: Account | null }) {
+    async jwt({ token, user, trigger, account }) {
       if (user) {
-        // Initial sign-in - store user data and backend JWT token
-        const userWithToken = user as UserWithBackendToken;
+        // Initial sign-in - store user data and access token
+        const userWithToken = user as UserWithAccessToken;
         token.id = user.id;
         token.email = user.email ?? undefined;
         token.username = user.name ?? undefined;
         token.role = userWithToken.role || "user";
+        token.accessToken = userWithToken.accessToken ?? undefined;
 
-        // Store backend JWT token if available (from OAuth login)
-        if (userWithToken.backendToken) {
-          token.backendToken = userWithToken.backendToken;
+        // Clear any previous errors on successful login
+        token.error = undefined;
         }
-      }
+
       return token;
     },
-    async session({ session, token }: { session: Session; token: JWT }) {
+    async session({ session, token }) {
+      // If token has error, pass it to session (for i18n support)
+      // Errors from CredentialsSignin in authorize() are caught by NextAuth
+      // and stored in token.error by NextAuth's internal handling
+      if (token.error) {
+        const error = token.error as { code: string; message: string };
+        if (error.code && error.message) {
+          session.error = {
+            code: error.code,
+            message: error.message,
+          };
+          return session;
+        }
+      }
+
+      // Check if access token exists (required for authenticated session)
+      if (!token?.accessToken) {
+        session.error = {
+          code: AUTH_ERROR_CODES.TOKEN_MISSING,
+          message: "No access token found",
+        };
+        return session;
+      }
+
+      // Populate session with user data from token
       if (session.user && token) {
-        const sessionWithToken = session as SessionWithBackendToken;
         session.user.id = token.id as string;
-        session.user.role = token.role as string;
         session.user.email = token.email as string;
         session.user.name = (token.username as string | null) ?? undefined;
+        session.user.role = token.role as string;
 
-        // Include backend token in session for API calls
-        sessionWithToken.backendToken = token.backendToken as string | undefined;
+        // Include access token in session for API calls
+        const sessionWithToken = session as SessionWithAccessToken;
+        sessionWithToken.accessToken = token.accessToken as string;
       }
+
       return session;
     },
   },
