@@ -1,6 +1,8 @@
 {
   "name": "trayb",
+  "version": "1.0.0",
   "private": true,
+  "license": "UNLICENSED",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
