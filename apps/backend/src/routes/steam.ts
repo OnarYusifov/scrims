@@ -126,8 +126,17 @@ export async function steamRoutes(fastify: FastifyInstance) {
                 fastify.log.info(`[Dev Mode] Using manual Steam ID: ${steamId}`);
             } else {
                 // Production mode: Verify OpenID assertion
-                fastify.log.info(`[Production Mode] Verifying OpenID assertion`);
-                steamId = await verifySteamOpenId(params);
+                // Construct the full request URL with query parameters for verification
+                // The openid library's verifyAssertion expects a request object or URL
+                const protocol = request.headers["x-forwarded-proto"] || 
+                    ((request.socket as { encrypted?: boolean }).encrypted ? "https" : "http");
+                const host = request.headers.host || "api.trayb.az";
+                
+                // Build the full request URL including query parameters
+                const requestUrl = `${protocol}://${host}${request.url}`;
+                
+                fastify.log.info(`[Production Mode] Verifying OpenID assertion with requestUrl: ${requestUrl}`);
+                steamId = await verifySteamOpenId(params, requestUrl);
             }
 
             if (!steamId) {

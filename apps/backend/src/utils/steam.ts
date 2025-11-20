@@ -38,15 +38,23 @@ interface SteamAPIResponse {
 /**
  * Verify Steam OpenID assertion
  * @param params Query parameters from the callback request
+ * @param requestUrl The full request URL (protocol + host + path + query) - required for verification
  * @returns Steam ID if verified, null otherwise
  */
-export const verifySteamOpenId = async (params: Record<string, string>): Promise<string | null> => {
+export const verifySteamOpenId = async (
+    params: Record<string, string>,
+    requestUrl: string
+): Promise<string | null> => {
     // The return_to URL must match what was sent in the original request
     // We extract it from the params themselves as Steam echoes it back
     const returnUrl = params["openid.return_to"];
 
     if (!returnUrl) {
         throw new Error("Missing openid.return_to parameter");
+    }
+
+    if (!requestUrl) {
+        throw new Error("requestUrl is required for OpenID verification");
     }
 
     const relyingParty = new openid.RelyingParty(
@@ -57,8 +65,17 @@ export const verifySteamOpenId = async (params: Record<string, string>): Promise
         [] // Extensions
     );
 
+    // verifyAssertion can accept a URL string or a request object
+    // We'll construct a request-like object that the library expects
+    // The library checks for .method property, so we need to provide a request object
+    const requestObject = {
+        method: "GET",
+        url: requestUrl,
+        headers: {},
+    };
+
     return new Promise((resolve, reject) => {
-        relyingParty.verifyAssertion(params, (error, result) => {
+        relyingParty.verifyAssertion(requestObject, (error, result) => {
             if (error) {
                 return reject(error);
             }
