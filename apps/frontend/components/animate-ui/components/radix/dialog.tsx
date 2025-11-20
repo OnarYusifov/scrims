@@ -29,6 +29,8 @@ function DialogOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  // Extract props that might conflict with motion.div
+  const { onDrag, onDragEnd, onDragStart, ...motionProps } = props;
   return (
     <DialogPrimitive.Overlay asChild data-slot="dialog-overlay">
       <motion.div
@@ -40,7 +42,7 @@ function DialogOverlay({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
-        {...props}
+        {...(motionProps as React.ComponentProps<typeof motion.div>)}
       />
     </DialogPrimitive.Overlay>
   );
