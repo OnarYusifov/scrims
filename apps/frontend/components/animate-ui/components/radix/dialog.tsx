@@ -30,7 +30,8 @@ function DialogOverlay({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   // Extract props that might conflict with motion.div
-  const { onDrag, onDragEnd, onDragStart, ...motionProps } = props;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { onDrag: _onDrag, onDragEnd: _onDragEnd, onDragStart: _onDragStart, ...motionProps } = props;
   return (
     <DialogPrimitive.Overlay asChild data-slot="dialog-overlay">
       <motion.div
