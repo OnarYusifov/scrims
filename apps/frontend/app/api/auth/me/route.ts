@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { config } from "@/lib/config";
 
 /**
  * Get current user endpoint - uses Auth.js session
- * 
- * Returns:
- * - authenticated: boolean
- * - verified: boolean (emailVerified !== null)
- * - user: user object if authenticated
+ * Now uses backend JWT token for authentication
  */
 export async function GET(_request: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth() as any;
 
     if (!session?.user) {
       return NextResponse.json(
@@ -20,46 +17,29 @@ export async function GET(_request: NextRequest) {
       );
     }
 
-    // Check if email is verified (emailVerified is DateTime, null = not verified)
-    // We need to check the database for this
-    const { prisma } = await import("@trayb/db");
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email! },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        role: true,
-        emailVerified: true,
-        createdAt: true,
-        accounts: {
-          select: {
-            provider: true,
-            providerAccountId: true,
-          },
-        },
-      },
-    });
+    // If we have a backend token (from OAuth), use it
+    const backendToken = session.backendToken;
 
-    if (!user) {
-      return NextResponse.json(
-        { authenticated: false, verified: false },
-        { status: 401 }
-      );
+    if (backendToken) {
+      // Call backend with JWT token
+      const response = await fetch(`${config.backendUrl}/auth/me`, {
+        headers: {
+          "Authorization": `Bearer ${backendToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return NextResponse.json(data);
+      }
     }
 
-    return NextResponse.json({
-      authenticated: true,
-      verified: user.emailVerified !== null,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        createdAt: user.createdAt.toISOString(),
-        accounts: user.accounts,
-      },
-    });
+    // If no backend token or backend call failed, return 401
+    // We no longer fallback to session data as we want to enforce backend verification
+    return NextResponse.json(
+      { authenticated: false, verified: false },
+      { status: 401 }
+    );
   } catch (error) {
     console.error("Auth check error:", error);
     return NextResponse.json(
@@ -68,4 +48,3 @@ export async function GET(_request: NextRequest) {
     );
   }
 }
-

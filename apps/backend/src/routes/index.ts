@@ -1,10 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { authRoutes } from "./auth.js";
+import { oauthRoutes } from "./oauth.js";
+import { steamRoutes } from "./steam.js";
+import { userRoutes } from "./user.js";
 import { prisma } from "@trayb/db";
 import { jwtVerify } from "jose";
-import { 
-  loginSchema, 
+import {
+  loginSchema,
   verifyLoginSchema,
   resendVerificationSchema,
 } from "@trayb/types";
@@ -98,7 +101,10 @@ export async function registerRoutes(fastify: FastifyInstance) {
       response: {
         200: {
           type: "object",
-          properties: { success: { type: "boolean" } },
+          properties: {
+            success: { type: "boolean" },
+            token: { type: "string" }
+          },
         },
       },
     },
@@ -114,7 +120,17 @@ export async function registerRoutes(fastify: FastifyInstance) {
       }
       // One-time use
       await prisma.verificationToken.deleteMany({ where: { identifier } });
-      return { success: true };
+
+      // Generate trusted device token
+      const secret = new TextEncoder().encode(
+        process.env.JWT_SECRET || "your-secret-key"
+      );
+      const expMs = Date.now() + 14 * 24 * 60 * 60 * 1000; // 14 days
+      const token = await new SignJWT({ email, deviceId, expMs })
+        .setProtectedHeader({ alg: "HS256" })
+        .sign(secret);
+
+      return { success: true, token };
     } catch (error) {
       fastify.log.error(error);
       return reply.code(400 as any).send({ error: "Verification failed" });
@@ -123,6 +139,9 @@ export async function registerRoutes(fastify: FastifyInstance) {
 
   // Register auth routes
   await fastify.register(authRoutes);
+  await fastify.register(oauthRoutes);
+  await fastify.register(steamRoutes);
+  await fastify.register(userRoutes);
 
   // Health check
   fastify.get("/health", {
@@ -291,9 +310,9 @@ export async function registerRoutes(fastify: FastifyInstance) {
 
       // Check if email is verified
       if (!user.emailVerified) {
-        return reply.code(403 as any).send({ 
+        return reply.code(403 as any).send({
           error: "Email not verified. Please check your email for the verification link.",
-          requiresVerification: true 
+          requiresVerification: true
         });
       }
 
@@ -320,8 +339,8 @@ export async function registerRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error({ err: error }, "Failed to send login OTP email");
-        return reply.code(500 as any).send({ 
-          error: "Failed to send login verification code. Please try again." 
+        return reply.code(500 as any).send({
+          error: "Failed to send login verification code. Please try again."
         });
       }
 
@@ -334,16 +353,151 @@ export async function registerRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400 as any).send({ 
-          error: error.message || "Login failed. Please check your credentials and try again." 
+        return reply.code(400 as any).send({
+          error: error.message || "Login failed. Please check your credentials and try again."
         });
       }
-      return reply.code(400 as any).send({ 
-        error: "Login failed. Please check your credentials and try again." 
+      return reply.code(400 as any).send({
+        error: "Login failed. Please check your credentials and try again."
       });
     }
   });
+  // Verify credentials endpoint (for NextAuth Credentials provider)
+  // This checks email/password and returns user info WITHOUT sending OTP
+  // Used by frontend to establish session
+  fastify.post("/auth/verify-credentials", {
+    schema: {
+      tags: ["auth"],
+      summary: "Verify credentials for NextAuth",
+      body: {
+        type: "object",
+        properties: {
+          email: { type: "string", format: "email" },
+          password: { type: "string" },
+          deviceId: { type: "string" },
+          trustedDeviceToken: { type: "string" },
+        },
+        required: ["email", "password"],
+      },
+      response: {
+        200: {
+          type: "object",
+          properties: {
+            token: { type: "string" },
+            user: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                username: { type: "string" },
+                email: { type: "string" },
+                role: { type: "string" },
+              },
+            },
+          },
+        },
+        401: {
+          type: "object",
+          properties: {
+            error: { type: "string" },
+          },
+        },
+        403: {
+          type: "object",
+          properties: {
+            error: { type: "string" },
+            requiresDeviceVerification: { type: "boolean" },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    try {
+      const body = request.body as any; // Using any to avoid strict schema validation issues for now
 
+      // Device verification check
+      if (body.deviceId) {
+        if (!body.trustedDeviceToken) {
+          return reply.code(403).send({
+            error: "Device not trusted",
+            requiresDeviceVerification: true
+          });
+        }
+
+        try {
+          const secret = new TextEncoder().encode(
+            process.env.JWT_SECRET || "your-secret-key"
+          );
+          const { payload } = await jwtVerify(body.trustedDeviceToken, secret);
+
+          // Type guard for trusted device payload
+          type TrustedDevicePayload = {
+            email?: string;
+            deviceId?: string;
+            expMs?: number;
+          };
+
+          const devicePayload = payload as TrustedDevicePayload;
+          const valid =
+            devicePayload.email === body.email &&
+            devicePayload.deviceId === body.deviceId &&
+            typeof devicePayload.expMs === "number" &&
+            devicePayload.expMs > Date.now();
+
+          if (!valid) {
+            throw new Error("Invalid device token");
+          }
+        } catch (err) {
+          return reply.code(403).send({
+            error: "Device not trusted",
+            requiresDeviceVerification: true
+          });
+        }
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { email: body.email },
+      });
+
+      if (!user || !user.password) {
+        return reply.code(401).send({ error: "Invalid credentials" });
+      }
+
+      const isValidPassword = await bcrypt.compare(body.password, user.password);
+      if (!isValidPassword) {
+        return reply.code(401).send({ error: "Invalid credentials" });
+      }
+
+      if (!user.emailVerified) {
+        return reply.code(401).send({ error: "Email not verified" });
+      }
+
+      // Generate JWT token (same as verify-login endpoint)
+      const secret = new TextEncoder().encode(
+        process.env.JWT_SECRET || "your-secret-key"
+      );
+      const token = await new SignJWT({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      })
+        .setProtectedHeader({ alg: "HS256" })
+        .setExpirationTime(process.env.JWT_EXPIRES_IN || "7d")
+        .sign(secret);
+
+      return {
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+        },
+      };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(401).send({ error: "Authentication failed" });
+    }
+  });
   // Verify login OTP endpoint
   fastify.post("/auth/verify-login", {
     schema: {
@@ -392,8 +546,8 @@ export async function registerRoutes(fastify: FastifyInstance) {
       });
 
       if (!user) {
-        return reply.code(400 as any).send({ 
-          error: "Invalid or expired login code" 
+        return reply.code(400 as any).send({
+          error: "Invalid or expired login code"
         });
       }
 
@@ -432,12 +586,12 @@ export async function registerRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400 as any).send({ 
-          error: error.message || "Login verification failed. Please check the code and try again." 
+        return reply.code(400 as any).send({
+          error: error.message || "Login verification failed. Please check the code and try again."
         });
       }
-      return reply.code(400 as any).send({ 
-        error: "Login verification failed. Please check the code and try again." 
+      return reply.code(400 as any).send({
+        error: "Login verification failed. Please check the code and try again."
       });
     }
   });
@@ -474,14 +628,14 @@ export async function registerRoutes(fastify: FastifyInstance) {
 
       if (!user) {
         // Don't reveal if email exists or not for security
-        return reply.code(200).send({ 
-          message: "If an account exists with this email, a login code has been sent." 
+        return reply.code(200).send({
+          message: "If an account exists with this email, a login code has been sent."
         });
       }
 
       if (!user.emailVerified) {
-        return reply.code(400 as any).send({ 
-          error: "Email is not verified. Please verify your email first." 
+        return reply.code(400 as any).send({
+          error: "Email is not verified. Please verify your email first."
         });
       }
 
@@ -508,8 +662,8 @@ export async function registerRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error({ err: error }, "Failed to send login OTP email");
-        return reply.code(500 as any).send({ 
-          error: "Failed to send login code" 
+        return reply.code(500 as any).send({
+          error: "Failed to send login code"
         });
       }
 
@@ -519,12 +673,12 @@ export async function registerRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400 as any).send({ 
-          error: error.message || "Failed to resend login code. Please try again." 
+        return reply.code(400 as any).send({
+          error: error.message || "Failed to resend login code. Please try again."
         });
       }
-      return reply.code(400 as any).send({ 
-        error: "Failed to resend login code. Please try again." 
+      return reply.code(400 as any).send({
+        error: "Failed to resend login code. Please try again."
       });
     }
   });

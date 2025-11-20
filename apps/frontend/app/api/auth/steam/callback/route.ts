@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@trayb/db";
-import { extractSteamId, getSteamProfile } from "@/lib/steam-provider";
-import openid from "openid";
+import { config } from "@/lib/config";
 import { buildExternalUrl, resolveSteamOrigin } from "../utils";
 
 /**
@@ -14,140 +12,42 @@ export async function GET(request: NextRequest) {
 
   try {
     const session = await auth();
-    const searchParams = request.nextUrl.searchParams;
 
     if (!session?.user?.id) {
       return NextResponse.redirect(buildUrl("/login?error=unauthorized"));
     }
-    const isDevMode = searchParams.get("dev") === "true";
-    const manualSteamId = searchParams.get("steamId");
 
-    let steamId: string | null = null;
-
-    // Development mode: Use manual Steam ID (skip OpenID verification)
-    if (isDevMode && manualSteamId && process.env.NODE_ENV === "development") {
-      steamId = manualSteamId;
-      console.log("[DEV MODE] Using manual Steam ID:", steamId);
-    } else {
-      // Production mode: Extract Steam ID from OpenID response
-      const claimedId = searchParams.get("openid.claimed_id");
-      steamId = extractSteamId(claimedId);
-
-      if (!steamId) {
-        return NextResponse.redirect(buildUrl("/profile?error=steam_auth_failed"));
-      }
-
-      // Verify OpenID response (skip in dev mode)
-      const returnUrl = new URL("/api/auth/steam/callback", origin).toString();
-      const realm = origin;
-      const relyingParty = new openid.RelyingParty(
-        returnUrl,
-        realm,
-        true,
-        true,
-        []
-      );
-
-      // Build the assertion URL with all OpenID parameters
-      const assertionUrl = buildExternalUrl(request, origin);
-
-      const isValid = await new Promise<boolean>((resolve) => {
-        relyingParty.verifyAssertion(assertionUrl, (error, result) => {
-          if (error || !result || !result.authenticated) {
-            console.error("OpenID verification error:", error);
-            resolve(false);
-            return;
-          }
-          resolve(true);
-        });
-      });
-
-      if (!isValid) {
-        return NextResponse.redirect(
-          buildUrl("/profile?error=steam_verification_failed")
-        );
-      }
-    }
-
-    // Check if Steam account is already linked to another user
-    const existingAccount = await prisma.account.findFirst({
-      where: {
-        provider: "steam",
-        providerAccountId: steamId,
-      },
+    // Forward all search params to the backend
+    const searchParams = request.nextUrl.searchParams;
+    const backendUrl = new URL(`${config.backendUrl}/auth/steam/callback`);
+    searchParams.forEach((value, key) => {
+      backendUrl.searchParams.append(key, value);
     });
 
-    if (existingAccount && existingAccount.userId !== session.user.id) {
-      return NextResponse.redirect(
-        buildUrl("/profile?error=steam_already_linked")
-      );
-    }
+    // Add user ID to the backend request
+    backendUrl.searchParams.append("userId", session.user.id);
 
-    // Get Steam profile (skip in dev mode if API key is not set)
-    let steamProfile = null;
-    if (isDevMode && !process.env.STEAM_API_KEY) {
-      console.log("[DEV MODE] Skipping Steam profile fetch (no API key)");
-      // Create a minimal profile for dev mode
-      steamProfile = {
-        steamid: steamId,
-        personaname: `Steam User ${steamId.slice(-4)}`,
-        profileurl: `https://steamcommunity.com/profiles/${steamId}`,
-        avatar: "",
-        avatarmedium: "",
-        avatarfull: "",
-        personastate: 0,
-        communityvisibilitystate: 1,
-        profilestate: 0,
-        lastlogoff: Math.floor(Date.now() / 1000),
-        commentpermission: 0,
-      };
-    } else {
-      steamProfile = await getSteamProfile(steamId);
-      if (!steamProfile) {
-        return NextResponse.redirect(
-          buildUrl("/profile?error=steam_profile_failed")
-        );
+    // Call backend to handle verification and linking
+    const response = await fetch(backendUrl.toString(), {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        // Pass the auth token if available, though the backend might rely on the openid params
+        ...(session as any).backendToken ? { "Authorization": `Bearer ${(session as any).backendToken}` } : {}
       }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Backend Steam callback failed:", response.status, errorText);
+      return NextResponse.redirect(buildUrl("/profile?error=steam_callback_failed"));
     }
 
-    // Link or update Steam account
-    await prisma.account.upsert({
-      where: {
-        provider_providerAccountId: {
-          provider: "steam",
-          providerAccountId: steamId,
-        },
-      },
-      create: {
-        userId: session.user.id,
-        type: "oauth",
-        provider: "steam",
-        providerAccountId: steamId,
-        access_token: steamId,
-        expires_at: null,
-        token_type: "bearer",
-        scope: null,
-        id_token: null,
-        session_state: null,
-      },
-      update: {
-        userId: session.user.id,
-        access_token: steamId,
-        expires_at: null,
-        token_type: "bearer",
-        scope: null,
-        id_token: null,
-        session_state: null,
-      },
-    });
+    const data = await response.json();
 
-    // Update user with Steam info if needed
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        // You can store Steam-specific data here if needed
-      },
-    });
+    if (data.error) {
+      return NextResponse.redirect(buildUrl(`/profile?error=${data.error}`));
+    }
 
     return NextResponse.redirect(buildUrl("/profile?steam_linked=true"));
   } catch (error) {

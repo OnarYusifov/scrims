@@ -26,7 +26,7 @@ export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
   const [otpValue, setOtpValue] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [_isResending, setIsResending] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   const emailFromQuery = searchParams.get("email") || "";
@@ -119,7 +119,7 @@ export default function ResetPasswordPage() {
 
     const handleResend = async (e: Event) => {
       e.preventDefault();
-      
+
       if (!email) {
         setError("Email is required to resend code");
         return;
@@ -162,7 +162,7 @@ export default function ResetPasswordPage() {
     try {
       // Hash password before sending to API
       const hashedPassword = await hashPassword(data.password);
-      
+
       const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: {
@@ -211,11 +211,10 @@ export default function ResetPasswordPage() {
           )}
           {resendMessage && (
             <div
-              className={`rounded-md p-3 text-sm text-center ${
-                resendMessage.includes("sent")
+              className={`rounded - md p - 3 text - sm text - center ${resendMessage.includes("sent")
                   ? "bg-green-500/15 text-green-700 dark:text-green-400"
                   : "bg-destructive/15 text-destructive"
-              }`}
+                } `}
             >
               {resendMessage}
             </div>
@@ -250,7 +249,7 @@ export default function ResetPasswordPage() {
             <FormField
               control={passwordForm.control}
               name="password"
-                    render={({ field }: { field: ControllerRenderProps<ResetPasswordInput, keyof ResetPasswordInput> }) => (
+              render={({ field }: { field: ControllerRenderProps<ResetPasswordInput, keyof ResetPasswordInput> }) => (
                 <FormItem>
                   <FormLabel>New Password</FormLabel>
                   <FormControl>
@@ -267,7 +266,7 @@ export default function ResetPasswordPage() {
             <FormField
               control={passwordForm.control}
               name="confirmPassword"
-                    render={({ field }: { field: ControllerRenderProps<ResetPasswordInput, keyof ResetPasswordInput> }) => (
+              render={({ field }: { field: ControllerRenderProps<ResetPasswordInput, keyof ResetPasswordInput> }) => (
                 <FormItem>
                   <FormLabel>Confirm New Password</FormLabel>
                   <FormControl>

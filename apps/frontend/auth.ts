@@ -1,15 +1,29 @@
-import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "@trayb/db";
+import NextAuth, { type Session, type User } from "next-auth";
+import type { JWT } from "next-auth/jwt";
+import type { AdapterUser } from "@auth/core/adapters";
+import type { Account } from "@auth/core/types";
 import Credentials from "next-auth/providers/credentials";
 import Discord from "next-auth/providers/discord";
 import Google from "next-auth/providers/google";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { AUTH_ERROR_CODES } from "./lib/auth-codes";
+import { config } from "./lib/config";
+
+// Type extensions for custom properties
+interface UserWithBackendToken extends User {
+  role?: string;
+  backendToken?: string;
+}
+
+interface SessionWithBackendToken extends Session {
+  backendToken?: string;
+}
+
+interface ErrorWithCode extends Error {
+  code: string;
+}
 
 // Custom error class for credentials signin errors
-// NextAuth v5 doesn't export CredentialsSignin, so we create our own
 class CredentialsSigninError extends Error {
   code: string;
   constructor(message: string, code: string) {
@@ -19,7 +33,6 @@ class CredentialsSigninError extends Error {
   }
 }
 
-// Custom error classes with error codes
 class MissingCredentialsError extends CredentialsSigninError {
   constructor() {
     super("Missing credentials", AUTH_ERROR_CODES.MISSING_CREDENTIALS);
@@ -44,45 +57,24 @@ class AuthError extends CredentialsSigninError {
   }
 }
 
-/**
- * Auth.js Configuration
- * 
- * How OTP is generated/stored/validated:
- * 1. On email/password signup: Generate 6-digit OTP → Store in VerificationToken table → Send via Resend
- * 2. User enters OTP → Verify against VerificationToken → Mark emailVerified = new Date()
- * 3. OTP expires after 15 minutes (handled by VerificationToken.expires)
- * 
- * How social login skips OTP:
- * - Discord/Google providers automatically set emailVerified = new Date() on first login
- * - This happens in the signIn callback when account is created via OAuth
- * - No OTP is generated or sent for social logins
- * 
- * How Resend sends branded email:
- * - Backend utility (sendOTP.ts) renders React Email template (VerificationOTP.tsx)
- * - Template includes Trayb branding, styled OTP display, and verification link
- * - Resend API sends the rendered HTML email
- */
-
-const loginSchema = z.object({
+export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  deviceId: z.string().optional(),
+  trustedDeviceToken: z.string().optional(),
 });
 
-// @ts-expect-error - NextAuth v5 type definitions may not match runtime
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
   secret: process.env.AUTH_SECRET,
-  trustHost: true, // Required for OAuth to work properly
-  // Explicitly set base URL for OAuth callbacks
+  trustHost: true,
   basePath: "/api/auth",
-  baseUrl: process.env.AUTH_URL || process.env.NEXTAUTH_URL || process.env.FRONTEND_URL,
   session: {
     strategy: "jwt",
   },
   pages: {
     signIn: "/login",
     verifyRequest: "/verify-email",
-    error: "/login", // Redirect errors to login page
+    error: "/login",
   },
   providers: [
     Credentials({
@@ -93,87 +85,52 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         try {
-          // Check if credentials are provided
           if (!credentials?.email || !credentials?.password) {
             throw new MissingCredentialsError();
           }
 
-          const { email, password } = loginSchema.parse(credentials);
+          const { email, password, deviceId, trustedDeviceToken } = loginSchema.parse(credentials);
 
-          // Find user by email
-          const user = await prisma.user.findUnique({
-            where: { email },
+          // Call Backend API to verify credentials
+          const res = await fetch(`${config.backendUrl}/auth/verify-credentials`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password, deviceId, trustedDeviceToken }),
           });
 
-          if (!user) {
-            // Don't reveal if user exists for security - throw invalid credentials
+          const data = await res.json();
+
+          if (!res.ok) {
+            if (data.error === "Email not verified") throw new EmailNotVerifiedError();
+            if (data.requiresDeviceVerification) {
+              const error: ErrorWithCode = Object.assign(new Error("Device not trusted"), { code: "DEVICE_NOT_TRUSTED" });
+              throw error;
+            }
             throw new InvalidCredentialsError();
           }
 
-          if (!user.password) {
-            // User exists but has no password (social login only)
-            throw new InvalidCredentialsError();
+          // Store backend token in user object if available
+          const user: UserWithBackendToken = data.user;
+          if (data.token) {
+            user.backendToken = data.token;
           }
 
-          // Verify password using bcrypt.compare
-          // Login sends plain password (encrypted by HTTPS), registration sends hashed password
-          // Check if the stored password is a bcrypt hash
-          const storedIsBcryptHash = user.password.match(/^\$2[ayb]\$/);
-          const providedIsBcryptHash = password.match(/^\$2[ayb]\$/);
-          
-          let isValidPassword = false;
-          
-          if (providedIsBcryptHash && storedIsBcryptHash) {
-            // Both are bcrypt hashes - compare directly (for registration flow)
-            isValidPassword = password === user.password;
-          } else if (!providedIsBcryptHash && storedIsBcryptHash) {
-            // Plain password provided, stored is bcrypt hash - use bcrypt.compare (for login)
-            isValidPassword = await bcrypt.compare(password, user.password);
-          } else {
-            // Fallback: direct comparison (for backwards compatibility)
-            isValidPassword = password === user.password;
-          }
-          
-          if (!isValidPassword) {
-            throw new InvalidCredentialsError();
-          }
+          return user;
 
-          // Check if email is verified (emailVerified is DateTime, null = not verified)
-          if (!user.emailVerified) {
-            // User exists but email not verified - throw error with code
-            throw new EmailNotVerifiedError();
-          }
-
-          // Clear any previous errors on successful login
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.username,
-            role: user.role,
-          };
         } catch (error) {
-          // Re-throw CredentialsSignin errors as-is (they have error codes)
-          if (error instanceof CredentialsSigninError) {
-            throw error;
-          }
-          // For other errors, throw generic AuthError
-          console.error("[auth] Authorize error:", error);
+          if (error instanceof CredentialsSigninError) throw error;
           throw new AuthError();
         }
       },
     }),
     Discord({
-      clientId: process.env.DISCORD_CLIENT_ID!,
-      clientSecret: process.env.DISCORD_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          scope: "identify email",
-        },
-      },
+      clientId: process.env.DISCORD_CLIENT_ID,
+      clientSecret: process.env.DISCORD_CLIENT_SECRET,
+      authorization: { params: { scope: "identify email" } },
     }),
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       authorization: {
         params: {
           scope: "openid email profile",
@@ -185,329 +142,99 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async signIn({ user, account }: { user: any; account: any }) {
-      // Social login (Discord/Google) - auto-verify email
+    async signIn({ user, account }: { user: User | AdapterUser; account?: Account | null }) {
       if (account?.provider === "discord" || account?.provider === "google") {
-        // Log OAuth attempt for debugging
-        console.log(`[auth] OAuth signIn attempt: provider=${account?.provider}, email=${user?.email}`);
-        
-        // Ensure user has email
-        if (!user.email) {
-          console.error("[auth] OAuth user missing email:", user);
+        try {
+          const res = await fetch(`${config.backendUrl}/auth/oauth-callback`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user: {
+                email: user.email,
+                name: user.name,
+                image: user.image ?? undefined,
+              },
+              account: {
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                type: account.type,
+                access_token: account.access_token,
+                refresh_token: account.refresh_token,
+                expires_at: account.expires_at,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+                session_state: account.session_state,
+              },
+            }),
+          });
+
+          console.log("[OAuth] Backend response status:", res.status);
+
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.error("[OAuth] Backend error:", res.status, errorText);
+            return false;
+          }
+
+          const data = await res.json();
+          console.log("[OAuth] Backend response data:", JSON.stringify(data, null, 2));
+
+          // Check if we have the expected data structure
+          if (!data.user) {
+            console.error("[OAuth] Missing user in response:", data);
+            return false;
+          }
+
+          // Store complete user data and JWT token in user object
+          // These will be available in the JWT callback
+          const userWithToken = user as UserWithBackendToken;
+          userWithToken.id = data.user.id;
+          userWithToken.name = data.user.username;
+          userWithToken.email = data.user.email;
+          userWithToken.role = data.user.role;
+          userWithToken.backendToken = data.token; // Store JWT for backend API calls
+
+          console.log("[OAuth] User data stored successfully for:", user.email);
+          return true;
+        } catch (e) {
+          console.error("[OAuth] Callback error:", e);
+          if (e instanceof Error) {
+            console.error("[OAuth] Error stack:", e.stack);
+          }
           return false;
         }
-
-        // Try to find an existing user by email
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email },
-        });
-
-        // If user with this email already exists, link the account and sign in as that user
-        if (existingUser) {
-          // Ensure email is verified
-          if (!existingUser.emailVerified) {
-            await prisma.user.update({
-              where: { id: existingUser.id },
-              data: { emailVerified: new Date() },
-            });
-          }
-
-          // Check if an account record already exists for this provider+providerAccountId
-          const existingAccount = await prisma.account.findFirst({
-            where: {
-              provider: account.provider,
-              providerAccountId: account.providerAccountId!,
-            },
-          });
-
-          if (existingAccount) {
-            // Account exists - check if it's linked to the correct user
-            if (existingAccount.userId !== existingUser.id) {
-              // Reassign account to this user (edge case if previously linked elsewhere)
-              await prisma.account.update({
-                where: { id: existingAccount.id },
-                data: { userId: existingUser.id },
-              });
-            }
-            // Account is already linked - set user.id so adapter uses existing user
-            if (user && typeof user === 'object') {
-              (user as { id?: string }).id = existingUser.id;
-            }
-          } else {
-            // Account doesn't exist yet - create it manually linked to existing user
-            // This prevents OAuthAccountNotLinked error from the adapter
-            try {
-              // Type for OAuth account with token fields
-              type OAuthAccount = typeof account & {
-                access_token?: string | null;
-                refresh_token?: string | null;
-                expires_at?: number | null;
-                token_type?: string | null;
-                scope?: string | null;
-                id_token?: string | null;
-                session_state?: string | null;
-              };
-              
-              const oauthAccount = account as OAuthAccount;
-              await prisma.account.create({
-                data: {
-                  userId: existingUser.id,
-                  type: account.type,
-                  provider: account.provider,
-                  providerAccountId: account.providerAccountId!,
-                  access_token: oauthAccount.access_token || null,
-                  refresh_token: oauthAccount.refresh_token || null,
-                  expires_at: oauthAccount.expires_at || null,
-                  token_type: oauthAccount.token_type || null,
-                  scope: oauthAccount.scope || null,
-                  id_token: oauthAccount.id_token || null,
-                  session_state: oauthAccount.session_state || null,
-                },
-              });
-            } catch (error) {
-              // Handle race condition - account might have been created between check and create
-              const prismaError = error as { code?: string; message?: string };
-              if (prismaError?.code === "P2002" || prismaError?.message?.includes("Unique constraint")) {
-                // Account was created by another process - verify it's linked correctly
-                const createdAccount = await prisma.account.findFirst({
-                  where: {
-                    provider: account.provider,
-                    providerAccountId: account.providerAccountId!,
-                  },
-                });
-                if (createdAccount && createdAccount.userId !== existingUser.id) {
-                  // Reassign to correct user
-                  await prisma.account.update({
-                    where: { id: createdAccount.id },
-                    data: { userId: existingUser.id },
-                  });
-                }
-              } else {
-                // Re-throw other errors
-                throw error;
-              }
-            }
-            // Set user.id so adapter uses existing user for session
-            if (user && typeof user === 'object') {
-              (user as { id?: string }).id = existingUser.id;
-            }
-          }
-          // Allow sign in - account is now linked, adapter will create session
-          return true;
-        }
-        
-        // No existing user by email - create user manually with username before adapter tries
-        // Generate username from email or OAuth name
-        const emailPrefix = user.email.split("@")[0] || "user";
-        let username = (user.name || emailPrefix)
-          .toLowerCase()
-          .replace(/[^a-z0-9_]/g, "")
-          .substring(0, 20);
-        
-        // If username is empty or too short, use email prefix
-        if (!username || username.length < 3) {
-          username = emailPrefix.substring(0, 20);
-        }
-        
-        // Ensure username is unique - append random number if needed
-        let finalUsername = username;
-        let counter = 0;
-        while (counter < 100) {
-          const existing = await prisma.user.findUnique({
-            where: { username: finalUsername },
-          });
-          
-          if (!existing) break;
-          
-          finalUsername = `${username}${Math.floor(Math.random() * 1000)}`;
-          counter++;
-        }
-        
-        // Create user with username before adapter tries
-        const newUser = await prisma.user.create({
-          data: {
-            username: finalUsername,
-            email: user.email,
-            emailVerified: new Date(), // OAuth providers verify emails
-            role: "user",
-          },
-        });
-        
-        // Set user.id so adapter uses the user we just created
-        if (user && typeof user === 'object') {
-          (user as { id?: string }).id = newUser.id;
-        }
-        
-        // Create the account record manually
-        try {
-          type OAuthAccount = typeof account & {
-            access_token?: string | null;
-            refresh_token?: string | null;
-            expires_at?: number | null;
-            token_type?: string | null;
-            scope?: string | null;
-            id_token?: string | null;
-            session_state?: string | null;
-          };
-          
-          const oauthAccount = account as OAuthAccount;
-          await prisma.account.create({
-            data: {
-              userId: newUser.id,
-              type: account.type,
-              provider: account.provider,
-              providerAccountId: account.providerAccountId!,
-              access_token: oauthAccount.access_token || null,
-              refresh_token: oauthAccount.refresh_token || null,
-              expires_at: oauthAccount.expires_at || null,
-              token_type: oauthAccount.token_type || null,
-              scope: oauthAccount.scope || null,
-              id_token: oauthAccount.id_token || null,
-              session_state: oauthAccount.session_state || null,
-            },
-          });
-        } catch (error) {
-          // Handle race condition - account might have been created
-          const prismaError = error as { code?: string; message?: string };
-          if (prismaError?.code !== "P2002" && !prismaError?.message?.includes("Unique constraint")) {
-            // Re-throw non-unique constraint errors
-            throw error;
-          }
-        }
-        
-        // For Discord, also save discord field
-        if (account.provider === "discord" && user.name) {
-          await prisma.user.update({
-            where: { id: newUser.id },
-            data: { discord: user.name },
-          });
-        }
-        
-        // Allow sign in - user and account are created, adapter will create session
-        return true;
       }
-
-      // Credentials login - handled by authorize function
       return true;
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async jwt({ token, user, account }: { token: any; user?: any; account?: any }) {
-      // Initial sign in - clear any previous errors
+    async jwt({ token, user }: { token: JWT; user?: User | AdapterUser; account?: Account | null }) {
       if (user) {
-        type UserWithRole = typeof user & { role?: string };
-        const userWithRole = user as UserWithRole;
+        // Initial sign-in - store user data and backend JWT token
+        const userWithToken = user as UserWithBackendToken;
         token.id = user.id;
-        token.role = userWithRole.role || "user";
-        token.email = user.email;
-        token.username = user.name;
-        // Clear any previous errors on successful login
-        token.error = undefined;
-      }
+        token.email = user.email ?? undefined;
+        token.username = user.name ?? undefined;
+        token.role = userWithToken.role || "user";
 
-      // Social login - set emailVerified after user is created
-      if (account && (account.provider === "discord" || account.provider === "google")) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: token.email! },
-        });
-
-        if (dbUser && !dbUser.emailVerified) {
-          await prisma.user.update({
-            where: { id: dbUser.id },
-            data: {
-              emailVerified: new Date(),
-            },
-          });
+        // Store backend JWT token if available (from OAuth login)
+        if (userWithToken.backendToken) {
+          token.backendToken = userWithToken.backendToken;
         }
       }
-
       return token;
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async session({ session, token }: { session: any; token: any }) {
-      // If token has error, pass it to session
-      if (token.error && typeof token.error === 'object' && 'code' in token.error && 'message' in token.error) {
-        session.error = {
-          code: token.error.code as string,
-          message: token.error.message as string,
-        };
-        return session;
-      }
-
-      // Set user data from token
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (session.user && token) {
+        const sessionWithToken = session as SessionWithBackendToken;
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.email = token.email as string;
-        session.user.name = token.username as string;
-      }
+        session.user.name = (token.username as string | null) ?? undefined;
 
+        // Include backend token in session for API calls
+        sessionWithToken.backendToken = token.backendToken as string | undefined;
+      }
       return session;
-    },
-  },
-  events: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async createUser({ user }: { user: any }) {
-      // This is called when a new user is created by the Prisma adapter
-      // For OAuth logins, set emailVerified and username
-      if (!user.email) {
-        console.error("User created without email:", user);
-        return;
-      }
-
-      const email = user.email;
-      // Generate a username from email or use the name from OAuth provider
-      const emailPrefix = email.split("@")[0] || "user";
-      let username = (user.name || emailPrefix)
-        .toLowerCase()
-        .replace(/[^a-z0-9_]/g, "")
-        .substring(0, 20);
-      
-      // If username is empty or too short, use email prefix
-      if (!username || username.length < 3) {
-        username = emailPrefix.substring(0, 20);
-      }
-        
-        // Ensure username is unique - append random number if needed
-        let finalUsername = username;
-        let counter = 0;
-        while (counter < 100) {
-          const existing = await prisma.user.findUnique({
-            where: { username: finalUsername },
-          });
-          
-          if (!existing) break;
-          
-          finalUsername = `${username}${Math.floor(Math.random() * 1000)}`;
-          counter++;
-        }
-
-      // Update user with username and emailVerified
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          username: finalUsername,
-          emailVerified: new Date(), // OAuth providers verify emails
-        },
-      });
-
-      // For Discord, also save discord field if available
-      // Check if this is a Discord login by checking accounts
-      const account = await prisma.account.findFirst({
-        where: {
-          userId: user.id,
-          provider: "discord",
-        },
-      });
-
-      if (account && user.name) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            discord: user.name, // Discord username
-          },
-        });
-      }
     },
   },
 });

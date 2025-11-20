@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SignJWT } from "jose";
+import { config } from "@/lib/config";
 
 const COOKIE_NAME = "trusted_device";
 const DAYS_14 = 14 * 24 * 60 * 60 * 1000;
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
 					throw new Error("BACKEND_PORT must be set in root .env file");
 				}
 				// During build/CI, return a placeholder (won't be used)
-				return "http://localhost:3001";
+				return config.backendUrl;
 			}
 			return `http://localhost:${port}`;
 		}
@@ -37,19 +38,13 @@ export async function POST(request: NextRequest) {
 			body: JSON.stringify({ email, deviceId, code }),
 		});
 		const data = await res.json();
-		if (!res.ok || !data.success) {
+		if (!res.ok || !data.success || !data.token) {
 			return NextResponse.json({ error: data.error || "Verification failed" }, { status: 400 });
 		}
 
-		// Issue trusted device cookie (signed JWT)
-		const secret = new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret");
-		const expMs = Date.now() + DAYS_14;
-		const token = await new SignJWT({ email, deviceId, expMs })
-			.setProtectedHeader({ alg: "HS256" })
-			.sign(secret);
-
+		// Issue trusted device cookie (using token from backend)
 		const response = NextResponse.json({ success: true });
-		response.cookies.set(COOKIE_NAME, token, {
+		response.cookies.set(COOKIE_NAME, data.token, {
 			httpOnly: true,
 			secure: true,
 			sameSite: "lax",

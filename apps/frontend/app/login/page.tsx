@@ -36,9 +36,9 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
-  // @ts-expect-error - error is defined in next-auth.d.ts but TypeScript doesn't see it
+
   const error = session?.error;
-  
+
   const defaultTab = useMemo(() => {
     const t = searchParams?.get("tab");
     return t === "register" ? "register" : "login";
@@ -98,14 +98,14 @@ export default function LoginPage() {
         // Error code might be in result.code or we'll get it from session
         // Refresh session to get error from session
         router.refresh();
-        
+
         // Also show error from result if available
         type SignInResult = typeof result & { code?: AuthErrorCode };
         const errorCode = (result as SignInResult)?.code;
-        const errorMessage = errorCode 
+        const errorMessage = errorCode
           ? getAuthErrorMessage(errorCode)
           : getAuthErrorMessage(AUTH_ERROR_CODES.AUTH_ERROR);
-        
+
         loginForm.setError("root", {
           message: errorMessage,
         });

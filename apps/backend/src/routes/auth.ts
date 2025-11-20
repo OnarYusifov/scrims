@@ -9,9 +9,9 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "@trayb/db";
 import bcrypt from "bcryptjs";
-import { 
-  registerSchema, 
-  verifyEmailSchema, 
+import {
+  registerSchema,
+  verifyEmailSchema,
   resendVerificationSchema,
   forgotPasswordSchema,
   verifyPasswordResetSchema,
@@ -113,12 +113,12 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400 as any).send({ 
-          error: error.message || "Registration failed. Please check your input and try again." 
+        return reply.code(400 as any).send({
+          error: error.message || "Registration failed. Please check your input and try again."
         });
       }
-      return reply.code(400 as any).send({ 
-        error: "Registration failed. Please check your input and try again." 
+      return reply.code(400 as any).send({
+        error: "Registration failed. Please check your input and try again."
       });
     }
   });
@@ -163,12 +163,12 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400 as any).send({ 
-          error: error.message || "Email verification failed. Please check the code and try again." 
+        return reply.code(400 as any).send({
+          error: error.message || "Email verification failed. Please check the code and try again."
         });
       }
-      return reply.code(400 as any).send({ 
-        error: "Email verification failed. Please check the code and try again." 
+      return reply.code(400 as any).send({
+        error: "Email verification failed. Please check the code and try again."
       });
     }
   });
@@ -220,12 +220,12 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400 as any).send({ 
-          error: error.message || "Failed to resend verification code. Please try again." 
+        return reply.code(400 as any).send({
+          error: error.message || "Failed to resend verification code. Please try again."
         });
       }
-      return reply.code(400 as any).send({ 
-        error: "Failed to resend verification code. Please try again." 
+      return reply.code(400 as any).send({
+        error: "Failed to resend verification code. Please try again."
       });
     }
   });
@@ -242,14 +242,14 @@ export async function authRoutes(fastify: FastifyInstance) {
 
       if (!user) {
         // Don't reveal if email exists or not for security
-        return reply.code(200).send({ 
-          message: "If an account exists with this email, a password reset code has been sent." 
+        return reply.code(200).send({
+          message: "If an account exists with this email, a password reset code has been sent."
         });
       }
 
       // Generate OTP and store in VerificationToken
       const { otpCode } = await generateOTP(user.email, 15);
-      
+
       // Send password reset OTP via Resend with dedicated template
       try {
         await sendPasswordResetOTP({
@@ -260,8 +260,8 @@ export async function authRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error({ err: error }, "Failed to send password reset OTP email");
-        return reply.code(500 as any).send({ 
-          error: "Failed to send password reset code. Please try again." 
+        return reply.code(500 as any).send({
+          error: "Failed to send password reset code. Please try again."
         });
       }
 
@@ -273,12 +273,12 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400 as any).send({ 
-          error: error.message || "Failed to send password reset code. Please check your email and try again." 
+        return reply.code(400 as any).send({
+          error: error.message || "Failed to send password reset code. Please check your email and try again."
         });
       }
-      return reply.code(400 as any).send({ 
-        error: "Failed to send password reset code. Please check your email and try again." 
+      return reply.code(400 as any).send({
+        error: "Failed to send password reset code. Please check your email and try again."
       });
     }
   });
@@ -292,8 +292,8 @@ export async function authRoutes(fastify: FastifyInstance) {
       const isValid = await checkOTP(body.email, body.code);
 
       if (!isValid) {
-        return reply.code(400 as any).send({ 
-          error: "Invalid or expired password reset code" 
+        return reply.code(400 as any).send({
+          error: "Invalid or expired password reset code"
         });
       }
 
@@ -317,12 +317,12 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400 as any).send({ 
-          error: error.message || "Password reset verification failed. Please check the code and try again." 
+        return reply.code(400 as any).send({
+          error: error.message || "Password reset verification failed. Please check the code and try again."
         });
       }
-      return reply.code(400 as any).send({ 
-        error: "Password reset verification failed. Please check the code and try again." 
+      return reply.code(400 as any).send({
+        error: "Password reset verification failed. Please check the code and try again."
       });
     }
   });
@@ -336,8 +336,8 @@ export async function authRoutes(fastify: FastifyInstance) {
       const isValid = await verifyOTP(body.email, body.code);
 
       if (!isValid) {
-        return reply.code(400 as any).send({ 
-          error: "Invalid or expired password reset code" 
+        return reply.code(400 as any).send({
+          error: "Invalid or expired password reset code"
         });
       }
 
@@ -370,13 +370,68 @@ export async function authRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error);
       if (error instanceof Error) {
-        return reply.code(400 as any).send({ 
-          error: error.message || "Password reset failed. Please check your code and password, then try again." 
+        return reply.code(400 as any).send({
+          error: error.message || "Password reset failed. Please check your code and password, then try again."
         });
       }
-      return reply.code(400 as any).send({ 
-        error: "Password reset failed. Please check your code and password, then try again." 
+      return reply.code(400 as any).send({
+        error: "Password reset failed. Please check your code and password, then try again."
       });
+    }
+  });
+  // Get password salt endpoint
+  fastify.post("/auth/get-password-salt", {
+    schema: {
+      tags: ["auth"],
+      summary: "Get password salt for a user",
+      body: {
+        type: "object",
+        properties: {
+          email: { type: "string", format: "email" },
+        },
+        required: ["email"],
+      },
+      response: {
+        200: {
+          type: "object",
+          properties: {
+            salt: { type: "string" },
+          },
+        },
+        400: {
+          type: "object",
+          properties: {
+            error: { type: "string" },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    try {
+      const { email } = request.body as { email: string };
+
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: { password: true },
+      });
+
+      // Always return a salt to prevent user enumeration
+      if (!user || !user.password) {
+        return { salt: "$2a$10$dummySaltForSecurity123" };
+      }
+
+      // Extract salt from stored password hash (first 29 chars of bcrypt hash)
+      const salt = user.password.substring(0, 29);
+
+      // Basic validation that it looks like a bcrypt salt
+      if (!salt.startsWith("$2")) {
+        return { salt: "$2a$10$dummySaltForSecurity123" };
+      }
+
+      return { salt };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(400).send({ error: "Failed to retrieve password salt" });
     }
   });
 }

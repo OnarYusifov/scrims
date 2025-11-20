@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { VerifyPageLayout } from "@/components/verify-page-layout";
 import { OTPForm } from "@/components/otp-form";
 
@@ -9,12 +9,11 @@ function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
-  const [_isResending, setIsResending] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [verificationType, setVerificationType] = useState<"register" | "login">("register");
-  const _otpInputRef = useRef<HTMLInputElement>(null);
-  
+
   const emailFromQuery = searchParams.get("email") || "";
   const typeFromQuery = searchParams.get("type") || "";
 
@@ -95,10 +94,10 @@ function VerifyEmailContent() {
 
       try {
         // Use different endpoint based on verification type
-        const endpoint = verificationType === "login" 
-          ? "/api/auth/verify-login" 
+        const endpoint = verificationType === "login"
+          ? "/api/auth/verify-login"
           : "/api/auth/verify-email";
-        
+
         const response = await fetch(endpoint, {
           method: "POST",
           headers: {
@@ -141,7 +140,7 @@ function VerifyEmailContent() {
 
     const handleResend = async (e: Event) => {
       e.preventDefault();
-      
+
       if (!email) {
         setError("Email is required to resend code");
         return;
@@ -156,7 +155,7 @@ function VerifyEmailContent() {
         const endpoint = verificationType === "login"
           ? "/api/auth/resend-login-otp"
           : "/api/auth/resend-verification";
-        
+
         const response = await fetch(endpoint, {
           method: "POST",
           headers: {
@@ -196,11 +195,10 @@ function VerifyEmailContent() {
         )}
         {resendMessage && (
           <div
-            className={`rounded-md p-3 text-sm text-center ${
-              resendMessage.includes("sent")
-                ? "bg-green-500/15 text-green-700 dark:text-green-400"
-                : "bg-destructive/15 text-destructive"
-            }`}
+            className={`rounded-md p-3 text-sm text-center ${resendMessage.includes("sent")
+              ? "bg-green-500/15 text-green-700 dark:text-green-400"
+              : "bg-destructive/15 text-destructive"
+              }`}
           >
             {resendMessage}
           </div>
