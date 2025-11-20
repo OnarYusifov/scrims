@@ -1,14 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { config } from "@/lib/config";
+
+interface SessionWithToken {
+  user?: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  };
+  backendToken?: string;
+}
 
 /**
  * Get current user endpoint - uses Auth.js session
  * Now uses backend JWT token for authentication
  */
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
-    const session = await auth() as any;
+    const session = await auth() as SessionWithToken | null;
 
     if (!session?.user) {
       return NextResponse.json(
@@ -29,7 +38,7 @@ export async function GET(_request: NextRequest) {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as unknown;
         return NextResponse.json(data);
       }
     }
@@ -40,7 +49,7 @@ export async function GET(_request: NextRequest) {
       { authenticated: false, verified: false },
       { status: 401 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Auth check error:", error);
     return NextResponse.json(
       { authenticated: false, verified: false },

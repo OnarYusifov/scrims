@@ -883,31 +883,23 @@ export default function ProfilePage() {
                             <div className="flex items-center gap-2">
                               <p className="text-lg font-semibold">{game.name}</p>
                               {(game.slug === "counter-strike-2" || game.name === "Counter-Strike 2" || game.id === "counter-strike-2" || game.id?.includes("counter-strike")) && (
-                                <img
+                                <Image
                                   src="/logos/cs2-logo.png"
                                   alt="Counter-Strike 2 logo"
+                                  width={20}
+                                  height={20}
                                   className="h-5 w-5 rounded-[2px] object-contain ml-1"
-                                  onError={(e) => {
-                                    // Fallback to external URL if local file doesn't exist
-                                    const target = e.target as HTMLImageElement;
-                                    if (!target.src.includes('wikia.nocookie.net')) {
-                                      target.src = 'https://static.wikia.nocookie.net/logopedia/images/4/49/Counter-Strike_2_%28Icon%29.png/revision/latest?cb=20230330015359';
-                                    }
-                                  }}
+                                  unoptimized
                                 />
                               )}
                               {(game.slug === "valorant" || game.name === "Valorant" || game.id === "valorant" || game.id?.includes("valorant")) && (
-                                <img
+                                <Image
                                   src="/logos/valorant-logo.png"
                                   alt="Valorant logo"
+                                  width={20}
+                                  height={20}
                                   className="h-5 w-5 rounded-[2px] object-contain ml-1"
-                                  onError={(e) => {
-                                    // Fallback to external URL if local file doesn't exist
-                                    const target = e.target as HTMLImageElement;
-                                    if (!target.src.includes('icons8.com')) {
-                                      target.src = 'https://img.icons8.com/?size=48&id=aUZxT3Erwill&format=png';
-                                    }
-                                  }}
+                                  unoptimized
                                 />
                               )}
                             </div>

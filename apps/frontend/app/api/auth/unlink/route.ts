@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 		const { provider } = unlinkSchema.parse(body);
 
 		// Call backend API
-		const backendToken = (session as any).backendToken;
+		const backendToken = (session as { backendToken?: string }).backendToken;
 
 		if (!backendToken) {
 			return NextResponse.json({ error: "No backend token available" }, { status: 401 });
@@ -34,13 +34,13 @@ export async function POST(request: NextRequest) {
 		});
 
 		if (!response.ok) {
-			const error = await response.json();
+			const error = await response.json() as { error?: string; message?: string };
 			return NextResponse.json(error, { status: response.status });
 		}
 
-		const data = await response.json();
+		const data = await response.json() as unknown;
 		return NextResponse.json(data);
-	} catch (error) {
+	} catch (error: unknown) {
 		console.error("unlink POST error:", error);
 		if (error instanceof Error) {
 			return NextResponse.json({ error: error.message }, { status: 400 });

@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     if (userId) params.set("userId", userId);
 
     // Call backend API with proper JWT token
-    const backendToken = (session as any)?.backendToken;
+    const backendToken = (session as { backendToken?: string }).backendToken;
     const response = await fetch(`${config.backendUrl}/user/badges?${params}`, {
       headers: backendToken ? {
         "Authorization": `Bearer ${backendToken}`,
@@ -25,13 +25,13 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json() as { error?: string; message?: string };
       return NextResponse.json(error, { status: response.status });
     }
 
-    const data = await response.json();
+    const data = await response.json() as unknown;
     return NextResponse.json(data);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error fetching badges:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(

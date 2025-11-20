@@ -9,7 +9,7 @@ function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
-  const [isResending, setIsResending] = useState(false);
+  const [, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [verificationType, setVerificationType] = useState<"register" | "login">("register");

@@ -33,13 +33,13 @@ function Tabs({
       setTimeout(() => {
         if (tabsRef.current) {
           const tabsListElement = tabsRef.current.querySelector('[data-slot="tabs-list"]') as HTMLElement
-          
+
           if (tabsListElement) {
             // Плавная прокрутка к началу списка табов с небольшим отступом
             const rect = tabsListElement.getBoundingClientRect()
             const scrollTop = window.pageYOffset || document.documentElement.scrollTop
             const targetPosition = rect.top + scrollTop - 20 // 20px отступ сверху
-            
+
             window.scrollTo({
               top: targetPosition,
               behavior: 'smooth'
@@ -47,7 +47,7 @@ function Tabs({
           }
         }
       }, 50)
-      
+
       prevActiveTabRef.current = activeTab
     }
   }, [activeTab])
@@ -93,8 +93,6 @@ const TabsList = React.forwardRef<
     const listRect = listRef.current.getBoundingClientRect()
     const triggerRect = activeTrigger.getBoundingClientRect()
 
-    // Учитываем padding TabsList (p-[3px])
-    const padding = 3
     setIndicatorStyle({
       left: triggerRect.left - listRect.left,
       width: triggerRect.width,

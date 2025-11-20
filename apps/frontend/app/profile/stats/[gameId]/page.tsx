@@ -511,39 +511,31 @@ export default function ProfileGameStatsPage({
 
         <section className="relative rounded-3xl border border-white/10 bg-black/80 backdrop-blur-sm shadow-2xl">
           {(resolvedParams.gameId === "cs2" || resolvedParams.gameId === "counter-strike-2") && (
-            <img
+            <Image
               src="/logos/cs2-logo.png"
               alt="Counter-Strike 2 logo"
-              className="absolute top-8 right-8 h-7 w-7 lg:h-9 lg:w-9 rounded-[2px] object-contain z-10"
+              width={36}
+              height={36}
+              className="absolute h-7 w-7 lg:h-9 lg:w-9 rounded-[2px] object-contain z-10"
               style={{ 
                 top: '2rem', // Align with text line (p-8 = 2rem)
                 right: '2rem' // Align with buttons (p-8 = 2rem)
               }}
-              onError={(e) => {
-                // Fallback to external URL if local file doesn't exist
-                const target = e.target as HTMLImageElement;
-                if (!target.src.includes('wikia.nocookie.net')) {
-                  target.src = 'https://static.wikia.nocookie.net/logopedia/images/4/49/Counter-Strike_2_%28Icon%29.png/revision/latest?cb=20230330015359';
-                }
-              }}
+              unoptimized
             />
           )}
           {(resolvedParams.gameId === "valorant") && (
-            <img
+            <Image
               src="/logos/valorant-logo.png"
               alt="Valorant logo"
-              className="absolute top-8 right-8 h-7 w-7 lg:h-9 lg:w-9 rounded-[2px] object-contain z-10"
+              width={36}
+              height={36}
+              className="absolute h-7 w-7 lg:h-9 lg:w-9 rounded-[2px] object-contain z-10"
               style={{ 
                 top: '2rem', // Align with text line (p-8 = 2rem)
                 right: '2rem' // Align with buttons (p-8 = 2rem)
               }}
-              onError={(e) => {
-                // Fallback to external URL if local file doesn't exist
-                const target = e.target as HTMLImageElement;
-                if (!target.src.includes('icons8.com')) {
-                  target.src = 'https://img.icons8.com/?size=48&id=aUZxT3Erwill&format=png';
-                }
-              }}
+              unoptimized
             />
           )}
           <div className="flex flex-col gap-6 p-8 lg:flex-row lg:items-end lg:justify-between">

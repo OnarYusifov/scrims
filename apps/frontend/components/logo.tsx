@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 // Logo icon based on favicon - adapts to theme
 export const LogoIcon = (props: React.ComponentProps<"svg">) => (
@@ -16,12 +16,13 @@ export const LogoIcon = (props: React.ComponentProps<"svg">) => (
 
 export const Logo = ({ className, ...props }: React.ComponentProps<"div">) => {
   const { theme, systemTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
 
-  // Only render theme-dependent content after mount to avoid hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Use useSyncExternalStore to detect client-side mount (recommended pattern)
+  const mounted = useSyncExternalStore(
+    () => () => { },
+    () => true,
+    () => false
+  );
 
   // Determine if we're in dark mode
   const isDark = mounted && (theme === "dark" || (theme === "system" && systemTheme === "dark"));

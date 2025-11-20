@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SignJWT } from "jose";
 import { config } from "@/lib/config";
 
 const COOKIE_NAME = "trusted_device";

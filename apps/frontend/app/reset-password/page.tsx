@@ -26,7 +26,7 @@ export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
   const [otpValue, setOtpValue] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isResending, setIsResending] = useState(false);
+  const [, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   const emailFromQuery = searchParams.get("email") || "";
@@ -212,8 +212,8 @@ export default function ResetPasswordPage() {
           {resendMessage && (
             <div
               className={`rounded - md p - 3 text - sm text - center ${resendMessage.includes("sent")
-                  ? "bg-green-500/15 text-green-700 dark:text-green-400"
-                  : "bg-destructive/15 text-destructive"
+                ? "bg-green-500/15 text-green-700 dark:text-green-400"
+                : "bg-destructive/15 text-destructive"
                 } `}
             >
               {resendMessage}

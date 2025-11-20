@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { config } from "@/lib/config";
-import { buildExternalUrl, resolveSteamOrigin } from "../utils";
+import { resolveSteamOrigin } from "../utils";
 
 /**
  * GET /api/auth/steam/callback - Handle Steam OpenID callback
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       headers: {
         "Content-Type": "application/json",
         // Pass the auth token if available, though the backend might rely on the openid params
-        ...(session as any).backendToken ? { "Authorization": `Bearer ${(session as any).backendToken}` } : {}
+        ...(session as { backendToken?: string }).backendToken ? { "Authorization": `Bearer ${(session as { backendToken?: string }).backendToken}` } : {}
       }
     });
 
@@ -43,16 +43,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(buildUrl("/profile?error=steam_callback_failed"));
     }
 
-    const data = await response.json();
+    const data = await response.json() as { error?: string };
 
     if (data.error) {
       return NextResponse.redirect(buildUrl(`/profile?error=${data.error}`));
     }
 
     return NextResponse.redirect(buildUrl("/profile?steam_linked=true"));
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Steam callback error:", error);
-    return NextResponse.redirect(buildUrl("/profile?error=steam_callback_failed"));
+    return NextResponse.redirect(process.env.NEXTAUTH_URL + "/login?error=" + encodeURIComponent(errorMessage));
   }
 }
-
