@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@trayb/db";
 import { z } from "zod";
+import { config } from "@/lib/config";
 
 const unlinkSchema = z.object({
 	provider: z.enum(["google", "discord", "steam"]),
@@ -13,56 +13,34 @@ export async function POST(request: NextRequest) {
 		if (!session?.user?.id) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
+
 		const body = await request.json();
 		const { provider } = unlinkSchema.parse(body);
 
-		// Ensure account exists
-		const account = await prisma.account.findFirst({
-			where: {
-				userId: session.user.id,
-				provider,
+		// Call backend API
+		const backendToken = (session as { backendToken?: string }).backendToken;
+
+		if (!backendToken) {
+			return NextResponse.json({ error: "No backend token available" }, { status: 401 });
+		}
+
+		const response = await fetch(`${config.backendUrl}/user/me/unlink`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"Authorization": `Bearer ${backendToken}`,
 			},
-		});
-		if (!account) {
-			return NextResponse.json({ error: "Account not linked" }, { status: 400 });
-		}
-
-		// Ensure user is not left without any auth method
-		const [otherAccounts, user] = await Promise.all([
-			prisma.account.count({
-				where: {
-					userId: session.user.id,
-					NOT: { provider },
-				},
-			}),
-			prisma.user.findUnique({
-				where: { id: session.user.id },
-				select: { password: true, discord: true },
-			}),
-		]);
-
-		const hasPassword = Boolean(user?.password);
-		const hasAnotherProvider = otherAccounts > 0;
-		if (!hasPassword && !hasAnotherProvider) {
-			return NextResponse.json(
-				{ error: "Cannot unlink the only sign-in method. Add a password or link another provider first." },
-				{ status: 400 },
-			);
-		}
-
-		// Delete the provider account (and clear provider-specific profile fields if any)
-		await prisma.$transaction(async (tx) => {
-			await tx.account.delete({ where: { id: account.id } });
-			if (provider === "discord" && user?.discord) {
-				await tx.user.update({
-					where: { id: session.user.id },
-					data: { discord: null },
-				});
-			}
+			body: JSON.stringify({ provider }),
 		});
 
-		return NextResponse.json({ success: true });
-	} catch (error) {
+		if (!response.ok) {
+			const error = await response.json() as { error?: string; message?: string };
+			return NextResponse.json(error, { status: response.status });
+		}
+
+		const data = await response.json() as unknown;
+		return NextResponse.json(data);
+	} catch (error: unknown) {
 		console.error("unlink POST error:", error);
 		if (error instanceof Error) {
 			return NextResponse.json({ error: error.message }, { status: 400 });
@@ -70,6 +48,3 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({ error: "Failed to unlink account" }, { status: 500 });
 	}
 }
-
-
-

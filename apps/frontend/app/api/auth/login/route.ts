@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { signIn } from "@/auth";
-import { jwtVerify } from "jose";
 
 /**
  * Login endpoint - uses Auth.js credentials provider
@@ -40,20 +39,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Device trust check - pass token to signIn
+    const trustedDeviceToken = request.cookies.get("trusted_device")?.value;
+
     // Use Auth.js signIn with credentials provider
     const result = await signIn("credentials", {
       email,
       password,
+      deviceId,
+      trustedDeviceToken,
       redirect: false,
     });
 
     if (result?.error === "EMAIL_NOT_VERIFIED") {
       return NextResponse.json(
-        { 
+        {
           error: "Email not verified. Please check your email for the verification code and verify your account before logging in.",
-          requiresVerification: true 
+          requiresVerification: true
         },
         { status: 403 }
+      );
+    }
+
+    // Check for device verification error from auth.ts
+    if (result?.code === "DEVICE_NOT_TRUSTED" || (result?.error && result.error.includes("DEVICE_NOT_TRUSTED"))) {
+      return NextResponse.json(
+        {
+          requiresDeviceVerification: true,
+          email,
+        },
+        { status: 202 },
       );
     }
 
@@ -71,45 +86,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Device trust check
-    try {
-      const trusted = request.cookies.get("trusted_device")?.value;
-      if (trusted && deviceId) {
-        const secret = new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret");
-        const { payload } = await jwtVerify(trusted, secret);
-        
-        // Type guard for trusted device payload
-        type TrustedDevicePayload = {
-          email?: string;
-          deviceId?: string;
-          expMs?: number;
-        };
-        
-        const devicePayload = payload as TrustedDevicePayload;
-        const valid =
-          devicePayload.email === email &&
-          devicePayload.deviceId === deviceId &&
-          typeof devicePayload.expMs === "number" &&
-          devicePayload.expMs > Date.now();
-        if (valid) {
-          return NextResponse.json({ message: "Login successful" });
-        }
-      }
-    } catch {
-      // ignore parse errors
-    }
-
-    // If untrusted device -> request device verification
-    return NextResponse.json(
-      {
-        requiresDeviceVerification: true,
-        email,
-      },
-      { status: 202 },
-    );
+    return NextResponse.json({ message: "Login successful" });
   } catch (error) {
     console.error("Login error:", error);
-    
+
     // Provide more descriptive error messages
     if (error instanceof Error) {
       if (error.message.includes("JSON")) {
@@ -123,7 +103,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json(
       { error: "An unexpected error occurred during login. Please try again later." },
       { status: 500 }

@@ -15,6 +15,7 @@ model User {
   username                String    @unique
   email                   String    @unique
   password                String?   // Nullable for social login users
+  image                   String?   // Profile picture URL (from OAuth providers)
   discord                 String?   // Discord user ID or username
   role                    String    @default("user") // user, admin, etc.
   emailVerified           DateTime? // DateTime for Auth.js compatibility (null = not verified, Date = verified)

@@ -1,15 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { signOut } from "@/auth";
 
-export async function POST(_request: NextRequest) {
+export async function POST() {
   try {
     // Use NextAuth's signOut to properly clear session cookies
-    await signOut({ 
-      redirect: false 
+    await signOut({
+      redirect: false
     });
 
     const response = NextResponse.json({ success: true });
-    
+
     // Clear any additional auth cookies that might exist
     // NextAuth v5 uses different cookie names depending on configuration
     const cookieNames = [
@@ -45,7 +45,3 @@ export async function POST(_request: NextRequest) {
     return response;
   }
 }
-
-
-
-

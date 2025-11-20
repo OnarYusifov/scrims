@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getSteamAuthUrl } from "@/lib/steam-provider";
+import { config } from "@/lib/config";
 import { resolveSteamOrigin } from "./utils";
 
 /**
@@ -41,10 +41,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Production mode: Use Steam OpenID
-    const returnUrl = new URL("/api/auth/steam/callback", origin).toString();
-    const steamAuthUrl = getSteamAuthUrl(returnUrl);
+    // We redirect to the backend to initiate the Steam OpenID flow
+    // The backend will handle generating the Steam URL and redirecting
+    const backendSteamUrl = new URL(`${config.backendUrl}/auth/steam`);
 
-    return NextResponse.redirect(steamAuthUrl);
+    // Pass the frontend callback URL so the backend knows where to return
+    const returnUrl = new URL("/api/auth/steam/callback", origin).toString();
+    backendSteamUrl.searchParams.append("returnUrl", returnUrl);
+    backendSteamUrl.searchParams.append("userId", session.user.id);
+
+    return NextResponse.redirect(backendSteamUrl.toString());
   } catch (error) {
     console.error("Steam auth initiation error:", error);
     return NextResponse.json(

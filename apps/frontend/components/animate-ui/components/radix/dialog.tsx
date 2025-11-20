@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 
@@ -13,21 +13,15 @@ function Dialog({
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
-function DialogTrigger({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+function DialogTrigger(props: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
 }
 
-function DialogPortal({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+function DialogPortal(props: React.ComponentProps<typeof DialogPrimitive.Portal>) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
 }
 
-function DialogClose({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Close>) {
+function DialogClose(props: React.ComponentProps<typeof DialogPrimitive.Close>) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
@@ -35,6 +29,9 @@ function DialogOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  // Extract props that might conflict with motion.div
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { onDrag: _onDrag, onDragEnd: _onDragEnd, onDragStart: _onDragStart, ...motionProps } = props;
   return (
     <DialogPrimitive.Overlay asChild data-slot="dialog-overlay">
       <motion.div
@@ -46,6 +43,7 @@ function DialogOverlay({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
+        {...(motionProps as React.ComponentProps<typeof motion.div>)}
       />
     </DialogPrimitive.Overlay>
   );

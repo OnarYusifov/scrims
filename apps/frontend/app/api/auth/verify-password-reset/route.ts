@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPasswordResetSchema } from "@trayb/types";
 
+import { config } from "@/lib/config";
+
 // Helper function to get backend URL from env ports
 // Lazy evaluation - only called when route handler runs (not during build)
 function getBackendUrl(): string {
@@ -13,7 +15,7 @@ function getBackendUrl(): string {
       throw new Error("BACKEND_PORT must be set in root .env file");
     }
     // During build/CI, return a placeholder (won't be used)
-    return "http://localhost:3001";
+    return config.backendUrl;
   }
   return `http://localhost:${port}`;
 }
