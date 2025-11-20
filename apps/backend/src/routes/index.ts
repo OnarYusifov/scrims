@@ -458,16 +458,24 @@ export async function registerRoutes(fastify: FastifyInstance) {
         where: { email: body.email },
       });
 
-      if (!user || !user.password) {
+      if (!user) {
+        fastify.log.warn(`[Auth] Login failed: User not found for email ${body.email}`);
+        return reply.code(401).send({ error: "Invalid credentials" });
+      }
+
+      if (!user.password) {
+        fastify.log.warn(`[Auth] Login failed: No password set for user ${body.email} (likely OAuth user)`);
         return reply.code(401).send({ error: "Invalid credentials" });
       }
 
       const isValidPassword = await bcrypt.compare(body.password, user.password);
       if (!isValidPassword) {
+        fastify.log.warn(`[Auth] Login failed: Invalid password for user ${body.email}`);
         return reply.code(401).send({ error: "Invalid credentials" });
       }
 
       if (!user.emailVerified) {
+        fastify.log.warn(`[Auth] Login failed: Email not verified for user ${body.email}`);
         return reply.code(401).send({ error: "Email not verified" });
       }
 
@@ -483,6 +491,8 @@ export async function registerRoutes(fastify: FastifyInstance) {
         .setProtectedHeader({ alg: "HS256" })
         .setExpirationTime(process.env.JWT_EXPIRES_IN || "7d")
         .sign(secret);
+
+      fastify.log.info(`[Auth] Login successful for user ${body.email}`);
 
       return {
         token,

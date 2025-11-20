@@ -76,7 +76,7 @@ export async function sendPasswordResetOTP({
     const reactDOMServer = await import("react-dom/server");
     (globalThis as Record<string, unknown>).reactDOMServer = reactDOMServer;
   }
-  
+
   const emailHtml = await render(
     PasswordResetOTP({
       username,
@@ -87,7 +87,8 @@ export async function sendPasswordResetOTP({
 
   // Send via Resend
   const resend = getResend();
-  const { error } = await resend.emails.send({
+  console.log(`[Email] Sending password reset email to ${email} with code ${otpCode}`);
+  const { data, error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,
     to: email,
     subject: "Reset your Trayb password",
@@ -95,8 +96,11 @@ export async function sendPasswordResetOTP({
   });
 
   if (error) {
+    console.error(`[Email] Failed to send password reset email:`, error);
     throw new Error(`Failed to send password reset OTP email: ${error.message}`);
   }
+
+  console.log(`[Email] Password reset email sent successfully. ID: ${data?.id}`);
 }
 
 

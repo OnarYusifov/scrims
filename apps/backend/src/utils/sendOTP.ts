@@ -67,7 +67,7 @@ export async function sendOTP({
     const reactDOMServer = await import("react-dom/server");
     (globalThis as Record<string, unknown>).reactDOMServer = reactDOMServer;
   }
-  
+
   const emailHtml = await render(
     VerificationOTP({
       username,
@@ -78,7 +78,8 @@ export async function sendOTP({
 
   // Send via Resend
   const resend = getResend();
-  const { error } = await resend.emails.send({
+  console.log(`[Email] Sending verification email to ${email} with code ${otpCode}`);
+  const { data, error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,
     to: email,
     subject: "Verify your Trayb email address",
@@ -86,8 +87,11 @@ export async function sendOTP({
   });
 
   if (error) {
+    console.error(`[Email] Failed to send verification email:`, error);
     throw new Error(`Failed to send OTP email: ${error.message}`);
   }
+
+  console.log(`[Email] Verification email sent successfully. ID: ${data?.id}`);
 }
 
 
