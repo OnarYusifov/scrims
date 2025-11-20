@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { config } from "@/lib/config";
 import { resolveSteamOrigin } from "../utils";
+
+/**
+ * Helper function to get backend URL for server-side calls
+ * Matches the pattern used in other route handlers:
+ * 1. Check API_URL first (public API at api.trayb.az)
+ * 2. Check BACKEND_URL (should be localhost for same container)
+ * 3. Fall back to localhost with BACKEND_PORT
+ */
+function getBackendUrl(): string {
+  // API_URL should be set to https://api.trayb.az for public API calls
+  if (process.env.API_URL) return process.env.API_URL;
+  
+  // BACKEND_URL should be http://localhost:3001 for same-container calls
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
+  
+  // Fall back to localhost with port
+  const port = Number(process.env.BACKEND_PORT) || 3001;
+  return `http://localhost:${port}`;
+}
 
 /**
  * GET /api/auth/steam/callback - Handle Steam OpenID callback
@@ -19,7 +37,8 @@ export async function GET(request: NextRequest) {
 
     // Forward all search params to the backend
     const searchParams = request.nextUrl.searchParams;
-    const backendUrl = new URL(`${config.backendUrl}/auth/steam/callback`);
+    const backendUrlBase = getBackendUrl();
+    const backendUrl = new URL(`${backendUrlBase}/auth/steam/callback`);
     searchParams.forEach((value, key) => {
       backendUrl.searchParams.append(key, value);
     });
