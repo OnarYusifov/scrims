@@ -7,7 +7,6 @@ import Discord from "next-auth/providers/discord";
 import Google from "next-auth/providers/google";
 import { z } from "zod";
 import { AUTH_ERROR_CODES } from "./lib/auth-codes";
-import { config } from "./lib/config";
 
 // Type extensions for custom properties
 interface UserWithBackendToken extends User {
@@ -64,6 +63,23 @@ export const loginSchema = z.object({
   trustedDeviceToken: z.string().optional(),
 });
 
+// Helper function to get backend URL for server-side calls
+// Matches the pattern used in other route handlers:
+// 1. Check API_URL first (public API at api.trayb.az)
+// 2. Check BACKEND_URL (should be localhost for same container)
+// 3. Fall back to localhost with BACKEND_PORT
+function getBackendUrl(): string {
+  // API_URL should be set to https://api.trayb.az for public API calls
+  if (process.env.API_URL) return process.env.API_URL;
+  
+  // BACKEND_URL should be http://localhost:3001 for same-container calls
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
+  
+  // Fall back to localhost with port
+  const port = Number(process.env.BACKEND_PORT) || 3001;
+  return `http://localhost:${port}`;
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET,
   trustHost: true,
@@ -91,23 +107,37 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           const { email, password, deviceId, trustedDeviceToken } = loginSchema.parse(credentials);
 
+          // Get backend URL for server-side call (prioritizes localhost in same container)
+          const backendUrl = getBackendUrl();
+
           // Call Backend API to verify credentials
-          const res = await fetch(`${config.backendUrl}/auth/verify-credentials`, {
+          const res = await fetch(`${backendUrl}/auth/verify-credentials`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password, deviceId, trustedDeviceToken }),
           });
 
-          const data = await res.json();
-
+          // Handle fetch errors (network issues, timeouts, etc.)
           if (!res.ok) {
-            if (data.error === "Email not verified") throw new EmailNotVerifiedError();
-            if (data.requiresDeviceVerification) {
+            const errorText = await res.text().catch(() => "Unknown error");
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch {
+              // If response is not JSON, use the text as error
+              console.error(`[Auth] Backend request failed: ${res.status} ${res.statusText} - ${errorText}`);
+              throw new AuthError();
+            }
+
+            if (errorData.error === "Email not verified") throw new EmailNotVerifiedError();
+            if (errorData.requiresDeviceVerification) {
               const error: ErrorWithCode = Object.assign(new Error("Device not trusted"), { code: "DEVICE_NOT_TRUSTED" });
               throw error;
             }
             throw new InvalidCredentialsError();
           }
+
+          const data = await res.json();
 
           // Store backend token in user object if available
           const user: UserWithBackendToken = data.user;
@@ -118,6 +148,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return user;
 
         } catch (error) {
+          // Log error for debugging
+          if (error instanceof Error && !(error instanceof CredentialsSigninError)) {
+            console.error("[Auth] Credentials verification error:", error.message, error.stack);
+          }
           if (error instanceof CredentialsSigninError) throw error;
           throw new AuthError();
         }
@@ -145,7 +179,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user, account }: { user: User | AdapterUser; account?: Account | null }) {
       if (account?.provider === "discord" || account?.provider === "google") {
         try {
-          const res = await fetch(`${config.backendUrl}/auth/oauth-callback`, {
+          // Get backend URL for server-side call (prioritizes localhost in same container)
+          const backendUrl = getBackendUrl();
+          const res = await fetch(`${backendUrl}/auth/oauth-callback`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
