@@ -7,7 +7,13 @@ import { Toaster } from "@/components/ui/sonner";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <SessionProvider>
+    <SessionProvider
+      // Refetch session every 60 seconds to detect cookie changes
+      refetchInterval={60}
+      // Refetch when window regains focus (detects cookie clearing)
+      refetchOnWindowFocus={true}
+      refetchWhenOffline={false}
+    >
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         {children}
         <Toaster richColors position="top-center" />

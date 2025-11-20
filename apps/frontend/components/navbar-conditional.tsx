@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Navbar } from "./navbar";
 
 // Pages where navbar should NOT be shown (all authentication-related pages)
@@ -16,46 +16,17 @@ const AUTH_PAGES = [
 
 export function NavbarConditional() {
   const pathname = usePathname();
-  type User = {
-    id: string;
-    username: string | null;
-    email: string;
-    role: string | null;
-  } | null;
-  const [user, setUser] = useState<User>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: session, status } = useSession();
 
   // Check if current path is an auth page
   const isAuthPage = AUTH_PAGES.some((page) => pathname?.startsWith(page));
 
-  useEffect(() => {
-    if (isAuthPage) {
-      setLoading(false);
-      return;
-    }
-
-    // Fetch user data
-    const fetchUser = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        const data = await response.json();
-        if (response.ok && data.authenticated) {
-          setUser(data.user);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, [isAuthPage]);
-
-  // Don't render navbar on auth pages
-  if (isAuthPage || loading) {
+  // Don't render navbar on auth pages or while loading
+  if (isAuthPage || status === "loading") {
     return null;
   }
+
+  const user = session?.user;
 
   // Determine view type based on user role or guest status
   let viewType: "Player" | "Viewer" | "Guest" = "Guest";
@@ -72,7 +43,7 @@ export function NavbarConditional() {
         user
           ? {
               id: user.id || "",
-              username: user.username || user.email?.split("@")[0] || "User",
+              username: user.name || user.email?.split("@")[0] || "User",
               email: user.email || "",
               image: undefined,
             }

@@ -35,7 +35,7 @@ import { AUTH_ERROR_CODES, getAuthErrorMessage, type AuthErrorCode } from "@/lib
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   const error = session?.error;
 
@@ -45,27 +45,15 @@ export default function LoginPage() {
   }, [searchParams]);
   const [acceptTerms, setAcceptTerms] = useState(false);
 
-  // Check if user is already logged in but unverified
+  // Check if user is already logged in
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        const data = await response.json();
+    if (status === "loading") return;
 
-        if (data.authenticated && !data.verified) {
-          // User is logged in but email not verified - redirect to verification
-          router.push(`/verify-email?email=${encodeURIComponent(data.user?.email || "")}`);
-        } else if (data.authenticated && data.verified) {
-          // User is fully authenticated - redirect to home
-          router.push("/");
-        }
-      } catch {
-        // Not authenticated, allow login page to show
-      }
-    };
-
-    checkAuth();
-  }, [router]);
+    if (session?.user) {
+      // User is logged in - redirect to home
+      router.push("/");
+    }
+  }, [session, status, router]);
   const loginForm = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: {

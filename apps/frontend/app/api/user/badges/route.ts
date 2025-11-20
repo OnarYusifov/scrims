@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
     if (userId) params.set("userId", userId);
 
     // Call backend API with proper JWT token
-    const backendToken = (session as { backendToken?: string }).backendToken;
+    const accessToken = (session as { accessToken?: string }).accessToken;
     const response = await fetch(`${config.backendUrl}/user/badges?${params}`, {
-      headers: backendToken ? {
-        "Authorization": `Bearer ${backendToken}`,
+      headers: accessToken ? {
+        "Authorization": `Bearer ${accessToken}`,
       } : {},
     });
 

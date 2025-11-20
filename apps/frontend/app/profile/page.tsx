@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { Share2 } from "lucide-react";
 import { toast } from "sonner";
@@ -28,16 +29,8 @@ import { FlipButton } from "@/components/ui/flip-button";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(true);
-  type User = {
-    id: string;
-    username: string | null;
-    email: string;
-    role: string | null;
-    createdAt: string;
-  } | null;
-  const [user, setUser] = useState<User>(null);
-  const [authenticated, setAuthenticated] = useState(false);
   const [textColor, setTextColor] = useState<"light" | "dark">("light");
   const bannerImageRef = useRef<HTMLDivElement>(null);
   
@@ -201,13 +194,19 @@ export default function ProfilePage() {
   // Check if Steam is linked on mount and add CS2 if connected
   useEffect(() => {
     const checkSteamLink = async () => {
+      if (!session?.user?.id) return;
+      
       try {
-        const response = await fetch("/api/auth/me");
+        // Fetch linked accounts from backend API
+        const response = await fetch(`/api/user/accounts`, {
+          cache: 'no-store',
+          credentials: 'include',
+        });
         if (response.ok) {
           const data = await response.json();
           // Check if user has Steam account linked
-          if (data.user?.accounts) {
-            const hasSteam = data.user.accounts.some(
+          if (data.accounts) {
+            const hasSteam = data.accounts.some(
               (acc: { provider: string }) => acc.provider === "steam"
             );
             setSteamLinked(hasSteam);
@@ -394,19 +393,24 @@ export default function ProfilePage() {
   };
 
 
+  // Handle session status
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        const data = await response.json();
+    if (status === "loading") {
+      setLoading(true);
+      return;
+    }
 
-        if (response.ok && data.authenticated) {
-          setUser(data.user);
-          setAuthenticated(true);
+    if (status === "unauthenticated" || !session?.user) {
+      router.push("/login");
+      return;
+    }
+
+    setLoading(false);
           
-          // Fetch badges from API
-          try {
-            const badgesResponse = await fetch(`/api/user/badges?userId=${data.user.id}`);
+    // Fetch badges when user session is available
+    if (session.user.id) {
+      fetch(`/api/user/badges?userId=${session.user.id}`)
+        .then(async (badgesResponse) => {
             if (badgesResponse.ok) {
               const badgesData = await badgesResponse.json();
               console.log("Badges fetched:", badgesData);
@@ -414,32 +418,20 @@ export default function ProfilePage() {
             } else {
               const errorData = await badgesResponse.json().catch(() => ({}));
               console.error("Failed to fetch badges:", badgesResponse.status, errorData);
-              // Log the full error for debugging
               if (errorData.details) {
                 console.error("Error details:", errorData.details);
               }
             }
-          } catch (error) {
+        })
+        .catch((error) => {
             console.error("Failed to fetch badges:", error);
             if (error instanceof Error) {
               console.error("Error message:", error.message);
               console.error("Error stack:", error.stack);
             }
-          }
-        } else {
-          // Not authenticated, redirect to login
-          router.push("/login");
+        });
         }
-      } catch (error) {
-        console.error("Failed to fetch user:", error);
-        router.push("/login");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, [router]);
+  }, [status, session, router]);
 
   const getInitials = (username: string) => {
     return username
@@ -458,6 +450,9 @@ export default function ProfilePage() {
     });
   };
 
+  const user = session?.user;
+  const username = session?.user?.name || session?.user?.email?.split("@")[0] || "User";
+
   const handleShareProfile = async () => {
     if (!user) return;
     
@@ -465,8 +460,8 @@ export default function ProfilePage() {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${user.username}'s Profile`,
-          text: `Check out ${user.username}'s profile on Trayb`,
+          title: `${username}'s Profile`,
+          text: `Check out ${username}'s profile on Trayb`,
           url: profileUrl,
         });
       } else {
@@ -526,12 +521,12 @@ export default function ProfilePage() {
 
   // Detect if background is light or dark to determine text color
   useEffect(() => {
-    if (!user?.username) {
+    if (!username) {
       setTextColor("light");
       return;
     }
 
-    const currentBannerImage = getBannerImage(user.username);
+    const currentBannerImage = getBannerImage(username);
     if (!currentBannerImage) {
       setTextColor("light");
       return;
@@ -603,7 +598,7 @@ export default function ProfilePage() {
         return () => img.removeEventListener("load", detectTextColor);
       }
     }
-  }, [user?.username, authenticated]);
+  }, [username, user]);
 
   if (loading) {
     return (
@@ -617,11 +612,11 @@ export default function ProfilePage() {
     );
   }
 
-  if (!authenticated || !user) {
-    return null; // Will redirect
+  if (!user) {
+    return null; // Will redirect via useEffect
   }
 
-  const bannerImage = getBannerImage(user.username || "");
+  const bannerImage = getBannerImage(username || "");
 
   return (
     <div className="min-h-screen bg-background">
@@ -634,7 +629,7 @@ export default function ProfilePage() {
               <div ref={bannerImageRef} className="absolute inset-0">
                 <Image
                   src={bannerImage}
-                  alt={`${user.username}'s banner`}
+                  alt={`${username}'s banner`}
                   fill
                   className="object-cover"
                   priority
@@ -661,9 +656,9 @@ export default function ProfilePage() {
         {/* Profile Picture and Username - Left middle of banner */}
         <div className="relative h-full flex items-center px-4 sm:px-6 md:px-8 z-10">
           <Avatar className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 lg:h-32 lg:w-32 border-2 sm:border-[3px] md:border-4 border-background shadow-lg relative z-10 flex-shrink-0">
-            <AvatarImage src={undefined} alt={user.username || ""} />
+            <AvatarImage src={undefined} alt={username || ""} />
             <AvatarFallback className="text-lg sm:text-xl md:text-2xl lg:text-3xl bg-primary text-primary-foreground relative z-10">
-              {getInitials(user.username || "")}
+              {getInitials(username || "")}
             </AvatarFallback>
           </Avatar>
           <div className="ml-3 sm:ml-4 md:ml-6 flex flex-col space-y-1 sm:space-y-2 relative z-10 min-w-0 flex-1">
@@ -747,15 +742,16 @@ export default function ProfilePage() {
                 textColor === "light" ? "text-white" : "text-black"
               }`}
             >
-              {user.username}
+              {username}
             </h1>
-            {user.createdAt && (
+            {/* Note: createdAt is not stored in session - would need to be added to session callback if needed */}
+            {false && (
               <p 
                 className={`text-xs sm:text-sm drop-shadow-md ${
                   textColor === "light" ? "text-white/90" : "text-black/80"
                 }`}
               >
-                Member since {formatMemberSince(user.createdAt)}
+                {/* createdAt not available in session */}
               </p>
             )}
             <Button

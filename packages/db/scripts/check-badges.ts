@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/index.js";
 
 async function checkBadges() {
   const user = await prisma.user.findFirst({

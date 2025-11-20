@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       headers: {
         "Content-Type": "application/json",
         // Pass the auth token if available, though the backend might rely on the openid params
-        ...(session as { backendToken?: string }).backendToken ? { "Authorization": `Bearer ${(session as { backendToken?: string }).backendToken}` } : {}
+        ...(session as { accessToken?: string }).accessToken ? { "Authorization": `Bearer ${(session as { accessToken?: string }).accessToken}` } : {}
       }
     });
 

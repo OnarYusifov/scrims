@@ -31,6 +31,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { signOut } from "next-auth/react";
 
 type ViewType = "Player" | "Viewer" | "Guest";
 type HubType = "Series" | "Public Hub" | "Private Hub";
@@ -51,7 +52,7 @@ interface NavbarProps {
 export function Navbar({ viewType = "Guest", hub, queueType, user }: NavbarProps) {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = React.useState(false);
-  
+
   // Local state for breadcrumb selections (can be synced with URL/route later)
   const [selectedViewType, setSelectedViewType] = React.useState<ViewType>(viewType);
   const [selectedHub, setSelectedHub] = React.useState<HubType | undefined>(hub);
@@ -69,9 +70,7 @@ export function Navbar({ viewType = "Guest", hub, queueType, user }: NavbarProps
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
-      router.refresh();
+      await signOut({ redirect: true, callbackUrl: "/login" });
     } catch (error) {
       console.error("Logout failed:", error);
     }
