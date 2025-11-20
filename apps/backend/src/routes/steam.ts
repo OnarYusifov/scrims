@@ -47,7 +47,7 @@ export async function steamRoutes(fastify: FastifyInstance) {
             return new Promise<void>((resolve, reject) => {
                 relyingParty.authenticate(steamProvider, false, (error, authUrl) => {
                     if (error) {
-                        fastify.log.error("Steam OpenID authentication error:", error);
+                        fastify.log.error({ err: error }, "Steam OpenID authentication error");
                         reply.code(500).send({ error: "Failed to initiate Steam authentication" });
                         return reject(error);
                     }
@@ -65,7 +65,7 @@ export async function steamRoutes(fastify: FastifyInstance) {
                 });
             });
         } catch (error) {
-            fastify.log.error("Steam auth initiation error:", error);
+            fastify.log.error({ err: error }, "Steam auth initiation error");
             return reply.code(500).send({ error: "Failed to initiate Steam authentication" });
         }
     });
