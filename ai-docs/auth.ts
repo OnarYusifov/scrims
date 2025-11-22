@@ -17,18 +17,25 @@ class AuthError extends CredentialsSignin {
   code = AUTH_ERROR_CODES.AUTH_ERROR;
 }
 
-async function handleLogin(username: string, password: string, request?: Request) {
+async function handleLogin(
+  username: string,
+  password: string,
+  request?: Request
+) {
   try {
     // Construct proxy URL - use app base URL if available, otherwise construct from request
     let proxyUrl = "/api/proxy/api/Auth/login";
-    
+
     // If we have a request, construct full URL
     if (request) {
       const url = new URL(request.url);
       proxyUrl = `${url.origin}${proxyUrl}`;
     } else {
       // Fallback: use environment variable or construct from NEXT_PUBLIC_APP_URL
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.NEXTAUTH_URL ||
+        "http://localhost:3000";
       proxyUrl = `${appUrl}${proxyUrl}`;
     }
 

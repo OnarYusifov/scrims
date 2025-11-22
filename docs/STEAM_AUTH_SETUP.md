@@ -34,17 +34,20 @@ STEAM_API_KEY=your_steam_api_key_here
 ## Files Created/Modified
 
 ### New Files
+
 - `apps/frontend/lib/steam-provider.ts` - Steam authentication utilities
 - `apps/frontend/app/api/auth/steam/route.ts` - Initiates Steam auth
 - `apps/frontend/app/api/auth/steam/callback/route.ts` - Handles Steam callback
 
 ### Modified Files
+
 - `apps/frontend/app/profile/page.tsx` - Updated Connect button to use Steam auth for CS2
 - `apps/frontend/app/api/auth/me/route.ts` - Added accounts info to user response
 
 ## Database
 
 Steam accounts are stored in the `Account` table with:
+
 - `provider`: "steam"
 - `providerAccountId`: Steam ID (64-bit integer as string)
 - `access_token`: Steam ID (same as providerAccountId)
@@ -97,6 +100,7 @@ For full Steam OpenID support on localhost:
 ## Error Handling
 
 The implementation handles various error cases:
+
 - `steam_auth_failed` - Failed to initiate Steam auth
 - `steam_verification_failed` - OpenID verification failed
 - `steam_already_linked` - Steam account already linked to another user
@@ -104,4 +108,3 @@ The implementation handles various error cases:
 - `steam_callback_failed` - General callback error
 
 All errors are displayed as toast notifications to the user.
-

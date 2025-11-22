@@ -22,7 +22,7 @@ function getBackendUrl(): string {
 
 /**
  * Verify email OTP endpoint
- * 
+ *
  * Flow:
  * 1. Verify OTP against VerificationToken table (via backend)
  * 2. Backend marks emailVerified = new Date()
@@ -61,11 +61,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Verify email error:", error);
-    return NextResponse.json(
-      { error: "Invalid request" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }
-
-

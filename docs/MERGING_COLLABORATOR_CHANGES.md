@@ -85,11 +85,12 @@ Once you've reviewed and tested:
      - **Rebase and merge** - Linear history (if you prefer)
 
 2. **After merge:**
+
    ```bash
    # Update your local dev
    git checkout dev
    git pull origin dev
-   
+
    # Delete the review branch
    git branch -d review/collaborator-feature
    ```
@@ -99,6 +100,7 @@ Once you've reviewed and tested:
 ### What Your Collaborator Likely Added:
 
 Based on the profile page code, they added:
+
 - Games display functionality
 - Badges system integration
 - Profile enhancements
@@ -160,4 +162,3 @@ When helping merge collaborator changes:
 3. **Check conflicts**: "Checking for merge conflicts..."
 4. **Test integration**: "Testing the merged code..."
 5. **Recommend action**: "The changes look good, ready to merge" or "Found conflicts, need to resolve..."
-

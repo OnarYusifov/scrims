@@ -3,6 +3,7 @@
 ## Настройка репозитория
 
 Репозиторий уже настроен и подключён к:
+
 - **Remote URL**: `https://github.com/OnarYusifov/scrims.git`
 - **Текущая ветка**: `dev`
 - **Отслеживание**: `origin/dev`
@@ -10,11 +11,13 @@
 ## Основные команды для работы
 
 ### Получение последних изменений
+
 ```bash
 git pull origin dev
 ```
 
 ### Создание новой ветки для работы
+
 ```bash
 # Создать ветку от dev
 git checkout -b feature/название-функции dev
@@ -24,6 +27,7 @@ git checkout -b fix/описание-бага dev
 ```
 
 ### Работа с изменениями
+
 ```bash
 # Посмотреть статус
 git status
@@ -42,6 +46,7 @@ git push origin название-вашей-ветки
 ```
 
 ### Синхронизация с dev
+
 ```bash
 # Переключиться на dev
 git checkout dev
@@ -65,12 +70,14 @@ git rebase dev
 ### Правильный Workflow:
 
 1. **Перед началом работы:**
+
    ```bash
    git checkout dev
    git pull origin dev
    ```
 
 2. **Создать свою ветку:**
+
    ```bash
    git checkout -b feature/ваша-функция dev
    # или
@@ -83,6 +90,7 @@ git rebase dev
    - Регулярно синхронизироваться с dev (см. ниже)
 
 4. **Отправить изменения в свою ветку:**
+
    ```bash
    git push origin feature/ваша-функция
    ```
@@ -141,17 +149,20 @@ git push origin feature/ваша-функция --force-with-lease
 ## Полезные команды
 
 ### Просмотр истории
+
 ```bash
 git log --oneline --graph --all
 ```
 
 ### Просмотр изменений
+
 ```bash
 git diff
 git diff --staged
 ```
 
 ### Отмена изменений
+
 ```bash
 # Отменить изменения в файле (до git add)
 git checkout -- файл
@@ -164,6 +175,7 @@ git reset --soft HEAD~1
 ```
 
 ### Просмотр удалённых веток
+
 ```bash
 git branch -r
 git fetch origin
@@ -191,6 +203,7 @@ git config --global user.email "ваш@email.com"
 ## Проблемы и решения
 
 ### Конфликты при merge
+
 ```bash
 # Если возникли конфликты
 git status  # посмотреть конфликтующие файлы
@@ -200,13 +213,14 @@ git commit -m "Resolve merge conflicts"
 ```
 
 ### Откат к последнему коммиту
+
 ```bash
 git reset --hard HEAD
 ```
 
 ### Просмотр удалённых изменений без слияния
+
 ```bash
 git fetch origin
 git log HEAD..origin/dev
 ```
-

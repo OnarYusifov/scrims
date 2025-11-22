@@ -19,13 +19,15 @@ export const Logo = ({ className, ...props }: React.ComponentProps<"div">) => {
 
   // Use useSyncExternalStore to detect client-side mount (recommended pattern)
   const mounted = useSyncExternalStore(
-    () => () => { },
+    () => () => {},
     () => true,
     () => false
   );
 
   // Determine if we're in dark mode
-  const isDark = mounted && (theme === "dark" || (theme === "system" && systemTheme === "dark"));
+  const isDark =
+    mounted &&
+    (theme === "dark" || (theme === "system" && systemTheme === "dark"));
 
   return (
     <div className={className} {...props}>
@@ -33,7 +35,7 @@ export const Logo = ({ className, ...props }: React.ComponentProps<"div">) => {
         className={`h-full w-auto transition-colors ${
           // Use black during SSR/initial render to match server, then switch based on theme
           !mounted ? "text-black" : isDark ? "text-white" : "text-black"
-          }`}
+        }`}
       />
     </div>
   );

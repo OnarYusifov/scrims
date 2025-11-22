@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { motion, isMotionComponent } from 'motion/react';
-import type { HTMLMotionProps } from 'motion/react';
-import { cn } from '@/lib/utils';
+import * as React from "react";
+import { motion, isMotionComponent } from "motion/react";
+import type { HTMLMotionProps } from "motion/react";
+import { cn } from "@/lib/utils";
 
 type AnyProps = Record<string, unknown>;
 
 type DOMMotionProps<T extends HTMLElement = HTMLElement> = Omit<
   HTMLMotionProps<keyof HTMLElementTagNameMap>,
-  'ref'
+  "ref"
 > & { ref?: React.Ref<T> };
 
 type WithAsChild<Base extends object> =
@@ -27,7 +27,7 @@ function mergeRefs<T>(
   return (node) => {
     refs.forEach((ref) => {
       if (!ref) return;
-      if (typeof ref === 'function') {
+      if (typeof ref === "function") {
         ref(node);
       } else {
         (ref as React.RefObject<T | null>).current = node;
@@ -38,14 +38,14 @@ function mergeRefs<T>(
 
 function mergeProps<T extends HTMLElement>(
   childProps: AnyProps,
-  slotProps: DOMMotionProps<T>,
+  slotProps: DOMMotionProps<T>
 ): AnyProps {
   const merged: AnyProps = { ...childProps, ...slotProps };
 
   if (childProps.className || slotProps.className) {
     merged.className = cn(
       childProps.className as string,
-      slotProps.className as string,
+      slotProps.className as string
     );
   }
 
@@ -70,7 +70,7 @@ function Slot<T extends HTMLElement = HTMLElement>({
   if (!React.isValidElement(children)) return null;
 
   const isAlreadyMotion =
-    typeof children.type === 'object' &&
+    typeof children.type === "object" &&
     children.type !== null &&
     isMotionComponent(children.type);
 
@@ -79,23 +79,28 @@ function Slot<T extends HTMLElement = HTMLElement>({
 
   // Use React.createElement directly for already motion components
   if (isAlreadyMotion) {
-    return React.createElement(
-      children.type as React.ElementType,
-      { ...mergedProps, ref: mergeRefs(childRef as React.Ref<T>, ref) }
-    );
+    return React.createElement(children.type as React.ElementType, {
+      ...mergedProps,
+      ref: mergeRefs(childRef as React.Ref<T>, ref),
+    });
   }
 
   // Get or create motion component from cache to avoid creating during render
-  let MotionComponent = motionComponentCache.get(children.type as React.ElementType);
+  let MotionComponent = motionComponentCache.get(
+    children.type as React.ElementType
+  );
   if (!MotionComponent) {
     MotionComponent = motion.create(children.type as React.ElementType);
-    motionComponentCache.set(children.type as React.ElementType, MotionComponent);
+    motionComponentCache.set(
+      children.type as React.ElementType,
+      MotionComponent
+    );
   }
 
-  return React.createElement(
-    MotionComponent,
-    { ...mergedProps, ref: mergeRefs(childRef as React.Ref<T>, ref) }
-  );
+  return React.createElement(MotionComponent, {
+    ...mergedProps,
+    ref: mergeRefs(childRef as React.Ref<T>, ref),
+  });
 }
 
 export {

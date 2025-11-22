@@ -58,9 +58,17 @@ const gamesCatalog = {
     friendsOnline: 5,
     currentForm: ["L", "W", "W", "W", "L"] as Array<"W" | "L">,
     overviewStats: [
-      { label: "Competitive Rank", value: "Immortal I", description: "Top 1% LATAM" },
+      {
+        label: "Competitive Rank",
+        value: "Immortal I",
+        description: "Top 1% LATAM",
+      },
       { label: "Matches (30d)", value: "38", description: "22W / 16L" },
-      { label: "First Blood Rate", value: "44%", description: "Controller / Duelist hybrid" },
+      {
+        label: "First Blood Rate",
+        value: "44%",
+        description: "Controller / Duelist hybrid",
+      },
     ],
     statsBreakdown: [
       { label: "Average Combat Score", value: "261" },
@@ -107,7 +115,9 @@ const FormChips = ({ form }: { form: Array<"W" | "L"> }) => (
       <span
         key={`${entry}-${index}`}
         className={`flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold ${
-          entry === "W" ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+          entry === "W"
+            ? "bg-emerald-500/15 text-emerald-400"
+            : "bg-red-500/15 text-red-400"
         }`}
       >
         {entry}
@@ -168,16 +178,25 @@ export default function GameDetailPage({
                 <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-500/40">
                   Linked on TRAYB
                 </Badge>
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                <Badge
+                  variant="secondary"
+                  className="bg-white/20 text-white border-white/30"
+                >
                   {game.leaderboardPlacement}
                 </Badge>
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                <Badge
+                  variant="secondary"
+                  className="bg-white/20 text-white border-white/30"
+                >
                   {game.crownTier}
                 </Badge>
               </div>
             </div>
             <div className="flex gap-3">
-              <Button variant="secondary" className="bg-white/10 text-white hover:bg-white/20">
+              <Button
+                variant="secondary"
+                className="bg-white/10 text-white hover:bg-white/20"
+              >
                 Invite friends
               </Button>
               <Button className="bg-white text-black hover:bg-white/90">
@@ -208,7 +227,9 @@ export default function GameDetailPage({
                     </CardHeader>
                     <CardContent>
                       <p className="text-2xl font-semibold">{stat.value}</p>
-                      <p className="text-xs text-muted-foreground">{stat.description}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {stat.description}
+                      </p>
                     </CardContent>
                   </Card>
                 ))}
@@ -228,7 +249,9 @@ export default function GameDetailPage({
                           {game.eloRating.toLocaleString()}{" "}
                           <span
                             className={`text-xs ${
-                              game.eloDelta >= 0 ? "text-emerald-500" : "text-red-400"
+                              game.eloDelta >= 0
+                                ? "text-emerald-500"
+                                : "text-red-400"
                             }`}
                           >
                             {game.eloDelta >= 0 ? "+" : ""}
@@ -241,7 +264,9 @@ export default function GameDetailPage({
                         <p className="text-lg font-semibold">{game.winRate}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground mb-1">Current form</p>
+                        <p className="text-muted-foreground mb-1">
+                          Current form
+                        </p>
                         <FormChips form={game.currentForm} />
                       </div>
                       <div>
@@ -259,7 +284,9 @@ export default function GameDetailPage({
                   </CardHeader>
                   <CardContent className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <p className="text-2xl font-bold">{formatNumber(game.followers)}</p>
+                      <p className="text-2xl font-bold">
+                        {formatNumber(game.followers)}
+                      </p>
                       <p className="text-xs text-muted-foreground uppercase tracking-wide">
                         Followers
                       </p>
@@ -284,7 +311,10 @@ export default function GameDetailPage({
             <TabsContent value="statistics" className="pt-6">
               <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
                 {game.statsBreakdown.map((stat) => (
-                  <Card key={stat.label} className="border-white/5 bg-background/60">
+                  <Card
+                    key={stat.label}
+                    className="border-white/5 bg-background/60"
+                  >
                     <CardHeader>
                       <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
                         {stat.label}
@@ -301,19 +331,21 @@ export default function GameDetailPage({
                   Season insights
                 </p>
                 <p className="text-muted-foreground">
-                  Detailed round-by-round data, agent preferences, and map pool performance will
-                  appear here as soon as we finish syncing your TRAYB profile with Riot and Valve
-                  APIs.
+                  Detailed round-by-round data, agent preferences, and map pool
+                  performance will appear here as soon as we finish syncing your
+                  TRAYB profile with Riot and Valve APIs.
                 </p>
               </div>
             </TabsContent>
 
             <TabsContent value="subscriptions" className="pt-6">
               <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-6">
-                <h3 className="text-lg font-semibold">Premium match insights</h3>
+                <h3 className="text-lg font-semibold">
+                  Premium match insights
+                </h3>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Unlock FACEIT-style match reviews, smoke lineups, and VOD bookmarks for every
-                  session.
+                  Unlock FACEIT-style match reviews, smoke lineups, and VOD
+                  bookmarks for every session.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Button>Subscribe for $4.99</Button>
@@ -325,8 +357,8 @@ export default function GameDetailPage({
             <TabsContent value="followers" className="pt-6">
               <div className="rounded-2xl border border-white/5 bg-background/50 p-6">
                 <p className="text-muted-foreground">
-                  Your followers from TRAYB and connected platforms will be listed here once they
-                  opt into visibility.
+                  Your followers from TRAYB and connected platforms will be
+                  listed here once they opt into visibility.
                 </p>
               </div>
             </TabsContent>
@@ -334,8 +366,9 @@ export default function GameDetailPage({
             <TabsContent value="friends" className="pt-6">
               <div className="rounded-2xl border border-white/5 bg-background/50 p-6">
                 <p className="text-muted-foreground">
-                  FACEIT-style party widgets and voice channel pins will appear once friends link
-                  their accounts. Send them your invite from the Overview tab.
+                  FACEIT-style party widgets and voice channel pins will appear
+                  once friends link their accounts. Send them your invite from
+                  the Overview tab.
                 </p>
               </div>
             </TabsContent>
@@ -345,5 +378,3 @@ export default function GameDetailPage({
     </div>
   );
 }
-
-

@@ -6,7 +6,13 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { X, Play, Users, Trophy, TrendingUp, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -16,7 +22,7 @@ export default function Home() {
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [loading, setLoading] = useState(true);
-  
+
   // Initialize from localStorage directly to avoid setState in effect
   const [dismissedBanner, setDismissedBanner] = useState(() => {
     if (typeof window !== "undefined") {
@@ -34,12 +40,9 @@ export default function Home() {
     const linked = searchParams?.get("linked");
     if (linked === "google" || linked === "discord") {
       const providerName = linked === "google" ? "Google" : "Discord";
-      toast.success(
-        `Account linked successfully!`,
-        {
-          description: `Your ${providerName} account has been successfully linked to your account.`,
-        }
-      );
+      toast.success(`Account linked successfully!`, {
+        description: `Your ${providerName} account has been successfully linked to your account.`,
+      });
       // Clean up URL by removing the query parameter
       router.replace("/", { scroll: false });
     }
@@ -78,7 +81,8 @@ export default function Home() {
                 Recommended: Create an account
               </AlertTitle>
               <AlertDescription className="mt-1 text-sm">
-                Register to follow teams, get match notifications, and access exclusive features.
+                Register to follow teams, get match notifications, and access
+                exclusive features.
               </AlertDescription>
               <Button
                 variant="ghost"
@@ -110,7 +114,8 @@ export default function Home() {
             Welcome to TRAYB
           </h1>
           <p className="text-muted-foreground text-lg">
-            Watch competitive matches, follow your favorite teams, and compete in tournaments.
+            Watch competitive matches, follow your favorite teams, and compete
+            in tournaments.
           </p>
         </section>
 
@@ -118,17 +123,23 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Live Matches</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Live Matches
+              </CardTitle>
               <Play className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground">Currently streaming</p>
+              <p className="text-xs text-muted-foreground">
+                Currently streaming
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Teams</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Active Teams
+              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -168,10 +179,15 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((match) => (
-              <Card key={match} className="hover:shadow-lg transition-shadow cursor-pointer">
+              <Card
+                key={match}
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+              >
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Team Alpha vs Team Beta</CardTitle>
+                    <CardTitle className="text-lg">
+                      Team Alpha vs Team Beta
+                    </CardTitle>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       Live
@@ -205,16 +221,23 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[1, 2].map((tournament) => (
-              <Card key={tournament} className="hover:shadow-lg transition-shadow cursor-pointer">
+              <Card
+                key={tournament}
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+              >
                 <CardHeader>
-                  <CardTitle className="text-xl">Championship Series Week 1</CardTitle>
+                  <CardTitle className="text-xl">
+                    Championship Series Week 1
+                  </CardTitle>
                   <CardDescription>Starts in 2 days • 16 teams</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium">Prize Pool: $10,000</p>
-                      <p className="text-xs text-muted-foreground">Registration open</p>
+                      <p className="text-xs text-muted-foreground">
+                        Registration open
+                      </p>
                     </div>
                     <Button size="sm" variant="outline" asChild>
                       <Link href={`/tournament/${tournament}`}>

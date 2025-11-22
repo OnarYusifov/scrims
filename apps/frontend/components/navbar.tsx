@@ -3,7 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Menu, User, LogOut, Settings, LogIn, ChevronDown } from "lucide-react";
+import {
+  Search,
+  Menu,
+  User,
+  LogOut,
+  Settings,
+  LogIn,
+  ChevronDown,
+} from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import {
@@ -49,14 +57,24 @@ interface NavbarProps {
   } | null;
 }
 
-export function Navbar({ viewType = "Guest", hub, queueType, user }: NavbarProps) {
+export function Navbar({
+  viewType = "Guest",
+  hub,
+  queueType,
+  user,
+}: NavbarProps) {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = React.useState(false);
 
   // Local state for breadcrumb selections (can be synced with URL/route later)
-  const [selectedViewType, setSelectedViewType] = React.useState<ViewType>(viewType);
-  const [selectedHub, setSelectedHub] = React.useState<HubType | undefined>(hub);
-  const [selectedQueueType, setSelectedQueueType] = React.useState<QueueType | undefined>(queueType);
+  const [selectedViewType, setSelectedViewType] =
+    React.useState<ViewType>(viewType);
+  const [selectedHub, setSelectedHub] = React.useState<HubType | undefined>(
+    hub
+  );
+  const [selectedQueueType, setSelectedQueueType] = React.useState<
+    QueueType | undefined
+  >(queueType);
 
   // Update local state when props change
   React.useEffect(() => {
@@ -113,7 +131,9 @@ export function Navbar({ viewType = "Guest", hub, queueType, user }: NavbarProps
               {/* View Type Dropdown */}
               <BreadcrumbItem>
                 {selectedViewType === "Guest" ? (
-                  <span className="text-muted-foreground">{selectedViewType}</span>
+                  <span className="text-muted-foreground">
+                    {selectedViewType}
+                  </span>
                 ) : (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -122,7 +142,9 @@ export function Navbar({ viewType = "Guest", hub, queueType, user }: NavbarProps
                         size="sm"
                         className="h-auto p-0 font-normal text-foreground hover:text-foreground data-[state=open]:text-foreground"
                       >
-                        {selectedViewType === "Player" ? "Competitor" : selectedViewType}
+                        {selectedViewType === "Player"
+                          ? "Competitor"
+                          : selectedViewType}
                         <ChevronDown className="ml-1 h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -268,17 +290,24 @@ export function Navbar({ viewType = "Guest", hub, queueType, user }: NavbarProps
               <>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                    <Button
+                      variant="ghost"
+                      className="relative h-9 w-9 rounded-full"
+                    >
                       <Avatar className="h-9 w-9">
                         <AvatarImage src={user.image} alt={user.username} />
-                        <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
+                        <AvatarFallback>
+                          {getInitials(user.username)}
+                        </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user.username}</p>
+                        <p className="text-sm font-medium leading-none">
+                          {user.username}
+                        </p>
                         <p className="text-xs leading-none text-muted-foreground">
                           {user.email}
                         </p>
@@ -298,7 +327,10 @@ export function Navbar({ viewType = "Guest", hub, queueType, user }: NavbarProps
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      className="cursor-pointer"
+                    >
                       <LogOut className="mr-2 h-4 w-4" />
                       Log out
                     </DropdownMenuItem>
@@ -313,13 +345,19 @@ export function Navbar({ viewType = "Guest", hub, queueType, user }: NavbarProps
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem asChild>
-                      <Link href="/matches" className="cursor-pointer">Matches</Link>
+                      <Link href="/matches" className="cursor-pointer">
+                        Matches
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/teams" className="cursor-pointer">Teams</Link>
+                      <Link href="/teams" className="cursor-pointer">
+                        Teams
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/leaderboard" className="cursor-pointer">Leaderboard</Link>
+                      <Link href="/leaderboard" className="cursor-pointer">
+                        Leaderboard
+                      </Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -372,4 +410,3 @@ export function Navbar({ viewType = "Guest", hub, queueType, user }: NavbarProps
     </>
   );
 }
-

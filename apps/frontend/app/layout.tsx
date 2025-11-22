@@ -22,9 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${instrumentSans.variable} antialiased`}
-      >
+      <body className={`${instrumentSans.variable} antialiased`}>
         <Providers>
           <NavbarConditional />
           {children}
@@ -33,4 +31,3 @@ export default function RootLayout({
     </html>
   );
 }
-

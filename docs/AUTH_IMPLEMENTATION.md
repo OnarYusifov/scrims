@@ -50,17 +50,19 @@ User registers → Backend generates 6-digit OTP → Stores in VerificationToken
 ### 2. Database Schema
 
 **VerificationToken Table** (Auth.js required):
+
 ```prisma
 model VerificationToken {
   identifier String   // Email address
   token      String   // 6-digit OTP code
   expires    DateTime // Expiry time (15 minutes)
-  
+
   @@unique([identifier, token])
 }
 ```
 
 **User Table** (updated):
+
 ```prisma
 model User {
   emailVerified DateTime? // null = not verified, Date = verified
@@ -223,6 +225,7 @@ FRONTEND_URL=http://localhost:3000
 ## Migration Steps
 
 1. **Update Prisma schema**:
+
    ```bash
    cd packages/db
    bunx prisma migrate dev --name add_authjs_tables
@@ -243,11 +246,3 @@ FRONTEND_URL=http://localhost:3000
 - **OTP expires after 15 minutes** (configurable in `generateOTP()`)
 - **OTP is one-time use** (deleted after verification)
 - **Social logins skip OTP** (OAuth providers verify emails)
-
-
-
-
-
-
-
-

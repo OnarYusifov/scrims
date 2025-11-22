@@ -11,12 +11,14 @@ This document ensures **both AI assistants** (yours and your collaborator's) use
 **Ports are configured via root `.env` file - NO HARDCODED PORTS**
 
 **Frontend**: Uses `FRONTEND_PORT` or `PORT` from root `.env`
+
 - Scripts: `"dev": "next dev"` and `"start": "next start"` (no `-p` flag)
 - Next.js automatically reads `PORT` from `process.env`
 - Default: `3000` if not set
 - Set in root `.env`: `FRONTEND_PORT=3000` (or `5000` for collaborator)
 
 **Backend**: Uses `BACKEND_PORT` or `PORT` from root `.env`
+
 - Code: `const port = Number(process.env.BACKEND_PORT || process.env.PORT) || 3001;`
 - Default: `3001` if not set
 - Set in root `.env`: `BACKEND_PORT=3001` (or `5001` for collaborator)
@@ -28,6 +30,7 @@ This document ensures **both AI assistants** (yours and your collaborator's) use
 **CRITICAL**: All apps MUST use centralized root `.env` file.
 
 #### Backend (`apps/backend/src/index.ts`)
+
 ```typescript
 // Line 1-3: MUST be first, before any other imports
 import "@trayb/config/load-env";
@@ -37,6 +40,7 @@ import Fastify from "fastify";
 ```
 
 #### Frontend (`apps/frontend/next.config.ts`)
+
 ```typescript
 // Loads .env from root automatically
 // This runs before Next.js processes env files
@@ -44,6 +48,7 @@ import Fastify from "fastify";
 ```
 
 #### All Bots
+
 ```typescript
 // First import in each bot's index.ts
 import "@trayb/config/load-env";
@@ -54,6 +59,7 @@ import "@trayb/config/load-env";
 **Location**: `./.env` (monorepo root)
 
 **Required Variables**:
+
 ```env
 # Ports (set these to match your setup)
 FRONTEND_PORT=3000  # or 5000 for collaborator
@@ -103,6 +109,7 @@ SMTP_FROM="..."
 **Symptom**: Backend or frontend running on wrong port
 
 **Check**:
+
 ```bash
 # Check what ports are configured
 grep -E "FRONTEND_PORT|BACKEND_PORT" .env
@@ -112,6 +119,7 @@ grep -E "FRONTEND_PORT|BACKEND_PORT" .env
 ```
 
 **Fix**:
+
 - Set `FRONTEND_PORT` and `BACKEND_PORT` in root `.env` file
 - Backend: Ensure `apps/backend/src/index.ts` has: `const port = Number(process.env.BACKEND_PORT || process.env.PORT) || 3001;`
 - Frontend: Ensure `apps/frontend/package.json` has: `"dev": "next dev"` (no `-p` flag)
@@ -121,10 +129,12 @@ grep -E "FRONTEND_PORT|BACKEND_PORT" .env
 **Symptom**: `process.env.VARIABLE` is undefined
 
 **Check**:
+
 - Backend should print: `✅ Loaded X environment variable(s) from /path/to/.env`
 - Frontend loads silently in `next.config.ts`
 
 **Fix**:
+
 - Ensure `import "@trayb/config/load-env";` is FIRST import in backend
 - Ensure `next.config.ts` has the env loading code
 - Check that root `.env` file exists
@@ -134,6 +144,7 @@ grep -E "FRONTEND_PORT|BACKEND_PORT" .env
 **Symptom**: Different values in different places
 
 **Fix**:
+
 - Delete any `.env.local`, `.env.development`, or per-app `.env` files
 - Use ONLY root `.env` file
 - The loader handles everything
@@ -143,7 +154,9 @@ grep -E "FRONTEND_PORT|BACKEND_PORT" .env
 **Symptom**: Their changes conflict with your setup
 
 **Resolution Process**:
+
 1. **Check what they changed**:
+
    ```bash
    git diff origin/dev...HEAD -- apps/*/package.json apps/*/src/index.ts apps/*/next.config.ts
    ```
@@ -164,13 +177,14 @@ grep -E "FRONTEND_PORT|BACKEND_PORT" .env
 ### ✅ DO:
 
 1. **Check current configuration first**:
+
    ```bash
    # Check ports in .env
    grep -E "FRONTEND_PORT|BACKEND_PORT" .env
-   
+
    # Check scripts (should NOT have -p flag)
    grep "next dev\|next start" apps/frontend/package.json
-   
+
    # Check env loading
    grep -r "@trayb/config/load-env" apps/
    ```
@@ -239,6 +253,7 @@ API_URL: http://localhost:${BACKEND_PORT:-3001}
 ## Summary for Both AI Assistants
 
 **MANDATORY RULES**:
+
 1. Set `FRONTEND_PORT` and `BACKEND_PORT` in root `.env` file
 2. No hardcoded ports in package.json scripts
 3. Use root `.env` file only (no per-app env files)
@@ -247,4 +262,3 @@ API_URL: http://localhost:${BACKEND_PORT:-3001}
 6. Never create per-app `.env` files
 
 **If you see violations**: Revert to standard and document why.
-

@@ -1,12 +1,12 @@
 /**
  * Environment Variable Loader
- * 
+ *
  * Always loads .env from the monorepo root directory.
  * This ensures consistent env loading across all apps for Dokploy deployment.
- * 
+ *
  * Usage:
  *   import "@trayb/config/load-env";
- * 
+ *
  * This should be imported at the very top of your entry file, before any other imports.
  */
 
@@ -19,10 +19,10 @@ import { fileURLToPath } from "url";
  */
 function findRootDir(startDir: string): string {
   let currentDir = startDir;
-  
+
   while (currentDir !== "/") {
     const packageJsonPath = join(currentDir, "package.json");
-    
+
     if (existsSync(packageJsonPath)) {
       try {
         const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
@@ -34,25 +34,25 @@ function findRootDir(startDir: string): string {
         // Continue searching
       }
     }
-    
+
     const parentDir = resolve(currentDir, "..");
     if (parentDir === currentDir) break; // Reached filesystem root
     currentDir = parentDir;
   }
-  
+
   // Fallback: return startDir if root not found
   return startDir;
 }
 
 /**
  * Loads environment variables from root .env file
- * 
+ *
  * @param fromFile - The file path calling this function (use import.meta.url)
  * @returns The root directory path
  */
 export function loadEnvFromRoot(fromFile?: string | URL): string {
   let startDir: string;
-  
+
   if (fromFile) {
     // If called from ESM context
     if (typeof fromFile === "string" && fromFile.startsWith("file://")) {
@@ -79,63 +79,72 @@ export function loadEnvFromRoot(fromFile?: string | URL): string {
       startDir = process.cwd();
     }
   }
-  
+
   const rootDir = findRootDir(startDir);
-  
+
   // Helper function to load env file
-  const loadEnvFile = (envFilePath: string, allowOverride: boolean = false): number => {
+  const loadEnvFile = (
+    envFilePath: string,
+    allowOverride: boolean = false
+  ): number => {
     if (!existsSync(envFilePath)) {
       return 0;
     }
-    
+
     try {
       const envFile = readFileSync(envFilePath, "utf-8");
       let loadedCount = 0;
-      
+
       for (const line of envFile.split("\n")) {
         const trimmed = line.trim();
         // Skip empty lines and comments
         if (!trimmed || trimmed.startsWith("#")) continue;
-        
+
         // Parse KEY=VALUE (handle values with = in them)
         const equalIndex = trimmed.indexOf("=");
         if (equalIndex === -1) continue;
-        
+
         const key = trimmed.substring(0, equalIndex).trim();
         let value = trimmed.substring(equalIndex + 1).trim();
-        
+
         // Remove surrounding quotes if present
-        if ((value.startsWith('"') && value.endsWith('"')) || 
-            (value.startsWith("'") && value.endsWith("'"))) {
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
           value = value.slice(1, -1);
         }
-        
+
         // Set variable if allowOverride is true OR if it doesn't exist in process.env
         if (key && (allowOverride || !process.env[key])) {
           process.env[key] = value;
           loadedCount++;
         }
       }
-      
+
       return loadedCount;
     } catch (error) {
       console.warn(`⚠️  Could not load .env from ${envFilePath}:`, error);
       return 0;
     }
   };
-  
+
   // Load .env (only set if not already in process.env, allows Dokploy override)
   const envPath = join(rootDir, ".env");
   const envCount = loadEnvFile(envPath, false);
   if (envCount > 0) {
-    console.log(`✅ Loaded ${envCount} environment variable(s) from ${envPath}`);
+    console.log(
+      `✅ Loaded ${envCount} environment variable(s) from ${envPath}`
+    );
   } else if (!existsSync(envPath)) {
     // Don't warn in production (Dokploy will inject env vars directly)
     if (process.env.NODE_ENV !== "production") {
-      console.warn(`⚠️  .env file not found at ${envPath}. Using process.env only.`);
+      console.warn(
+        `⚠️  .env file not found at ${envPath}. Using process.env only.`
+      );
     }
   }
-  
+
   return rootDir;
 }
 
@@ -150,12 +159,3 @@ try {
   // Fallback: try to load from current working directory
   loadEnvFromRoot();
 }
-
-
-
-
-
-
-
-
-

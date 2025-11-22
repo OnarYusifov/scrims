@@ -1,41 +1,41 @@
-"use client"
+"use client";
 
-import { zodResolver } from "@hookform/resolvers/zod"
-import { signIn as nextAuthSignIn, useSession } from "next-auth/react"
-import { Controller, useForm } from "react-hook-form"
-import * as z from "zod"
+import { zodResolver } from "@hookform/resolvers/zod";
+import { signIn as nextAuthSignIn, useSession } from "next-auth/react";
+import { Controller, useForm } from "react-hook-form";
+import * as z from "zod";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Field,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
-import { AUTH_ERROR_CODES, AuthErrorCode, getAuthErrorMessage } from "@/types/auth_codes"
-import { useEffect, useRef, useState } from "react"
-import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import {
+  AUTH_ERROR_CODES,
+  AuthErrorCode,
+  getAuthErrorMessage,
+} from "@/types/auth_codes";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 const loginSchema = z.object({
-  username: z
-    .string()
-    .min(1, "İstifadəçi adı tələb olunur"),
-  password: z
-    .string()
-    .min(1, "Şifrə tələb olunur"),
-})
+  username: z.string().min(1, "İstifadəçi adı tələb olunur"),
+  password: z.string().min(1, "Şifrə tələb olunur"),
+});
 
-type LoginFormValues = z.infer<typeof loginSchema>
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm({
   className,
@@ -43,10 +43,14 @@ export function LoginForm({
 }: React.ComponentProps<"div">) {
   const { data: session } = useSession();
   const error = session?.error;
-  const errorMessage = error ? getAuthErrorMessage(error.code as typeof AUTH_ERROR_CODES[keyof typeof AUTH_ERROR_CODES]) : null;
+  const errorMessage = error
+    ? getAuthErrorMessage(
+        error.code as (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES]
+      )
+    : null;
   const toastShownRef = useRef<string | null>(null);
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -54,7 +58,7 @@ export function LoginForm({
       username: "",
       password: "",
     },
-  })
+  });
 
   useEffect(() => {
     if (errorMessage && error?.code && toastShownRef.current !== error.code) {
@@ -65,29 +69,29 @@ export function LoginForm({
     if (!errorMessage) {
       toastShownRef.current = null;
     }
-  }, [errorMessage, error?.code])
+  }, [errorMessage, error?.code]);
 
   async function onSubmit(data: LoginFormValues) {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       const result = await nextAuthSignIn("credentials", {
         username: data.username,
         password: data.password,
         redirect: false,
-      })
+      });
       if (result?.error) {
-        const errorCode = result.code as AuthErrorCode
-        const errorMessage = getAuthErrorMessage(errorCode)
-        toast.error(errorMessage)
+        const errorCode = result.code as AuthErrorCode;
+        const errorMessage = getAuthErrorMessage(errorCode);
+        toast.error(errorMessage);
       } else {
         router.refresh();
-        toast.success("Uğurla daxil oldunuz")
+        toast.success("Uğurla daxil oldunuz");
       }
     } catch (error) {
-      console.error("Login error:", error)
-      toast.error("Giriş zamanı xəta baş verdi")
+      console.error("Login error:", error);
+      toast.error("Giriş zamanı xəta baş verdi");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -96,9 +100,7 @@ export function LoginForm({
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Xoş Gəlmişsiniz</CardTitle>
-          <CardDescription>
-            Hesabınıza daxil olun
-          </CardDescription>
+          <CardDescription>Hesabınıza daxil olun</CardDescription>
         </CardHeader>
         <CardContent>
           <form id="login-form" onSubmit={form.handleSubmit(onSubmit)}>
@@ -167,5 +169,5 @@ export function LoginForm({
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

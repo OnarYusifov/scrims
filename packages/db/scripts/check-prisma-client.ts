@@ -2,7 +2,10 @@ import { prisma } from "../src/index";
 
 // Check what models are available
 const prismaKeys = Object.keys(prisma).filter(
-  (k) => !k.startsWith("$") && !k.startsWith("_") && typeof prisma[k as keyof typeof prisma] === "object"
+  (k) =>
+    !k.startsWith("$") &&
+    !k.startsWith("_") &&
+    typeof prisma[k as keyof typeof prisma] === "object"
 );
 
 console.log("Available Prisma models/properties:");
@@ -21,7 +24,10 @@ console.log("  prisma.userBadge exists:", "userBadge" in prisma);
 console.log("  typeof prisma.userBadge:", typeof (prisma as any).userBadge);
 
 if ((prisma as any).userBadge) {
-  console.log("  prisma.userBadge.findMany exists:", typeof (prisma as any).userBadge.findMany === "function");
+  console.log(
+    "  prisma.userBadge.findMany exists:",
+    typeof (prisma as any).userBadge.findMany === "function"
+  );
 }
 
 // Test a query
@@ -33,5 +39,3 @@ try {
 }
 
 await prisma.$disconnect();
-
-

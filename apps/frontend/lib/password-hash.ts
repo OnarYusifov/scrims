@@ -4,10 +4,13 @@ import bcrypt from "bcryptjs";
  * Hash password with bcrypt before sending to API
  * Uses bcrypt.hashSync for browser compatibility
  */
-export async function hashPassword(password: string, salt?: string): Promise<string> {
+export async function hashPassword(
+  password: string,
+  salt?: string
+): Promise<string> {
   try {
     let saltToUse: string;
-    
+
     if (salt) {
       // Use provided salt (for login - use the salt from stored hash)
       saltToUse = salt;
@@ -15,7 +18,7 @@ export async function hashPassword(password: string, salt?: string): Promise<str
       // Generate new salt (for registration/reset)
       saltToUse = bcrypt.genSaltSync(10);
     }
-    
+
     // Hash password with salt
     const hashedPassword = bcrypt.hashSync(password, saltToUse);
     return hashedPassword;

@@ -10,11 +10,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Forward to backend
-    const response = await fetch(`${config.backendUrl}/auth/get-password-salt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const response = await fetch(
+      `${config.backendUrl}/auth/get-password-salt`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
 
     const data = await response.json();
 

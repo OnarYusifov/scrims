@@ -9,43 +9,51 @@ Click "Add rule" or edit existing rule for `dev` branch.
 ### ✅ SELECT THESE (Required):
 
 #### 1. **Require a pull request before merging**
-   - ✅ **Check this box**
-   - **Required approvals**: Set to `1`
-   - ✅ **Dismiss stale pull request approvals when new commits are pushed** - Check this
-   - ❌ **Require review from Code Owners** - Leave unchecked (unless you set up CODEOWNERS)
-   - ❌ **Require approval of the most recent reviewable push** - Leave unchecked
-   - ❌ **Require conversation resolution before merging** - Leave unchecked (optional, can enable if you want)
-   - ❌ **Automatically request Copilot code review** - Leave unchecked (optional)
 
-   **Allowed merge methods**: Select at least one:
-   - ✅ **Allow squash merging** (recommended - combines commits into one)
-   - ✅ **Allow merge commits** (preserves history)
-   - ✅ **Allow rebase merging** (linear history)
+- ✅ **Check this box**
+- **Required approvals**: Set to `1`
+- ✅ **Dismiss stale pull request approvals when new commits are pushed** - Check this
+- ❌ **Require review from Code Owners** - Leave unchecked (unless you set up CODEOWNERS)
+- ❌ **Require approval of the most recent reviewable push** - Leave unchecked
+- ❌ **Require conversation resolution before merging** - Leave unchecked (optional, can enable if you want)
+- ❌ **Automatically request Copilot code review** - Leave unchecked (optional)
+
+**Allowed merge methods**: Select at least one:
+
+- ✅ **Allow squash merging** (recommended - combines commits into one)
+- ✅ **Allow merge commits** (preserves history)
+- ✅ **Allow rebase merging** (linear history)
 
 #### 2. **Require status checks to pass**
-   - ✅ **Check this box**
-   - ✅ **Require branches to be up to date before merging** - Check this
-   - ❌ **Do not require status checks on creation** - Leave unchecked
-   
-   **Status checks to require** (after CI runs once, these will appear):
-   - Select: `lint-and-build` (from CI workflow)
-   - Select: `pr-validation` (from PR check workflow)
-   
-   *Note: These will appear after the first PR is created and CI runs*
+
+- ✅ **Check this box**
+- ✅ **Require branches to be up to date before merging** - Check this
+- ❌ **Do not require status checks on creation** - Leave unchecked
+
+**Status checks to require** (after CI runs once, these will appear):
+
+- Select: `lint-and-build` (from CI workflow)
+- Select: `pr-validation` (from PR check workflow)
+
+_Note: These will appear after the first PR is created and CI runs_
 
 #### 3. **Block force pushes**
-   - ✅ **Check this box**
+
+- ✅ **Check this box**
 
 #### 4. **Restrict updates**
-   - ✅ **Check this box** - Only allow users with bypass permission to update matching refs
+
+- ✅ **Check this box** - Only allow users with bypass permission to update matching refs
 
 #### 5. **Restrict deletions**
-   - ✅ **Check this box** - Only allow users with bypass permissions to delete matching refs
+
+- ✅ **Check this box** - Only allow users with bypass permissions to delete matching refs
 
 ### ⚠️ OPTIONAL (Recommended):
 
 #### 6. **Require linear history**
-   - ✅ **Check this box** - Prevents merge commits (cleaner history)
+
+- ✅ **Check this box** - Prevents merge commits (cleaner history)
 
 ### ❌ DO NOT SELECT (Leave Unchecked):
 
@@ -129,4 +137,3 @@ Copy this checklist while setting up:
 - **Bypass permissions**: Only repository admins should have bypass. This ensures even admins follow PR workflow.
 
 - **If you need to push directly** (emergency only): You'll need to temporarily disable protection or use bypass permission.
-

@@ -68,7 +68,11 @@ const conceptGames = {
     overviewStats: [
       { label: "Competitive Rank", value: "—", description: "No rank yet" },
       { label: "Matches (30d)", value: "0", description: "0W / 0L" },
-      { label: "First Blood Rate", value: "0%", description: "No matches played" },
+      {
+        label: "First Blood Rate",
+        value: "0%",
+        description: "No matches played",
+      },
     ],
     statsBreakdown: [
       { label: "Average Combat Score", value: "0" },
@@ -107,7 +111,8 @@ const gameIdMap: Record<string, keyof typeof conceptGames> = {
   cs2: "counter-strike-2",
 };
 
-const normalizeSlug = (slug: string) => decodeURIComponent(slug).trim().toLowerCase();
+const normalizeSlug = (slug: string) =>
+  decodeURIComponent(slug).trim().toLowerCase();
 
 const isConceptGameSlug = (slug: string): slug is keyof typeof conceptGames =>
   Object.prototype.hasOwnProperty.call(conceptGames, slug);
@@ -131,7 +136,9 @@ const FormChips = ({ form }: { form: Array<"W" | "L"> }) => (
       <span
         key={`${entry}-${index}`}
         className={`flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold ${
-          entry === "W" ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+          entry === "W"
+            ? "bg-emerald-500/15 text-emerald-400"
+            : "bg-red-500/15 text-red-400"
         }`}
       >
         {entry}
@@ -159,14 +166,16 @@ export default function ProfileGameStatsPage({
   const [authenticated, setAuthenticated] = useState(false);
   const [textColor, setTextColor] = useState<"light" | "dark">("light");
   const bannerImageRef = useRef<HTMLDivElement>(null);
-  
+
   // Badges for user - will be fetched from API later
-  const [badges, setBadges] = useState<Array<{
-    id: string;
-    label: string;
-    variant?: "default" | "secondary" | "destructive" | "outline";
-    icon?: React.ReactNode;
-  }>>([]);
+  const [badges, setBadges] = useState<
+    Array<{
+      id: string;
+      label: string;
+      variant?: "default" | "secondary" | "destructive" | "outline";
+      icon?: React.ReactNode;
+    }>
+  >([]);
 
   // All hooks must be called before any conditional returns
   useEffect(() => {
@@ -174,18 +183,20 @@ export default function ProfileGameStatsPage({
       try {
         // Disable browser caching - always fetch fresh session
         const response = await fetch("/api/auth/me", {
-          cache: 'no-store',
-          credentials: 'include',
+          cache: "no-store",
+          credentials: "include",
         });
         const data = await response.json();
 
         if (response.ok && data.authenticated) {
           setUser(data.user);
           setAuthenticated(true);
-          
+
           // Fetch badges from API
           try {
-            const badgesResponse = await fetch(`/api/user/badges?userId=${data.user.id}`);
+            const badgesResponse = await fetch(
+              `/api/user/badges?userId=${data.user.id}`
+            );
             if (badgesResponse.ok) {
               const badgesData = await badgesResponse.json();
               setBadges(badgesData.badges || []);
@@ -218,15 +229,15 @@ export default function ProfileGameStatsPage({
 
   const formatMemberSince = (createdAt: string) => {
     const date = new Date(createdAt);
-    return date.toLocaleDateString("en-US", { 
-      year: "numeric", 
-      month: "long" 
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
     });
   };
 
   const handleShareProfile = async () => {
     if (!user) return;
-    
+
     const profileUrl = `${window.location.origin}/profile`;
     try {
       if (navigator.share) {
@@ -275,17 +286,19 @@ export default function ProfileGameStatsPage({
     const detectTextColor = () => {
       if (!bannerImageRef.current) return;
 
-      const img = bannerImageRef.current.querySelector("img") as HTMLImageElement;
+      const img = bannerImageRef.current.querySelector(
+        "img"
+      ) as HTMLImageElement;
       if (!img) return;
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-      
+
       if (!ctx) return;
 
       canvas.width = Math.min(img.naturalWidth || 200, 200);
       canvas.height = Math.min(img.naturalHeight || 200, 200);
-      
+
       try {
         ctx.drawImage(
           img,
@@ -301,7 +314,7 @@ export default function ProfileGameStatsPage({
 
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
-        
+
         let totalBrightness = 0;
         let pixelCount = 0;
 
@@ -324,7 +337,9 @@ export default function ProfileGameStatsPage({
       }
     };
 
-    const img = bannerImageRef.current?.querySelector("img") as HTMLImageElement;
+    const img = bannerImageRef.current?.querySelector(
+      "img"
+    ) as HTMLImageElement;
     if (img) {
       if (img.complete) {
         detectTextColor();
@@ -384,11 +399,13 @@ export default function ProfileGameStatsPage({
                   quality={90}
                 />
               </div>
-              <div className={`absolute inset-0 ${
-                textColor === "light" 
-                  ? "bg-gradient-to-t from-black/30 via-black/10 to-transparent" 
-                  : "bg-gradient-to-t from-white/20 via-white/5 to-transparent"
-              }`} />
+              <div
+                className={`absolute inset-0 ${
+                  textColor === "light"
+                    ? "bg-gradient-to-t from-black/30 via-black/10 to-transparent"
+                    : "bg-gradient-to-t from-white/20 via-white/5 to-transparent"
+                }`}
+              />
             </>
           ) : (
             <>
@@ -397,7 +414,7 @@ export default function ProfileGameStatsPage({
             </>
           )}
         </div>
-        
+
         <div className="relative h-full flex items-center px-4 sm:px-6 md:px-8 z-10">
           <Avatar className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 lg:h-32 lg:w-32 border-2 sm:border-[3px] md:border-4 border-background shadow-lg relative z-10 flex-shrink-0">
             <AvatarImage src={undefined} alt={user.username || ""} />
@@ -420,19 +437,23 @@ export default function ProfileGameStatsPage({
                           font-semibold
                           bg-transparent
                           border-2
-                          ${textColor === "light" 
-                            ? "text-white border-white/60" 
-                            : "text-black border-black/60"}
+                          ${
+                            textColor === "light"
+                              ? "text-white border-white/60"
+                              : "text-black border-black/60"
+                          }
                           backdrop-blur-sm
                           shadow-lg
                         `}
                       >
-                        {badge.icon && <span className="text-sm mr-1">{badge.icon}</span>}
+                        {badge.icon && (
+                          <span className="text-sm mr-1">{badge.icon}</span>
+                        )}
                         {badge.label}
                       </Badge>
                     );
                   }
-                  
+
                   if (index === 1) {
                     return (
                       <Badge
@@ -449,12 +470,14 @@ export default function ProfileGameStatsPage({
                           shadow-lg
                         `}
                       >
-                        {badge.icon && <span className="text-sm mr-1">{badge.icon}</span>}
+                        {badge.icon && (
+                          <span className="text-sm mr-1">{badge.icon}</span>
+                        )}
                         {badge.label}
                       </Badge>
                     );
                   }
-                  
+
                   return (
                     <Badge
                       key={badge.id}
@@ -463,21 +486,25 @@ export default function ProfileGameStatsPage({
                         text-xs sm:text-sm
                         px-2.5 py-1 sm:px-3 sm:py-1.5
                         font-semibold
-                        ${textColor === "light" 
-                          ? "bg-white/95 text-black border-white/60" 
-                          : "bg-black/90 text-white border-black/60"}
+                        ${
+                          textColor === "light"
+                            ? "bg-white/95 text-black border-white/60"
+                            : "bg-black/90 text-white border-black/60"
+                        }
                         backdrop-blur-sm
                         shadow-lg
                       `}
                     >
-                      {badge.icon && <span className="text-sm mr-1">{badge.icon}</span>}
+                      {badge.icon && (
+                        <span className="text-sm mr-1">{badge.icon}</span>
+                      )}
                       {badge.label}
                     </Badge>
                   );
                 })}
               </div>
             )}
-            <h1 
+            <h1
               className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight drop-shadow-lg truncate ${
                 textColor === "light" ? "text-white" : "text-black"
               }`}
@@ -485,7 +512,7 @@ export default function ProfileGameStatsPage({
               {user.username}
             </h1>
             {user.createdAt && (
-              <p 
+              <p
                 className={`text-xs sm:text-sm drop-shadow-md ${
                   textColor === "light" ? "text-white/90" : "text-black/80"
                 }`}
@@ -498,8 +525,8 @@ export default function ProfileGameStatsPage({
               size="sm"
               onClick={handleShareProfile}
               className={`w-fit text-xs sm:text-sm backdrop-blur-sm transition-all ${
-                textColor === "light" 
-                  ? "bg-black/60 text-white border-white/30 hover:bg-black/70 hover:border-white/50 hover:text-white hover:ring-2 hover:ring-white/20" 
+                textColor === "light"
+                  ? "bg-black/60 text-white border-white/30 hover:bg-black/70 hover:border-white/50 hover:text-white hover:ring-2 hover:ring-white/20"
                   : "bg-white/80 text-black border-black/30 hover:bg-white/90 hover:border-black/50 hover:text-black hover:ring-2 hover:ring-black/20"
               }`}
             >
@@ -513,32 +540,32 @@ export default function ProfileGameStatsPage({
 
       {/* Game Stats Section - Below Banner */}
       <div className="mx-auto px-4 sm:px-6 md:px-8 py-6">
-
         <section className="relative rounded-3xl border border-white/10 bg-black/80 backdrop-blur-sm shadow-2xl">
-          {(resolvedParams.gameId === "cs2" || resolvedParams.gameId === "counter-strike-2") && (
+          {(resolvedParams.gameId === "cs2" ||
+            resolvedParams.gameId === "counter-strike-2") && (
             <Image
               src="/logos/cs2-logo.png"
               alt="Counter-Strike 2 logo"
               width={36}
               height={36}
               className="absolute h-7 w-7 lg:h-9 lg:w-9 rounded-[2px] object-contain z-10"
-              style={{ 
-                top: '2rem', // Align with text line (p-8 = 2rem)
-                right: '2rem' // Align with buttons (p-8 = 2rem)
+              style={{
+                top: "2rem", // Align with text line (p-8 = 2rem)
+                right: "2rem", // Align with buttons (p-8 = 2rem)
               }}
               unoptimized
             />
           )}
-          {(resolvedParams.gameId === "valorant") && (
+          {resolvedParams.gameId === "valorant" && (
             <Image
               src="/logos/valorant-logo.png"
               alt="Valorant logo"
               width={36}
               height={36}
               className="absolute h-7 w-7 lg:h-9 lg:w-9 rounded-[2px] object-contain z-10"
-              style={{ 
-                top: '2rem', // Align with text line (p-8 = 2rem)
-                right: '2rem' // Align with buttons (p-8 = 2rem)
+              style={{
+                top: "2rem", // Align with text line (p-8 = 2rem)
+                right: "2rem", // Align with buttons (p-8 = 2rem)
               }}
               unoptimized
             />
@@ -564,19 +591,28 @@ export default function ProfileGameStatsPage({
                   Linked on TRAYB
                 </Badge>
                 {game.leaderboardPlacement && (
-                  <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                  <Badge
+                    variant="secondary"
+                    className="bg-white/20 text-white border-white/30"
+                  >
                     {game.leaderboardPlacement}
                   </Badge>
                 )}
                 {game.crownTier && (
-                  <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                  <Badge
+                    variant="secondary"
+                    className="bg-white/20 text-white border-white/30"
+                  >
                     {game.crownTier}
                   </Badge>
                 )}
               </div>
             </div>
             <div className="flex gap-3">
-              <Button variant="secondary" className="bg-white/10 text-white hover:bg-white/20">
+              <Button
+                variant="secondary"
+                className="bg-white/10 text-white hover:bg-white/20"
+              >
                 Invite friends
               </Button>
               <Button className="bg-white text-black hover:bg-white/90">
@@ -598,19 +634,30 @@ export default function ProfileGameStatsPage({
 
             <TabsContent value="overview" className="pt-6">
               <div className="grid gap-4 md:grid-cols-3">
-                {game.overviewStats.map((stat: { label: string; value: string; description: string }) => (
-                  <Card key={stat.label} className="border-border/50 bg-card dark:border-white/5 dark:bg-muted/20">
-                    <CardHeader>
-                      <CardTitle className="text-sm uppercase text-muted-foreground">
-                        {stat.label}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-semibold">{stat.value}</p>
-                      <p className="text-xs text-muted-foreground">{stat.description}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+                {game.overviewStats.map(
+                  (stat: {
+                    label: string;
+                    value: string;
+                    description: string;
+                  }) => (
+                    <Card
+                      key={stat.label}
+                      className="border-border/50 bg-card dark:border-white/5 dark:bg-muted/20"
+                    >
+                      <CardHeader>
+                        <CardTitle className="text-sm uppercase text-muted-foreground">
+                          {stat.label}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-semibold">{stat.value}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {stat.description}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )
+                )}
               </div>
               <div className="mt-6 grid gap-4 lg:grid-cols-2">
                 <Card className="border-border/50 bg-card dark:border-white/5 dark:bg-muted/30">
@@ -628,7 +675,9 @@ export default function ProfileGameStatsPage({
                           {game.eloDelta !== 0 && (
                             <span
                               className={`ml-1 text-xs ${
-                                game.eloDelta >= 0 ? "text-emerald-500" : "text-red-400"
+                                game.eloDelta >= 0
+                                  ? "text-emerald-500"
+                                  : "text-red-400"
                               }`}
                             >
                               {game.eloDelta >= 0 ? "+" : ""}
@@ -642,7 +691,9 @@ export default function ProfileGameStatsPage({
                         <p className="text-lg font-semibold">{game.winRate}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground mb-1">Current form</p>
+                        <p className="text-muted-foreground mb-1">
+                          Current form
+                        </p>
                         <FormChips form={game.currentForm} />
                       </div>
                       <div>
@@ -660,7 +711,9 @@ export default function ProfileGameStatsPage({
                   </CardHeader>
                   <CardContent className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <p className="text-2xl font-bold">{formatNumber(game.followers)}</p>
+                      <p className="text-2xl font-bold">
+                        {formatNumber(game.followers)}
+                      </p>
                       <p className="text-xs text-muted-foreground uppercase tracking-wide">
                         Followers
                       </p>
@@ -684,36 +737,44 @@ export default function ProfileGameStatsPage({
 
             <TabsContent value="statistics" className="pt-6">
               <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-                {game.statsBreakdown.map((stat: { label: string; value: string }) => (
-                  <Card key={stat.label} className="border-border/50 bg-card dark:border-white/5 dark:bg-background/60">
-                    <CardHeader>
-                      <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {stat.label}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-3xl font-semibold">{stat.value}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+                {game.statsBreakdown.map(
+                  (stat: { label: string; value: string }) => (
+                    <Card
+                      key={stat.label}
+                      className="border-border/50 bg-card dark:border-white/5 dark:bg-background/60"
+                    >
+                      <CardHeader>
+                        <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+                          {stat.label}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-semibold">{stat.value}</p>
+                      </CardContent>
+                    </Card>
+                  )
+                )}
               </div>
               <div className="mt-6 rounded-2xl border border-border/50 bg-muted/50 dark:border-white/5 dark:bg-background/40 p-6">
                 <p className="text-sm uppercase tracking-wide text-muted-foreground mb-2">
                   Season insights
                 </p>
                 <p className="text-muted-foreground">
-                  Detailed round-by-round data, map pool performance, and agent breakdowns will
-                  appear here as soon as the TRAYB sync goes live.
+                  Detailed round-by-round data, map pool performance, and agent
+                  breakdowns will appear here as soon as the TRAYB sync goes
+                  live.
                 </p>
               </div>
             </TabsContent>
 
             <TabsContent value="subscriptions" className="pt-6">
               <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-6">
-                <h3 className="text-lg font-semibold">Premium match insights</h3>
+                <h3 className="text-lg font-semibold">
+                  Premium match insights
+                </h3>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Unlock FACEIT-style match reviews, smoke lineups, and VOD bookmarks for every
-                  session.
+                  Unlock FACEIT-style match reviews, smoke lineups, and VOD
+                  bookmarks for every session.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Button>Subscribe for $4.99</Button>
@@ -725,8 +786,8 @@ export default function ProfileGameStatsPage({
             <TabsContent value="followers" className="pt-6">
               <div className="rounded-2xl border border-border/50 bg-muted/50 dark:border-white/5 dark:bg-background/50 p-6">
                 <p className="text-muted-foreground">
-                  Followers from TRAYB and connected platforms will appear here once they opt into
-                  visibility.
+                  Followers from TRAYB and connected platforms will appear here
+                  once they opt into visibility.
                 </p>
               </div>
             </TabsContent>
@@ -734,8 +795,9 @@ export default function ProfileGameStatsPage({
             <TabsContent value="friends" className="pt-6">
               <div className="rounded-2xl border border-border/50 bg-muted/50 dark:border-white/5 dark:bg-background/50 p-6">
                 <p className="text-muted-foreground">
-                  FACEIT-style party widgets and voice channel pins will appear once friends link
-                  their accounts. Send invites from the overview tab.
+                  FACEIT-style party widgets and voice channel pins will appear
+                  once friends link their accounts. Send invites from the
+                  overview tab.
                 </p>
               </div>
             </TabsContent>
@@ -745,5 +807,3 @@ export default function ProfileGameStatsPage({
     </div>
   );
 }
-
-

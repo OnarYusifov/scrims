@@ -39,7 +39,8 @@ export const PasswordResetOTP = ({
             <Heading style={heading}>Reset Your Password</Heading>
             <Text style={text}>Hi {username},</Text>
             <Text style={text}>
-              You requested to reset your password. Please use the following verification code to reset your password:
+              You requested to reset your password. Please use the following
+              verification code to reset your password:
             </Text>
 
             {/* OTP Code Display */}
@@ -57,7 +58,9 @@ export const PasswordResetOTP = ({
             )}
 
             <Text style={footerText}>
-              This verification code will expire in 15 minutes. If you didn't request a password reset, please ignore this email and secure your account.
+              This verification code will expire in 15 minutes. If you didn't
+              request a password reset, please ignore this email and secure your
+              account.
             </Text>
           </Section>
 
@@ -76,7 +79,8 @@ export const PasswordResetOTP = ({
 // Styles
 const main: CSSProperties = {
   backgroundColor: "#0a0a0a",
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 };
 
 const container: CSSProperties = {
@@ -170,10 +174,3 @@ const footerText: CSSProperties = {
 };
 
 export default PasswordResetOTP;
-
-
-
-
-
-
-

@@ -1,4 +1,8 @@
-import NextAuth, { type Session, type User, CredentialsSignin } from "next-auth";
+import NextAuth, {
+  type Session,
+  type User,
+  CredentialsSignin,
+} from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import type { AdapterUser } from "@auth/core/adapters";
 import type { Account } from "@auth/core/types";
@@ -51,10 +55,10 @@ export const loginSchema = z.object({
 function getBackendUrl(): string {
   // API_URL should be set to https://api.trayb.az for public API calls
   if (process.env.API_URL) return process.env.API_URL;
-  
+
   // BACKEND_URL should be http://localhost:3001 for same-container calls
   if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
-  
+
   // Fall back to localhost with port
   const port = Number(process.env.BACKEND_PORT) || 3001;
   return `http://localhost:${port}`;
@@ -117,7 +121,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             throw new MissingCredentialsError();
           }
 
-          const { email, password, deviceId, trustedDeviceToken } = loginSchema.parse(credentials);
+          const { email, password, deviceId, trustedDeviceToken } =
+            loginSchema.parse(credentials);
 
           // Get backend URL for server-side call (prioritizes localhost in same container)
           const backendUrl = getBackendUrl();
@@ -126,7 +131,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const res = await fetch(`${backendUrl}/auth/verify-credentials`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password, deviceId, trustedDeviceToken }),
+            body: JSON.stringify({
+              email,
+              password,
+              deviceId,
+              trustedDeviceToken,
+            }),
           });
 
           // Handle fetch errors (network issues, timeouts, etc.)
@@ -137,11 +147,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               errorData = JSON.parse(errorText);
             } catch {
               // If response is not JSON, use the text as error
-              console.error(`[Auth] Backend request failed: ${res.status} ${res.statusText} - ${errorText}`);
+              console.error(
+                `[Auth] Backend request failed: ${res.status} ${res.statusText} - ${errorText}`
+              );
               throw new AuthError();
             }
 
-            if (errorData.error === "Email not verified") throw new EmailNotVerifiedError();
+            if (errorData.error === "Email not verified")
+              throw new EmailNotVerifiedError();
             if (errorData.requiresDeviceVerification) {
               // Device verification required - throw invalid credentials for now
               // Could create a specific error class for this later if needed
@@ -162,7 +175,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           };
 
           return user;
-
         } catch (error) {
           // Re-throw CredentialsSignin errors as-is (NextAuth will handle them)
           if (error instanceof CredentialsSignin) {
@@ -170,7 +182,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
           // Log unexpected errors
           if (error instanceof Error) {
-            console.error("[Auth] Credentials verification error:", error.message, error.stack);
+            console.error(
+              "[Auth] Credentials verification error:",
+              error.message,
+              error.stack
+            );
           }
           // For unexpected errors, throw AuthError
           throw new AuthError();
@@ -196,7 +212,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account }: { user: User | AdapterUser; account?: Account | null }) {
+    async signIn({
+      user,
+      account,
+    }: {
+      user: User | AdapterUser;
+      account?: Account | null;
+    }) {
       if (account?.provider === "discord" || account?.provider === "google") {
         try {
           // Get backend URL for server-side call (prioritizes localhost in same container)
@@ -234,7 +256,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           const data = await res.json();
-          console.log("[OAuth] Backend response data:", JSON.stringify(data, null, 2));
+          console.log(
+            "[OAuth] Backend response data:",
+            JSON.stringify(data, null, 2)
+          );
 
           // Check if we have the expected data structure
           if (!data.user) {
@@ -275,7 +300,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Clear any previous errors on successful login
         token.error = undefined;
-        }
+      }
 
       return token;
     },
@@ -319,4 +344,3 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
 });
-

@@ -19,6 +19,7 @@ model User {
   image                   String?   // Profile picture URL (from OAuth providers)
   discord                 String?   // Discord user ID or username
   role                    String    @default("user") // user, admin, etc.
+  status                  String    @default("active")
   emailVerified           DateTime? // DateTime for Auth.js compatibility (null = not verified, Date = verified)
   verificationToken       String?   // Keep for backward compatibility, but use verificationCode
   verificationCode        String?   // 6-digit OTP code for email verification
@@ -37,6 +38,15 @@ model User {
   
   // User badges
   userBadges              UserBadge[]
+
+  playerRoles             PlayerRole[]
+  assignedRoles           PlayerRole[]        @relation("PlayerRoleAssignedBy")
+  playerBans              PlayerBan[]
+  issuedBans              PlayerBan[]         @relation("PlayerBanActor")
+  auditLogs               PlayerAuditLog[]    @relation("PlayerAuditTarget")
+  auditActions            PlayerAuditLog[]    @relation("PlayerAuditActor")
+  matchPlayers            MatchPlayer[]
+  eloHistory              PlayerEloHistory[]
 
   @@map("users")
 }
@@ -123,5 +133,187 @@ model UserBadge {
   @@index([userId])
   @@index([badgeId])
   @@map("user_badges")
+}
+
+enum PlayerRoleType {
+  organizer
+  admin
+  moderator
+  competitor
+  viewer
+}
+
+model PlayerRole {
+  id         String         @id @default(cuid())
+  userId     String
+  role       PlayerRoleType
+  isPrimary  Boolean        @default(false)
+  reason     String?
+  assignedBy String?
+  createdAt  DateTime       @default(now())
+
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedByUser User? @relation("PlayerRoleAssignedBy", fields: [assignedBy], references: [id])
+
+  @@unique([userId, role])
+  @@map("player_roles")
+}
+
+enum PlayerBanStatus {
+  active
+  lifted
+  expired
+}
+
+enum PlayerBanType {
+  temporary
+  permanent
+}
+
+model PlayerBan {
+  id              String           @id @default(cuid())
+  userId          String
+  status          PlayerBanStatus  @default(active)
+  type            PlayerBanType
+  reason          String
+  durationDays    Int?
+  banFromAllHubs  Boolean          @default(true)
+  banFromDiscord  Boolean          @default(false)
+  bannedBy        String
+  startsAt        DateTime         @default(now())
+  endsAt          DateTime?
+  liftedAt        DateTime?
+  createdAt       DateTime         @default(now())
+
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actor User @relation("PlayerBanActor", fields: [bannedBy], references: [id])
+
+  @@index([userId, status])
+  @@map("player_bans")
+}
+
+enum PlayerAuditAction {
+  role_change
+  ban
+  unban
+  note
+}
+
+model PlayerAuditLog {
+  id        String             @id @default(cuid())
+  userId    String
+  actorId   String
+  action    PlayerAuditAction
+  reason    String?
+  metadata  Json?
+  createdAt DateTime           @default(now())
+
+  user  User @relation("PlayerAuditTarget", fields: [userId], references: [id], onDelete: Cascade)
+  actor User @relation("PlayerAuditActor", fields: [actorId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("player_audit_logs")
+}
+
+model AdminSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admin_settings")
+}
+
+enum GameId {
+  valorant
+  cs2
+}
+
+enum MatchStatus {
+  scheduled
+  live
+  completed
+  canceled
+}
+
+enum MatchOutcome {
+  alpha
+  bravo
+  draw
+}
+
+enum MatchTeam {
+  alpha
+  bravo
+}
+
+enum MatchQueueType {
+  ranked_global
+  ranked_private
+  unranked
+  scrim
+}
+
+model Match {
+  id             String         @id @default(cuid())
+  externalId     String?        @unique
+  hubId          String?
+  game           GameId
+  status         MatchStatus    @default(completed)
+  queueType      MatchQueueType @default(ranked_global)
+  map            String
+  roundsPlayed   Int            @default(24)
+  winner         MatchOutcome?
+  startedAt      DateTime?
+  endedAt        DateTime?
+  durationSeconds Int?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  players        MatchPlayer[]
+  eloEvents      PlayerEloHistory[] @relation("MatchEloEvents")
+
+  @@index([game, startedAt])
+  @@index([hubId])
+}
+
+model MatchPlayer {
+  id            String     @id @default(cuid())
+  matchId       String
+  userId        String
+  team          MatchTeam
+  ratingBefore  Int?
+  ratingAfter   Int?
+  ratingDelta   Int?
+  kills         Int?
+  deaths        Int?
+  assists       Int?
+  acs           Int?
+  hsPercentage  Float?
+  entryKills    Int?
+  clutches      Int?
+  createdAt     DateTime   @default(now())
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@index([userId, matchId])
+}
+
+model PlayerEloHistory {
+  id            String   @id @default(cuid())
+  userId        String
+  game          GameId
+  rating        Int
+  ratingDelta   Int
+  recordedAt    DateTime @default(now())
+  sourceMatchId String?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match Match? @relation("MatchEloEvents", fields: [sourceMatchId], references: [id])
+
+  @@index([userId, game, recordedAt])
 }
 

@@ -2,6 +2,10 @@
 // This ensures all apps use the same root .env file
 import "@trayb/config/load-env";
 
+// Validate environment variables at startup
+import { validateEnv, getEnv } from "./config/env.js";
+validateEnv();
+
 // Ensure react-dom/server is available globally for @react-email/render
 // This must be imported before any email utilities
 // @react-email/render checks for reactDOMServer in various ways, so we need to ensure it's available
@@ -21,28 +25,26 @@ if (typeof globalThis !== "undefined") {
 // We need to ensure reactDOMServer is accessible when the module loads
 
 import Fastify from "fastify";
-import swagger from "@fastify/swagger";
-import swaggerUI from "@fastify/swagger-ui";
 import helmet from "@fastify/helmet";
 import { Server } from "socket.io";
 import { registerRoutes } from "./routes/index.js";
+import { registerSwagger } from "./swagger.js";
+import errorHandlerPlugin from "./plugins/error-handler.js";
 
 // Helper function to get backend URL from env ports
 function getBackendUrl(): string {
-  if (process.env.API_URL) return process.env.API_URL;
-  if (process.env.NODE_ENV === "production") return "https://api.trayb.az";
-  const port = Number(process.env.BACKEND_PORT);
-  if (!port) throw new Error("BACKEND_PORT must be set in root .env file");
-  return `http://localhost:${port}`;
+  const env = getEnv();
+  if (env.API_URL) return env.API_URL;
+  if (env.NODE_ENV === "production") return "https://api.trayb.az";
+  return `http://localhost:${env.BACKEND_PORT}`;
 }
 
 // Helper function to get frontend URL from env ports
 function getFrontendUrl(): string {
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
-  const port = Number(process.env.FRONTEND_PORT);
-  if (!port) throw new Error("FRONTEND_PORT must be set in root .env file");
-  return `http://localhost:${port}`;
+  const env = getEnv();
+  if (env.NEXTAUTH_URL) return env.NEXTAUTH_URL;
+  if (env.FRONTEND_URL) return env.FRONTEND_URL;
+  return `http://localhost:${env.FRONTEND_PORT}`;
 }
 
 export async function buildServer() {
@@ -51,35 +53,14 @@ export async function buildServer() {
     trustProxy: true, // Trust Traefik proxy
   });
 
+  // Register error handler first (before routes) to catch all errors
+  await fastify.register(errorHandlerPlugin);
+
   // Register helmet for security headers
-	await fastify.register(helmet);
+  await fastify.register(helmet);
 
-	// Register Swagger (OpenAPI JSON)
-	await fastify.register(swagger, {
-		mode: "dynamic",
-		openapi: {
-			info: {
-				title: "TRAYB Series API",
-				description: "API documentation for the TRAYB Series",
-				version: "1.0.0",
-			},
-			servers: [
-				{
-					url: getBackendUrl(),
-					description: "API server",
-				},
-			],
-		},
-	});
-
-	// Register Swagger UI (Docs portal)
-  await fastify.register(swaggerUI, {
-    routePrefix: "/docs",
-    uiConfig: {
-      docExpansion: "list",
-      deepLinking: false,
-    },
-  });
+  // Register Swagger + Docs using shared config
+  await registerSwagger(fastify, { serverUrl: getBackendUrl() });
 
   // Register all routes
   await registerRoutes(fastify);
@@ -112,10 +93,10 @@ async function start() {
       });
     });
 
-    // Use BACKEND_PORT from root .env file (required)
-    const port = Number(process.env.BACKEND_PORT);
-    if (!port) throw new Error("BACKEND_PORT must be set in root .env file");
-    const host = process.env.HOST || "0.0.0.0";
+    // Use validated environment variables
+    const env = getEnv();
+    const port = env.BACKEND_PORT;
+    const host = env.HOST;
 
     // Start the server
     await fastify.listen({ port, host });
@@ -129,4 +110,6 @@ async function start() {
   }
 }
 
-start();
+if (process.env.NODE_ENV !== "test") {
+  start();
+}

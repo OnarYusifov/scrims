@@ -128,6 +128,7 @@ exports.Prisma.UserScalarFieldEnum = {
   image: 'image',
   discord: 'discord',
   role: 'role',
+  status: 'status',
   emailVerified: 'emailVerified',
   verificationToken: 'verificationToken',
   verificationCode: 'verificationCode',
@@ -192,9 +193,107 @@ exports.Prisma.UserBadgeScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.PlayerRoleScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  role: 'role',
+  isPrimary: 'isPrimary',
+  reason: 'reason',
+  assignedBy: 'assignedBy',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.PlayerBanScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  status: 'status',
+  type: 'type',
+  reason: 'reason',
+  durationDays: 'durationDays',
+  banFromAllHubs: 'banFromAllHubs',
+  banFromDiscord: 'banFromDiscord',
+  bannedBy: 'bannedBy',
+  startsAt: 'startsAt',
+  endsAt: 'endsAt',
+  liftedAt: 'liftedAt',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.PlayerAuditLogScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  actorId: 'actorId',
+  action: 'action',
+  reason: 'reason',
+  metadata: 'metadata',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.AdminSettingScalarFieldEnum = {
+  key: 'key',
+  value: 'value',
+  updatedBy: 'updatedBy',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.MatchScalarFieldEnum = {
+  id: 'id',
+  externalId: 'externalId',
+  hubId: 'hubId',
+  game: 'game',
+  status: 'status',
+  queueType: 'queueType',
+  map: 'map',
+  roundsPlayed: 'roundsPlayed',
+  winner: 'winner',
+  startedAt: 'startedAt',
+  endedAt: 'endedAt',
+  durationSeconds: 'durationSeconds',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.MatchPlayerScalarFieldEnum = {
+  id: 'id',
+  matchId: 'matchId',
+  userId: 'userId',
+  team: 'team',
+  ratingBefore: 'ratingBefore',
+  ratingAfter: 'ratingAfter',
+  ratingDelta: 'ratingDelta',
+  kills: 'kills',
+  deaths: 'deaths',
+  assists: 'assists',
+  acs: 'acs',
+  hsPercentage: 'hsPercentage',
+  entryKills: 'entryKills',
+  clutches: 'clutches',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.PlayerEloHistoryScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  game: 'game',
+  rating: 'rating',
+  ratingDelta: 'ratingDelta',
+  recordedAt: 'recordedAt',
+  sourceMatchId: 'sourceMatchId'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
+};
+
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull
+};
+
+exports.Prisma.JsonNullValueInput = {
+  JsonNull: Prisma.JsonNull
 };
 
 exports.Prisma.QueryMode = {
@@ -207,6 +306,66 @@ exports.Prisma.NullsOrder = {
   last: 'last'
 };
 
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
+};
+exports.PlayerRoleType = exports.$Enums.PlayerRoleType = {
+  organizer: 'organizer',
+  admin: 'admin',
+  moderator: 'moderator',
+  competitor: 'competitor',
+  viewer: 'viewer'
+};
+
+exports.PlayerBanStatus = exports.$Enums.PlayerBanStatus = {
+  active: 'active',
+  lifted: 'lifted',
+  expired: 'expired'
+};
+
+exports.PlayerBanType = exports.$Enums.PlayerBanType = {
+  temporary: 'temporary',
+  permanent: 'permanent'
+};
+
+exports.PlayerAuditAction = exports.$Enums.PlayerAuditAction = {
+  role_change: 'role_change',
+  ban: 'ban',
+  unban: 'unban',
+  note: 'note'
+};
+
+exports.GameId = exports.$Enums.GameId = {
+  valorant: 'valorant',
+  cs2: 'cs2'
+};
+
+exports.MatchStatus = exports.$Enums.MatchStatus = {
+  scheduled: 'scheduled',
+  live: 'live',
+  completed: 'completed',
+  canceled: 'canceled'
+};
+
+exports.MatchQueueType = exports.$Enums.MatchQueueType = {
+  ranked_global: 'ranked_global',
+  ranked_private: 'ranked_private',
+  unranked: 'unranked',
+  scrim: 'scrim'
+};
+
+exports.MatchOutcome = exports.$Enums.MatchOutcome = {
+  alpha: 'alpha',
+  bravo: 'bravo',
+  draw: 'draw'
+};
+
+exports.MatchTeam = exports.$Enums.MatchTeam = {
+  alpha: 'alpha',
+  bravo: 'bravo'
+};
 
 exports.Prisma.ModelName = {
   User: 'User',
@@ -215,7 +374,14 @@ exports.Prisma.ModelName = {
   VerificationToken: 'VerificationToken',
   PasswordHistory: 'PasswordHistory',
   Badge: 'Badge',
-  UserBadge: 'UserBadge'
+  UserBadge: 'UserBadge',
+  PlayerRole: 'PlayerRole',
+  PlayerBan: 'PlayerBan',
+  PlayerAuditLog: 'PlayerAuditLog',
+  AdminSetting: 'AdminSetting',
+  Match: 'Match',
+  MatchPlayer: 'MatchPlayer',
+  PlayerEloHistory: 'PlayerEloHistory'
 };
 
 /**

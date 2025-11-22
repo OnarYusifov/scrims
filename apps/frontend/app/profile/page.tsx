@@ -33,15 +33,17 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [textColor, setTextColor] = useState<"light" | "dark">("light");
   const bannerImageRef = useRef<HTMLDivElement>(null);
-  
+
   // Badges for user - will be fetched from API later
   // Structure: { id: string, label: string, variant: "default" | "secondary" | "destructive" | "outline", icon?: ReactNode }
-  const [badges, setBadges] = useState<Array<{
-    id: string;
-    label: string;
-    variant?: "default" | "secondary" | "destructive" | "outline";
-    icon?: ReactNode;
-  }>>([]);
+  const [badges, setBadges] = useState<
+    Array<{
+      id: string;
+      label: string;
+      variant?: "default" | "secondary" | "destructive" | "outline";
+      icon?: ReactNode;
+    }>
+  >([]);
 
   // Games for user - will be fetched from API later
   type ConnectedGame = {
@@ -98,7 +100,8 @@ export default function ProfilePage() {
       id: "counter-strike-2",
       slug: "counter-strike-2",
       name: "Counter-Strike 2",
-      description: "Free-to-play tactical shooter developed by Valve on Source 2.",
+      description:
+        "Free-to-play tactical shooter developed by Valve on Source 2.",
       provider: "Valve",
       imageUrl: "/games/counter-strike-2-285x380.jpg",
       infoUrl: "https://en.wikipedia.org/wiki/Counter-Strike_2",
@@ -113,9 +116,17 @@ export default function ProfilePage() {
       subscriptions: 42,
       friendsOnline: 12,
       overviewStats: [
-        { label: "Premier Rank", value: "Diamond II", description: "Top 3% EU" },
+        {
+          label: "Premier Rank",
+          value: "Diamond II",
+          description: "Top 3% EU",
+        },
         { label: "Matches (30d)", value: "54", description: "36W / 18L" },
-        { label: "Headshot %", value: "51%", description: "Average this season" },
+        {
+          label: "Headshot %",
+          value: "51%",
+          description: "Average this season",
+        },
       ],
       statsBreakdown: [
         { label: "Average KD", value: "1.29" },
@@ -152,9 +163,17 @@ export default function ProfilePage() {
       subscriptions: 18,
       friendsOnline: 5,
       overviewStats: [
-        { label: "Competitive Rank", value: "Immortal I", description: "Top 1% LATAM" },
+        {
+          label: "Competitive Rank",
+          value: "Immortal I",
+          description: "Top 1% LATAM",
+        },
         { label: "Matches (30d)", value: "38", description: "22W / 16L" },
-        { label: "First Blood Rate", value: "44%", description: "Controller / Duelist hybrid" },
+        {
+          label: "First Blood Rate",
+          value: "44%",
+          description: "Controller / Duelist hybrid",
+        },
       ],
       statsBreakdown: [
         { label: "Average Combat Score", value: "261" },
@@ -195,12 +214,12 @@ export default function ProfilePage() {
   useEffect(() => {
     const checkSteamLink = async () => {
       if (!session?.user?.id) return;
-      
+
       try {
         // Fetch linked accounts from backend API
         const response = await fetch(`/api/user/accounts`, {
-          cache: 'no-store',
-          credentials: 'include',
+          cache: "no-store",
+          credentials: "include",
         });
         if (response.ok) {
           const data = await response.json();
@@ -210,10 +229,12 @@ export default function ProfilePage() {
               (acc: { provider: string }) => acc.provider === "steam"
             );
             setSteamLinked(hasSteam);
-            
+
             // If Steam is linked and CS2 is not in games list, add it
             if (hasSteam) {
-              const cs2Game = availableGames.find((g) => g.id === "counter-strike-2");
+              const cs2Game = availableGames.find(
+                (g) => g.id === "counter-strike-2"
+              );
               if (cs2Game) {
                 setGames((prev) => {
                   // Check if CS2 is already in the list
@@ -293,7 +314,9 @@ export default function ProfilePage() {
       } else if (error === "steam_already_linked") {
         toast.error("This Steam account is already linked to another user.");
       } else if (error === "steam_profile_failed") {
-        toast.error("Failed to fetch Steam profile. Please check your Steam API key.");
+        toast.error(
+          "Failed to fetch Steam profile. Please check your Steam API key."
+        );
       } else if (error === "steam_callback_failed") {
         toast.error("Steam callback failed. Please try again.");
       }
@@ -312,8 +335,10 @@ export default function ProfilePage() {
     // For Counter-Strike 2, use Steam authentication
     if (game.id === "counter-strike-2" || game.slug === "counter-strike-2") {
       try {
-        const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-        
+        const isLocalhost =
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1";
+
         // On localhost, show dialog for manual Steam ID entry (dev mode)
         if (isLocalhost) {
           setSteamIdInput("");
@@ -363,7 +388,10 @@ export default function ProfilePage() {
 
     try {
       // For Counter-Strike 2, unlink Steam account
-      if (gameToUnlink.id === "counter-strike-2" || gameToUnlink.slug === "counter-strike-2") {
+      if (
+        gameToUnlink.id === "counter-strike-2" ||
+        gameToUnlink.slug === "counter-strike-2"
+      ) {
         const response = await fetch("/api/auth/unlink", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -383,7 +411,7 @@ export default function ProfilePage() {
         setGames((prev) => prev.filter((g) => g.id !== gameToUnlink.id));
         toast.success(`${gameToUnlink.name} unlinked successfully`);
       }
-      
+
       setShowUnlinkDialog(false);
       setGameToUnlink(null);
     } catch (error) {
@@ -391,7 +419,6 @@ export default function ProfilePage() {
       toast.error("Failed to unlink game");
     }
   };
-
 
   // Handle session status
   useEffect(() => {
@@ -406,31 +433,35 @@ export default function ProfilePage() {
     }
 
     setLoading(false);
-          
+
     // Fetch badges when user session is available
     if (session.user.id) {
       fetch(`/api/user/badges?userId=${session.user.id}`)
         .then(async (badgesResponse) => {
-            if (badgesResponse.ok) {
-              const badgesData = await badgesResponse.json();
-              console.log("Badges fetched:", badgesData);
-              setBadges(badgesData.badges || []);
-            } else {
-              const errorData = await badgesResponse.json().catch(() => ({}));
-              console.error("Failed to fetch badges:", badgesResponse.status, errorData);
-              if (errorData.details) {
-                console.error("Error details:", errorData.details);
-              }
+          if (badgesResponse.ok) {
+            const badgesData = await badgesResponse.json();
+            console.log("Badges fetched:", badgesData);
+            setBadges(badgesData.badges || []);
+          } else {
+            const errorData = await badgesResponse.json().catch(() => ({}));
+            console.error(
+              "Failed to fetch badges:",
+              badgesResponse.status,
+              errorData
+            );
+            if (errorData.details) {
+              console.error("Error details:", errorData.details);
             }
+          }
         })
         .catch((error) => {
-            console.error("Failed to fetch badges:", error);
-            if (error instanceof Error) {
-              console.error("Error message:", error.message);
-              console.error("Error stack:", error.stack);
-            }
+          console.error("Failed to fetch badges:", error);
+          if (error instanceof Error) {
+            console.error("Error message:", error.message);
+            console.error("Error stack:", error.stack);
+          }
         });
-        }
+    }
   }, [status, session, router]);
 
   const getInitials = (username: string) => {
@@ -444,18 +475,19 @@ export default function ProfilePage() {
 
   const formatMemberSince = (createdAt: string) => {
     const date = new Date(createdAt);
-    return date.toLocaleDateString("en-US", { 
-      year: "numeric", 
-      month: "long" 
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
     });
   };
 
   const user = session?.user;
-  const username = session?.user?.name || session?.user?.email?.split("@")[0] || "User";
+  const username =
+    session?.user?.name || session?.user?.email?.split("@")[0] || "User";
 
   const handleShareProfile = async () => {
     if (!user) return;
-    
+
     const profileUrl = `${window.location.origin}/profile`;
     try {
       if (navigator.share) {
@@ -492,7 +524,11 @@ export default function ProfilePage() {
     return null;
   };
 
-  const getImageDisplayHeight = (imageWidth?: number, imageHeight?: number, targetWidth = 96) => {
+  const getImageDisplayHeight = (
+    imageWidth?: number,
+    imageHeight?: number,
+    targetWidth = 96
+  ) => {
     if (!imageWidth || !imageHeight || imageWidth === 0) {
       return 115;
     }
@@ -535,18 +571,20 @@ export default function ProfilePage() {
     const detectTextColor = () => {
       if (!bannerImageRef.current) return;
 
-      const img = bannerImageRef.current.querySelector("img") as HTMLImageElement;
+      const img = bannerImageRef.current.querySelector(
+        "img"
+      ) as HTMLImageElement;
       if (!img) return;
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-      
+
       if (!ctx) return;
 
       // Sample a region where the text will be (left side, middle)
       canvas.width = Math.min(img.naturalWidth || 200, 200);
       canvas.height = Math.min(img.naturalHeight || 200, 200);
-      
+
       try {
         ctx.drawImage(
           img,
@@ -562,12 +600,13 @@ export default function ProfilePage() {
 
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
-        
+
         let totalBrightness = 0;
         let pixelCount = 0;
 
         // Calculate average brightness
-        for (let i = 0; i < data.length; i += 16) { // Sample every 4th pixel for performance
+        for (let i = 0; i < data.length; i += 16) {
+          // Sample every 4th pixel for performance
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
@@ -589,7 +628,9 @@ export default function ProfilePage() {
       }
     };
 
-    const img = bannerImageRef.current?.querySelector("img") as HTMLImageElement;
+    const img = bannerImageRef.current?.querySelector(
+      "img"
+    ) as HTMLImageElement;
     if (img) {
       if (img.complete) {
         detectTextColor();
@@ -637,11 +678,13 @@ export default function ProfilePage() {
                 />
               </div>
               {/* Subtle overlay for better text contrast */}
-              <div className={`absolute inset-0 ${
-                textColor === "light" 
-                  ? "bg-gradient-to-t from-black/30 via-black/10 to-transparent" 
-                  : "bg-gradient-to-t from-white/20 via-white/5 to-transparent"
-              }`} />
+              <div
+                className={`absolute inset-0 ${
+                  textColor === "light"
+                    ? "bg-gradient-to-t from-black/30 via-black/10 to-transparent"
+                    : "bg-gradient-to-t from-white/20 via-white/5 to-transparent"
+                }`}
+              />
             </>
           ) : (
             <>
@@ -652,7 +695,7 @@ export default function ProfilePage() {
             </>
           )}
         </div>
-        
+
         {/* Profile Picture and Username - Left middle of banner */}
         <div className="relative h-full flex items-center px-4 sm:px-6 md:px-8 z-10">
           <Avatar className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 lg:h-32 lg:w-32 border-2 sm:border-[3px] md:border-4 border-background shadow-lg relative z-10 flex-shrink-0">
@@ -678,19 +721,23 @@ export default function ProfilePage() {
                           font-semibold
                           bg-transparent
                           border-2
-                          ${textColor === "light" 
-                            ? "text-white border-white/60" 
-                            : "text-black border-black/60"}
+                          ${
+                            textColor === "light"
+                              ? "text-white border-white/60"
+                              : "text-black border-black/60"
+                          }
                           backdrop-blur-sm
                           shadow-lg
                         `}
                       >
-                        {badge.icon && <span className="text-sm mr-1">{badge.icon}</span>}
+                        {badge.icon && (
+                          <span className="text-sm mr-1">{badge.icon}</span>
+                        )}
                         {badge.label}
                       </Badge>
                     );
                   }
-                  
+
                   // Second badge: secondary color (cyberpunk magenta from login page)
                   if (index === 1) {
                     return (
@@ -708,12 +755,14 @@ export default function ProfilePage() {
                           shadow-lg
                         `}
                       >
-                        {badge.icon && <span className="text-sm mr-1">{badge.icon}</span>}
+                        {badge.icon && (
+                          <span className="text-sm mr-1">{badge.icon}</span>
+                        )}
                         {badge.label}
                       </Badge>
                     );
                   }
-                  
+
                   // Other badges: default white/black fill
                   return (
                     <Badge
@@ -723,21 +772,25 @@ export default function ProfilePage() {
                         text-xs sm:text-sm
                         px-2.5 py-1 sm:px-3 sm:py-1.5
                         font-semibold
-                        ${textColor === "light" 
-                          ? "bg-white/95 text-black border-white/60" 
-                          : "bg-black/90 text-white border-black/60"}
+                        ${
+                          textColor === "light"
+                            ? "bg-white/95 text-black border-white/60"
+                            : "bg-black/90 text-white border-black/60"
+                        }
                         backdrop-blur-sm
                         shadow-lg
                       `}
                     >
-                      {badge.icon && <span className="text-sm mr-1">{badge.icon}</span>}
+                      {badge.icon && (
+                        <span className="text-sm mr-1">{badge.icon}</span>
+                      )}
                       {badge.label}
                     </Badge>
                   );
                 })}
               </div>
             )}
-            <h1 
+            <h1
               className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight drop-shadow-lg truncate ${
                 textColor === "light" ? "text-white" : "text-black"
               }`}
@@ -746,7 +799,7 @@ export default function ProfilePage() {
             </h1>
             {/* Note: createdAt is not stored in session - would need to be added to session callback if needed */}
             {false && (
-              <p 
+              <p
                 className={`text-xs sm:text-sm drop-shadow-md ${
                   textColor === "light" ? "text-white/90" : "text-black/80"
                 }`}
@@ -759,8 +812,8 @@ export default function ProfilePage() {
               size="sm"
               onClick={handleShareProfile}
               className={`w-fit text-xs sm:text-sm backdrop-blur-sm transition-all ${
-                textColor === "light" 
-                  ? "bg-black/60 text-white border-white/30 hover:bg-black/70 hover:border-white/50 hover:text-white hover:ring-2 hover:ring-white/20" 
+                textColor === "light"
+                  ? "bg-black/60 text-white border-white/30 hover:bg-black/70 hover:border-white/50 hover:text-white hover:ring-2 hover:ring-white/20"
                   : "bg-white/80 text-black border-black/30 hover:bg-white/90 hover:border-black/50 hover:text-black hover:ring-2 hover:ring-black/20"
               }`}
             >
@@ -803,12 +856,19 @@ export default function ProfilePage() {
                 <div className="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-5">
                   {availableGames.map((game) => {
                     const connected = isGameConnected(game.id);
-                    const imageDisplayHeight = getImageDisplayHeight(game.imageWidth, game.imageHeight);
+                    const imageDisplayHeight = getImageDisplayHeight(
+                      game.imageWidth,
+                      game.imageHeight
+                    );
                     return (
                       <div
                         key={game.id}
                         className="relative flex overflow-hidden rounded-2xl border bg-muted/30 p-4"
-                        style={game.imageUrl ? { minHeight: `${imageDisplayHeight}px` } : undefined}
+                        style={
+                          game.imageUrl
+                            ? { minHeight: `${imageDisplayHeight}px` }
+                            : undefined
+                        }
                       >
                         {game.imageUrl && (
                           <Image
@@ -819,10 +879,14 @@ export default function ProfilePage() {
                             className="absolute inset-y-0 left-0 h-full w-24 object-cover"
                           />
                         )}
-                        <div className={`relative z-10 flex flex-1 flex-col justify-between ${game.imageUrl ? "pl-24" : ""}`}>
+                        <div
+                          className={`relative z-10 flex flex-1 flex-col justify-between ${game.imageUrl ? "pl-24" : ""}`}
+                        >
                           <div>
                             <p className="font-semibold">{game.name}</p>
-                            <p className="text-xs text-muted-foreground">by {game.provider}</p>
+                            <p className="text-xs text-muted-foreground">
+                              by {game.provider}
+                            </p>
                           </div>
                           <div className="mt-3 flex flex-wrap items-center gap-3">
                             <Button
@@ -856,122 +920,147 @@ export default function ProfilePage() {
             {displayedGames.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-sm text-muted-foreground">
-                  No games connected yet. Click &quot;Add game&quot; to connect your first game.
+                  No games connected yet. Click &quot;Add game&quot; to connect
+                  your first game.
                 </p>
               </div>
             ) : (
               <div className="flex flex-col gap-6">
                 {displayedGames.map((game) => {
-                // Use 'cs2' as the URL slug for Counter-Strike 2
-                const urlSlug = game.slug === "counter-strike-2" ? "cs2" : game.slug;
-                return (
-                  <Link
-                    key={game.id}
-                    href={`/profile/stats/${urlSlug}`}
-                    className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                  >
-                    <div
-                      className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-all group-hover:border-primary/40"
+                  // Use 'cs2' as the URL slug for Counter-Strike 2
+                  const urlSlug =
+                    game.slug === "counter-strike-2" ? "cs2" : game.slug;
+                  return (
+                    <Link
+                      key={game.id}
+                      href={`/profile/stats/${urlSlug}`}
+                      className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
-                      <div className="flex flex-col gap-4 p-5">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-lg font-semibold">{game.name}</p>
-                              {(game.slug === "counter-strike-2" || game.name === "Counter-Strike 2" || game.id === "counter-strike-2" || game.id?.includes("counter-strike")) && (
-                                <Image
-                                  src="/logos/cs2-logo.png"
-                                  alt="Counter-Strike 2 logo"
-                                  width={20}
-                                  height={20}
-                                  className="h-5 w-5 rounded-[2px] object-contain ml-1"
-                                  unoptimized
-                                />
-                              )}
-                              {(game.slug === "valorant" || game.name === "Valorant" || game.id === "valorant" || game.id?.includes("valorant")) && (
-                                <Image
-                                  src="/logos/valorant-logo.png"
-                                  alt="Valorant logo"
-                                  width={20}
-                                  height={20}
-                                  className="h-5 w-5 rounded-[2px] object-contain ml-1"
-                                  unoptimized
-                                />
+                      <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-all group-hover:border-primary/40">
+                        <div className="flex flex-col gap-4 p-5">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-lg font-semibold">
+                                  {game.name}
+                                </p>
+                                {(game.slug === "counter-strike-2" ||
+                                  game.name === "Counter-Strike 2" ||
+                                  game.id === "counter-strike-2" ||
+                                  game.id?.includes("counter-strike")) && (
+                                  <Image
+                                    src="/logos/cs2-logo.png"
+                                    alt="Counter-Strike 2 logo"
+                                    width={20}
+                                    height={20}
+                                    className="h-5 w-5 rounded-[2px] object-contain ml-1"
+                                    unoptimized
+                                  />
+                                )}
+                                {(game.slug === "valorant" ||
+                                  game.name === "Valorant" ||
+                                  game.id === "valorant" ||
+                                  game.id?.includes("valorant")) && (
+                                  <Image
+                                    src="/logos/valorant-logo.png"
+                                    alt="Valorant logo"
+                                    width={20}
+                                    height={20}
+                                    className="h-5 w-5 rounded-[2px] object-contain ml-1"
+                                    unoptimized
+                                  />
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                via {game.provider}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                              <FlipButton
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleUnlinkClick(game);
+                                }}
+                                frontText="LINKED"
+                                backText="UNLINK"
+                                className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-400 transition-colors duration-200 hover:bg-red-500/10 hover:text-red-400 cursor-pointer min-w-[70px] h-[28px]"
+                                title="Click to unlink"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                            <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-gradient-to-br dark:from-background dark:to-background/30 p-3 shadow-sm">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                                Leaderboard placement
+                              </p>
+                              <p className="text-base font-semibold">
+                                {game.leaderboardPlacement || "—"}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-gradient-to-br dark:from-background dark:to-background/30 p-3 shadow-sm">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                                ELO
+                              </p>
+                              <p className="text-base font-semibold">
+                                {game.eloRating
+                                  ? game.eloRating.toLocaleString()
+                                  : "800"}
+                                {typeof game.eloDelta === "number" &&
+                                  game.eloDelta !== 0 && (
+                                    <span
+                                      className={`ml-2 text-xs font-medium ${
+                                        game.eloDelta >= 0
+                                          ? "text-emerald-400"
+                                          : "text-red-400"
+                                      }`}
+                                    >
+                                      {game.eloDelta >= 0 ? "+" : ""}
+                                      {game.eloDelta}
+                                    </span>
+                                  )}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-gradient-to-br dark:from-background dark:to-background/30 p-3 shadow-sm">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                                Current form
+                              </p>
+                              {formatFormLetters(game.currentForm) || (
+                                <p className="text-base font-semibold">—</p>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground">via {game.provider}</p>
                           </div>
-                          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-                            <FlipButton
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleUnlinkClick(game);
-                              }}
-                              frontText="LINKED"
-                              backText="UNLINK"
-                              className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-400 transition-colors duration-200 hover:bg-red-500/10 hover:text-red-400 cursor-pointer min-w-[70px] h-[28px]"
-                              title="Click to unlink"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-gradient-to-br dark:from-background dark:to-background/30 p-3 shadow-sm">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
-                              Leaderboard placement
-                            </p>
-                            <p className="text-base font-semibold">
-                              {game.leaderboardPlacement || "—"}
-                            </p>
-                          </div>
-                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-gradient-to-br dark:from-background dark:to-background/30 p-3 shadow-sm">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">ELO</p>
-                            <p className="text-base font-semibold">
-                              {game.eloRating ? game.eloRating.toLocaleString() : "800"}
-                              {typeof game.eloDelta === "number" && game.eloDelta !== 0 && (
-                                <span
-                                  className={`ml-2 text-xs font-medium ${
-                                    game.eloDelta >= 0 ? "text-emerald-400" : "text-red-400"
-                                  }`}
-                                >
-                                  {game.eloDelta >= 0 ? "+" : ""}
-                                  {game.eloDelta}
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-gradient-to-br dark:from-background dark:to-background/30 p-3 shadow-sm">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
-                              Current form
-                            </p>
-                            {formatFormLetters(game.currentForm) || <p className="text-base font-semibold">—</p>}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-background/40 p-3 shadow-sm">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                              Win rate
-                            </p>
-                            <p className="text-base font-semibold">{game.winRate || "0%"}</p>
-                          </div>
-                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-background/40 p-3 shadow-sm">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                              Competitive tier
-                            </p>
-                            <p className="text-base font-semibold">{game.crownTier || "—"}</p>
-                          </div>
-                          <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-background/40 p-3 shadow-sm">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                              Status
-                            </p>
-                            <p className="text-base font-semibold">{game.lastSync || "Awaiting sync"}</p>
+                          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                            <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-background/40 p-3 shadow-sm">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                Win rate
+                              </p>
+                              <p className="text-base font-semibold">
+                                {game.winRate || "0%"}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-background/40 p-3 shadow-sm">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                Competitive tier
+                              </p>
+                              <p className="text-base font-semibold">
+                                {game.crownTier || "—"}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-border/50 bg-card/80 dark:bg-background/40 p-3 shadow-sm">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                Status
+                              </p>
+                              <p className="text-base font-semibold">
+                                {game.lastSync || "Awaiting sync"}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                );
-              })}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -984,10 +1073,11 @@ export default function ProfilePage() {
           <DialogHeader>
             <DialogTitle>Enter Steam ID</DialogTitle>
             <DialogDescription>
-              Steam OpenID doesn&apos;t work on localhost. Enter your Steam ID (17 digits) for testing.
+              Steam OpenID doesn&apos;t work on localhost. Enter your Steam ID
+              (17 digits) for testing.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-5">
             <div>
               <label className="text-sm font-medium mb-2 block">
                 Steam ID (17 digits)
@@ -996,12 +1086,16 @@ export default function ProfilePage() {
                 type="text"
                 placeholder="76561198000000000"
                 value={steamIdInput}
-                onChange={(e) => setSteamIdInput(e.target.value.replace(/\D/g, ""))}
+                onChange={(e) =>
+                  setSteamIdInput(e.target.value.replace(/\D/g, ""))
+                }
                 maxLength={17}
                 pattern="\d{17}"
               />
               <div className="mt-3 space-y-2">
-                <p className="text-xs font-medium text-foreground">How to find your Steam ID:</p>
+                <p className="text-xs font-medium text-foreground">
+                  How to find your Steam ID:
+                </p>
                 <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
                   <li>
                     Go to{" "}
@@ -1012,14 +1106,23 @@ export default function ProfilePage() {
                       className="text-primary underline"
                     >
                       steamid.io
-                    </a>
-                    {" "}and paste your Steam profile URL
+                    </a>{" "}
+                    and paste your Steam profile URL
                   </li>
-                  <li>Copy the <strong>SteamID64</strong> value (17 digits)</li>
-                  <li>Or check your Steam profile URL: if it&apos;s <code className="text-xs bg-muted px-1 rounded">steamcommunity.com/profiles/76561198000000000</code>, the number is your Steam ID</li>
+                  <li>
+                    Copy the <strong>SteamID64</strong> value (17 digits)
+                  </li>
+                  <li>
+                    Or check your Steam profile URL: if it&apos;s{" "}
+                    <code className="text-xs bg-muted px-1 rounded">
+                      steamcommunity.com/profiles/76561198000000000
+                    </code>
+                    , the number is your Steam ID
+                  </li>
                 </ol>
                 <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                  💡 Tip: You can also use ngrok for full OpenID support (see docs/STEAM_AUTH_SETUP.md)
+                  💡 Tip: You can also use ngrok for full OpenID support (see
+                  docs/STEAM_AUTH_SETUP.md)
                 </p>
               </div>
             </div>
@@ -1036,7 +1139,9 @@ export default function ProfilePage() {
                     setShowSteamIdDialog(false);
                     window.location.href = `/api/auth/steam?steamId=${steamIdInput}`;
                   } else if (steamIdInput) {
-                    toast.error("Invalid Steam ID format. Steam ID should be 17 digits.");
+                    toast.error(
+                      "Invalid Steam ID format. Steam ID should be 17 digits."
+                    );
                   }
                 }}
                 disabled={!steamIdInput || !/^\d{17}$/.test(steamIdInput)}
@@ -1054,7 +1159,8 @@ export default function ProfilePage() {
           <DialogHeader>
             <DialogTitle>Unlink Game</DialogTitle>
             <DialogDescription>
-              Are you sure you want to unlink {gameToUnlink?.name}? You can add it again later.
+              Are you sure you want to unlink {gameToUnlink?.name}? You can add
+              it again later.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="py-4">
@@ -1068,18 +1174,13 @@ export default function ProfilePage() {
               >
                 Cancel
               </Button>
-              <Button
-                variant="destructive"
-                onClick={handleUnlinkConfirm}
-              >
+              <Button variant="destructive" onClick={handleUnlinkConfirm}>
                 Unlink
               </Button>
             </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
-

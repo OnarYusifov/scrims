@@ -204,13 +204,23 @@
     -webkit-box-shadow: 0 0 0px 1000px var(--background) inset;
     caret-color: var(--foreground);
   }
-  /* Hide scrollbars (overlay effect, no width reduction) */
+  /* Hide scrollbars everywhere (overlay effect, no width reduction) */
   html {
     scrollbar-width: none; /* Firefox */
   }
   html::-webkit-scrollbar {
     width: 0; /* Chrome/Safari/Edge */
     height: 0;
+    display: none;
+  }
+  /* Hide scrollbars from all scrollable elements */
+  * {
+    scrollbar-width: none; /* Firefox */
+  }
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 }
 

@@ -19,21 +19,27 @@ export async function GET(request: NextRequest) {
     // Call backend API with proper JWT token
     const accessToken = (session as { accessToken?: string }).accessToken;
     const response = await fetch(`${config.backendUrl}/user/badges?${params}`, {
-      headers: accessToken ? {
-        "Authorization": `Bearer ${accessToken}`,
-      } : {},
+      headers: accessToken
+        ? {
+            Authorization: `Bearer ${accessToken}`,
+          }
+        : {},
     });
 
     if (!response.ok) {
-      const error = await response.json() as { error?: string; message?: string };
+      const error = (await response.json()) as {
+        error?: string;
+        message?: string;
+      };
       return NextResponse.json(error, { status: response.status });
     }
 
-    const data = await response.json() as unknown;
+    const data = (await response.json()) as unknown;
     return NextResponse.json(data);
   } catch (error: unknown) {
     console.error("Error fetching badges:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       { error: "Failed to fetch badges", details: errorMessage },
       { status: 500 }

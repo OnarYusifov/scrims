@@ -54,6 +54,7 @@ FRONTEND_URL=http://localhost:3000
 ### Spaceship Email SMTP Settings
 
 For Spaceship email, typical SMTP settings are:
+
 - **Host**: `smtp.spaceship.email` or your custom SMTP server
 - **Port**: `587` (TLS) or `465` (SSL)
 - **Secure**: `false` for port 587, `true` for port 465
@@ -63,11 +64,13 @@ For Spaceship email, typical SMTP settings are:
 ## API Endpoints
 
 ### 1. Register (Updated)
+
 **POST** `/api/auth/register`
 
 Now returns a message instead of auto-logging in. User must verify email before login.
 
 **Response:**
+
 ```json
 {
   "message": "Registration successful. Please check your email to verify your account.",
@@ -76,9 +79,11 @@ Now returns a message instead of auto-logging in. User must verify email before 
 ```
 
 ### 2. Verify Email
+
 **POST** `/api/auth/verify-email`
 
 **Body:**
+
 ```json
 {
   "token": "verification-token-from-email"
@@ -86,6 +91,7 @@ Now returns a message instead of auto-logging in. User must verify email before 
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Email verified successfully. You can now log in."
@@ -93,9 +99,11 @@ Now returns a message instead of auto-logging in. User must verify email before 
 ```
 
 ### 3. Resend Verification Email
+
 **POST** `/api/auth/resend-verification`
 
 **Body:**
+
 ```json
 {
   "email": "user@example.com"
@@ -103,6 +111,7 @@ Now returns a message instead of auto-logging in. User must verify email before 
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Verification email sent. Please check your inbox."
@@ -110,11 +119,13 @@ Now returns a message instead of auto-logging in. User must verify email before 
 ```
 
 ### 4. Login (Updated)
+
 **POST** `/api/auth/login`
 
 Now checks if email is verified. Returns 403 if email is not verified.
 
 **Error Response (unverified):**
+
 ```json
 {
   "error": "Email not verified. Please check your email for the verification link.",
@@ -134,18 +145,10 @@ You'll need to:
 ## Email Template
 
 The verification email includes:
+
 - Personalized greeting with username
 - Clickable verification button
 - Plain text link as fallback
 - 24-hour expiry notice
 
 You can customize the template in `apps/backend/src/utils/email.ts`.
-
-
-
-
-
-
-
-
-

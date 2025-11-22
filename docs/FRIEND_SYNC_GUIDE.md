@@ -46,6 +46,7 @@ git pull origin dev --allow-unrelated-histories
 ```
 
 If you still have conflicts after this, you may need to:
+
 - Stash your changes: `git stash`
 - Pull: `git pull origin dev --allow-unrelated-histories`
 - Apply your changes: `git stash pop`
@@ -160,6 +161,7 @@ bun run dev
 ```
 
 This should start:
+
 - Frontend on `http://localhost:5000`
 - Backend on `http://localhost:5001`
 
@@ -223,6 +225,7 @@ scrims/
 ### Issue: "Cannot find module 'react-dom/server'"
 
 **Solution**: Make sure `react-dom` is installed:
+
 ```bash
 cd apps/backend
 bun add react-dom
@@ -232,6 +235,7 @@ cd ../..
 ### Issue: "Port already in use"
 
 **Solution**: Check what's using the port and kill it, or change ports in `.env`:
+
 ```bash
 # Find process using port 5000
 lsof -i :5000
@@ -242,7 +246,8 @@ kill -9 <PID>
 
 ### Issue: "Database connection error"
 
-**Solution**: 
+**Solution**:
+
 1. Check your `DATABASE_URL` in `.env`
 2. Make sure PostgreSQL is running
 3. Run migrations: `cd packages/db && bunx prisma migrate deploy`
@@ -250,6 +255,7 @@ kill -9 <PID>
 ### Issue: "OAuth not working"
 
 **Solution**:
+
 1. Check `AUTH_URL` and `NEXTAUTH_URL` in `.env` (should be `http://localhost:5000`)
 2. Verify OAuth provider credentials are correct
 3. Check OAuth redirect URIs in provider dashboards:
@@ -259,6 +265,7 @@ kill -9 <PID>
 ### Issue: "Email not sending"
 
 **Solution**:
+
 1. Check `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in `.env`
 2. Verify Resend API key is valid
 3. Check Resend dashboard for errors
@@ -277,6 +284,7 @@ chmod +x sync-for-friend.sh
 ```
 
 This script will:
+
 - Switch to `dev` branch
 - Pull latest changes
 - Add port configuration to `.env` if missing
@@ -294,6 +302,7 @@ This script will:
 ## Need Help?
 
 If you encounter any issues:
+
 1. Check the error messages carefully
 2. Review this guide again
 3. Check `docs/API_SUBDOMAIN_MIGRATION.md` for API changes
@@ -311,4 +320,3 @@ If you encounter any issues:
 - [ ] Tested registration and email sending
 - [ ] Tested OAuth login (Discord/Google)
 - [ ] Everything works! ✅
-

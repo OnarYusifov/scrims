@@ -10,12 +10,3 @@ import { handlers } from "@/auth";
 // - /api/auth/csrf
 // - /api/auth/error
 export const { GET, POST } = handlers;
-
-
-
-
-
-
-
-
-

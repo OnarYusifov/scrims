@@ -101,6 +101,7 @@ exports.Prisma.UserScalarFieldEnum = {
   image: 'image',
   discord: 'discord',
   role: 'role',
+  status: 'status',
   emailVerified: 'emailVerified',
   verificationToken: 'verificationToken',
   verificationCode: 'verificationCode',
@@ -165,9 +166,107 @@ exports.Prisma.UserBadgeScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.PlayerRoleScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  role: 'role',
+  isPrimary: 'isPrimary',
+  reason: 'reason',
+  assignedBy: 'assignedBy',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.PlayerBanScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  status: 'status',
+  type: 'type',
+  reason: 'reason',
+  durationDays: 'durationDays',
+  banFromAllHubs: 'banFromAllHubs',
+  banFromDiscord: 'banFromDiscord',
+  bannedBy: 'bannedBy',
+  startsAt: 'startsAt',
+  endsAt: 'endsAt',
+  liftedAt: 'liftedAt',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.PlayerAuditLogScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  actorId: 'actorId',
+  action: 'action',
+  reason: 'reason',
+  metadata: 'metadata',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.AdminSettingScalarFieldEnum = {
+  key: 'key',
+  value: 'value',
+  updatedBy: 'updatedBy',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.MatchScalarFieldEnum = {
+  id: 'id',
+  externalId: 'externalId',
+  hubId: 'hubId',
+  game: 'game',
+  status: 'status',
+  queueType: 'queueType',
+  map: 'map',
+  roundsPlayed: 'roundsPlayed',
+  winner: 'winner',
+  startedAt: 'startedAt',
+  endedAt: 'endedAt',
+  durationSeconds: 'durationSeconds',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.MatchPlayerScalarFieldEnum = {
+  id: 'id',
+  matchId: 'matchId',
+  userId: 'userId',
+  team: 'team',
+  ratingBefore: 'ratingBefore',
+  ratingAfter: 'ratingAfter',
+  ratingDelta: 'ratingDelta',
+  kills: 'kills',
+  deaths: 'deaths',
+  assists: 'assists',
+  acs: 'acs',
+  hsPercentage: 'hsPercentage',
+  entryKills: 'entryKills',
+  clutches: 'clutches',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.PlayerEloHistoryScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  game: 'game',
+  rating: 'rating',
+  ratingDelta: 'ratingDelta',
+  recordedAt: 'recordedAt',
+  sourceMatchId: 'sourceMatchId'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
+};
+
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull
+};
+
+exports.Prisma.JsonNullValueInput = {
+  JsonNull: Prisma.JsonNull
 };
 
 exports.Prisma.QueryMode = {
@@ -180,6 +279,66 @@ exports.Prisma.NullsOrder = {
   last: 'last'
 };
 
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
+};
+exports.PlayerRoleType = exports.$Enums.PlayerRoleType = {
+  organizer: 'organizer',
+  admin: 'admin',
+  moderator: 'moderator',
+  competitor: 'competitor',
+  viewer: 'viewer'
+};
+
+exports.PlayerBanStatus = exports.$Enums.PlayerBanStatus = {
+  active: 'active',
+  lifted: 'lifted',
+  expired: 'expired'
+};
+
+exports.PlayerBanType = exports.$Enums.PlayerBanType = {
+  temporary: 'temporary',
+  permanent: 'permanent'
+};
+
+exports.PlayerAuditAction = exports.$Enums.PlayerAuditAction = {
+  role_change: 'role_change',
+  ban: 'ban',
+  unban: 'unban',
+  note: 'note'
+};
+
+exports.GameId = exports.$Enums.GameId = {
+  valorant: 'valorant',
+  cs2: 'cs2'
+};
+
+exports.MatchStatus = exports.$Enums.MatchStatus = {
+  scheduled: 'scheduled',
+  live: 'live',
+  completed: 'completed',
+  canceled: 'canceled'
+};
+
+exports.MatchOutcome = exports.$Enums.MatchOutcome = {
+  alpha: 'alpha',
+  bravo: 'bravo',
+  draw: 'draw'
+};
+
+exports.MatchTeam = exports.$Enums.MatchTeam = {
+  alpha: 'alpha',
+  bravo: 'bravo'
+};
+
+exports.MatchQueueType = exports.$Enums.MatchQueueType = {
+  ranked_global: 'ranked_global',
+  ranked_private: 'ranked_private',
+  unranked: 'unranked',
+  scrim: 'scrim'
+};
 
 exports.Prisma.ModelName = {
   User: 'User',
@@ -188,7 +347,14 @@ exports.Prisma.ModelName = {
   VerificationToken: 'VerificationToken',
   PasswordHistory: 'PasswordHistory',
   Badge: 'Badge',
-  UserBadge: 'UserBadge'
+  UserBadge: 'UserBadge',
+  PlayerRole: 'PlayerRole',
+  PlayerBan: 'PlayerBan',
+  PlayerAuditLog: 'PlayerAuditLog',
+  AdminSetting: 'AdminSetting',
+  Match: 'Match',
+  MatchPlayer: 'MatchPlayer',
+  PlayerEloHistory: 'PlayerEloHistory'
 };
 /**
  * Create the Client
@@ -198,10 +364,10 @@ const config = {
   "clientVersion": "7.0.0",
   "engineVersion": "0c19ccc313cf9911a90d99d2ac2eb0280c76c513",
   "activeProvider": "postgresql",
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\ngenerator client {\n  provider   = \"prisma-client-js\"\n  output     = \"../src/generated/prisma\"\n  engineType = \"library\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nmodel User {\n  id                      String    @id @default(cuid())\n  username                String    @unique\n  email                   String    @unique\n  password                String? // Nullable for social login users\n  image                   String? // Profile picture URL (from OAuth providers)\n  discord                 String? // Discord user ID or username\n  role                    String    @default(\"user\") // user, admin, etc.\n  emailVerified           DateTime? // DateTime for Auth.js compatibility (null = not verified, Date = verified)\n  verificationToken       String? // Keep for backward compatibility, but use verificationCode\n  verificationCode        String? // 6-digit OTP code for email verification\n  verificationCodeExpiry  DateTime? // OTP expiry (typically 10-15 minutes)\n  loginCode               String? // 6-digit OTP code for login\n  loginCodeExpiry         DateTime? // Login OTP expiry (typically 10-15 minutes)\n  passwordResetCode       String? // 6-digit OTP code for password reset\n  passwordResetCodeExpiry DateTime? // Password reset OTP expiry (typically 10-15 minutes)\n  createdAt               DateTime  @default(now())\n  updatedAt               DateTime  @updatedAt\n\n  // Auth.js relations\n  accounts        Account[]\n  sessions        Session[]\n  passwordHistory PasswordHistory[]\n\n  // User badges\n  userBadges UserBadge[]\n\n  @@map(\"users\")\n}\n\n// Auth.js required tables\nmodel Account {\n  id                String  @id @default(cuid())\n  userId            String\n  type              String\n  provider          String\n  providerAccountId String\n  refresh_token     String? @db.Text\n  access_token      String? @db.Text\n  expires_at        Int?\n  token_type        String?\n  scope             String?\n  id_token          String? @db.Text\n  session_state     String?\n\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([provider, providerAccountId])\n  @@map(\"accounts\")\n}\n\nmodel Session {\n  id           String   @id @default(cuid())\n  sessionToken String   @unique\n  userId       String\n  expires      DateTime\n  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@map(\"sessions\")\n}\n\nmodel VerificationToken {\n  identifier String\n  token      String   @unique\n  expires    DateTime\n\n  @@unique([identifier, token])\n  @@map(\"verification_tokens\")\n}\n\n// Password history to prevent reusing last 5 passwords\nmodel PasswordHistory {\n  id        String   @id @default(cuid())\n  userId    String\n  password  String // Hashed password\n  createdAt DateTime @default(now())\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId, createdAt])\n  @@map(\"password_history\")\n}\n\n// Badge definitions - managed by admin\nmodel Badge {\n  id          String   @id @default(cuid())\n  label       String // e.g., \"Early Member\", \"Founder\", \"Beta Tester\"\n  variant     String   @default(\"default\") // \"default\" | \"secondary\" | \"destructive\" | \"outline\"\n  icon        String? // Optional icon identifier or emoji\n  description String? // Description for admin panel\n  createdAt   DateTime @default(now())\n  updatedAt   DateTime @updatedAt\n\n  // Many-to-many relationship with users\n  userBadges UserBadge[]\n\n  @@map(\"badges\")\n}\n\n// User-Badge relationship (many-to-many)\nmodel UserBadge {\n  id        String   @id @default(cuid())\n  userId    String\n  badgeId   String\n  createdAt DateTime @default(now())\n\n  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)\n  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)\n\n  @@unique([userId, badgeId]) // Prevent duplicate badges per user\n  @@index([userId])\n  @@index([badgeId])\n  @@map(\"user_badges\")\n}\n"
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\ngenerator client {\n  provider   = \"prisma-client-js\"\n  output     = \"../src/generated/prisma\"\n  engineType = \"library\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nmodel User {\n  id                      String    @id @default(cuid())\n  username                String    @unique\n  email                   String    @unique\n  password                String? // Nullable for social login users\n  image                   String? // Profile picture URL (from OAuth providers)\n  discord                 String? // Discord user ID or username\n  role                    String    @default(\"user\") // user, admin, etc.\n  status                  String    @default(\"active\")\n  emailVerified           DateTime? // DateTime for Auth.js compatibility (null = not verified, Date = verified)\n  verificationToken       String? // Keep for backward compatibility, but use verificationCode\n  verificationCode        String? // 6-digit OTP code for email verification\n  verificationCodeExpiry  DateTime? // OTP expiry (typically 10-15 minutes)\n  loginCode               String? // 6-digit OTP code for login\n  loginCodeExpiry         DateTime? // Login OTP expiry (typically 10-15 minutes)\n  passwordResetCode       String? // 6-digit OTP code for password reset\n  passwordResetCodeExpiry DateTime? // Password reset OTP expiry (typically 10-15 minutes)\n  createdAt               DateTime  @default(now())\n  updatedAt               DateTime  @updatedAt\n\n  // Auth.js relations\n  accounts        Account[]\n  sessions        Session[]\n  passwordHistory PasswordHistory[]\n\n  // User badges\n  userBadges UserBadge[]\n\n  playerRoles   PlayerRole[]\n  assignedRoles PlayerRole[]       @relation(\"PlayerRoleAssignedBy\")\n  playerBans    PlayerBan[]\n  issuedBans    PlayerBan[]        @relation(\"PlayerBanActor\")\n  auditLogs     PlayerAuditLog[]   @relation(\"PlayerAuditTarget\")\n  auditActions  PlayerAuditLog[]   @relation(\"PlayerAuditActor\")\n  matchPlayers  MatchPlayer[]\n  eloHistory    PlayerEloHistory[]\n\n  @@map(\"users\")\n}\n\n// Auth.js required tables\nmodel Account {\n  id                String  @id @default(cuid())\n  userId            String\n  type              String\n  provider          String\n  providerAccountId String\n  refresh_token     String? @db.Text\n  access_token      String? @db.Text\n  expires_at        Int?\n  token_type        String?\n  scope             String?\n  id_token          String? @db.Text\n  session_state     String?\n\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([provider, providerAccountId])\n  @@map(\"accounts\")\n}\n\nmodel Session {\n  id           String   @id @default(cuid())\n  sessionToken String   @unique\n  userId       String\n  expires      DateTime\n  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@map(\"sessions\")\n}\n\nmodel VerificationToken {\n  identifier String\n  token      String   @unique\n  expires    DateTime\n\n  @@unique([identifier, token])\n  @@map(\"verification_tokens\")\n}\n\n// Password history to prevent reusing last 5 passwords\nmodel PasswordHistory {\n  id        String   @id @default(cuid())\n  userId    String\n  password  String // Hashed password\n  createdAt DateTime @default(now())\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId, createdAt])\n  @@map(\"password_history\")\n}\n\n// Badge definitions - managed by admin\nmodel Badge {\n  id          String   @id @default(cuid())\n  label       String // e.g., \"Early Member\", \"Founder\", \"Beta Tester\"\n  variant     String   @default(\"default\") // \"default\" | \"secondary\" | \"destructive\" | \"outline\"\n  icon        String? // Optional icon identifier or emoji\n  description String? // Description for admin panel\n  createdAt   DateTime @default(now())\n  updatedAt   DateTime @updatedAt\n\n  // Many-to-many relationship with users\n  userBadges UserBadge[]\n\n  @@map(\"badges\")\n}\n\n// User-Badge relationship (many-to-many)\nmodel UserBadge {\n  id        String   @id @default(cuid())\n  userId    String\n  badgeId   String\n  createdAt DateTime @default(now())\n\n  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)\n  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)\n\n  @@unique([userId, badgeId]) // Prevent duplicate badges per user\n  @@index([userId])\n  @@index([badgeId])\n  @@map(\"user_badges\")\n}\n\nenum PlayerRoleType {\n  organizer\n  admin\n  moderator\n  competitor\n  viewer\n}\n\nmodel PlayerRole {\n  id         String         @id @default(cuid())\n  userId     String\n  role       PlayerRoleType\n  isPrimary  Boolean        @default(false)\n  reason     String?\n  assignedBy String?\n  createdAt  DateTime       @default(now())\n\n  user           User  @relation(fields: [userId], references: [id], onDelete: Cascade)\n  assignedByUser User? @relation(\"PlayerRoleAssignedBy\", fields: [assignedBy], references: [id])\n\n  @@unique([userId, role])\n  @@map(\"player_roles\")\n}\n\nenum PlayerBanStatus {\n  active\n  lifted\n  expired\n}\n\nenum PlayerBanType {\n  temporary\n  permanent\n}\n\nmodel PlayerBan {\n  id             String          @id @default(cuid())\n  userId         String\n  status         PlayerBanStatus @default(active)\n  type           PlayerBanType\n  reason         String\n  durationDays   Int?\n  banFromAllHubs Boolean         @default(true)\n  banFromDiscord Boolean         @default(false)\n  bannedBy       String\n  startsAt       DateTime        @default(now())\n  endsAt         DateTime?\n  liftedAt       DateTime?\n  createdAt      DateTime        @default(now())\n\n  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)\n  actor User @relation(\"PlayerBanActor\", fields: [bannedBy], references: [id])\n\n  @@index([userId, status])\n  @@map(\"player_bans\")\n}\n\nenum PlayerAuditAction {\n  role_change\n  ban\n  unban\n  note\n}\n\nmodel PlayerAuditLog {\n  id        String            @id @default(cuid())\n  userId    String\n  actorId   String\n  action    PlayerAuditAction\n  reason    String?\n  metadata  Json?\n  createdAt DateTime          @default(now())\n\n  user  User @relation(\"PlayerAuditTarget\", fields: [userId], references: [id], onDelete: Cascade)\n  actor User @relation(\"PlayerAuditActor\", fields: [actorId], references: [id])\n\n  @@index([userId, createdAt])\n  @@map(\"player_audit_logs\")\n}\n\nmodel AdminSetting {\n  key       String   @id\n  value     Json\n  updatedBy String?\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@map(\"admin_settings\")\n}\n\nenum GameId {\n  valorant\n  cs2\n}\n\nenum MatchStatus {\n  scheduled\n  live\n  completed\n  canceled\n}\n\nenum MatchOutcome {\n  alpha\n  bravo\n  draw\n}\n\nenum MatchTeam {\n  alpha\n  bravo\n}\n\nenum MatchQueueType {\n  ranked_global\n  ranked_private\n  unranked\n  scrim\n}\n\nmodel Match {\n  id              String         @id @default(cuid())\n  externalId      String?        @unique\n  hubId           String?\n  game            GameId\n  status          MatchStatus    @default(completed)\n  queueType       MatchQueueType @default(ranked_global)\n  map             String\n  roundsPlayed    Int            @default(24)\n  winner          MatchOutcome?\n  startedAt       DateTime?\n  endedAt         DateTime?\n  durationSeconds Int?\n  createdAt       DateTime       @default(now())\n  updatedAt       DateTime       @updatedAt\n\n  players   MatchPlayer[]\n  eloEvents PlayerEloHistory[] @relation(\"MatchEloEvents\")\n\n  @@index([game, startedAt])\n  @@index([hubId])\n}\n\nmodel MatchPlayer {\n  id           String    @id @default(cuid())\n  matchId      String\n  userId       String\n  team         MatchTeam\n  ratingBefore Int?\n  ratingAfter  Int?\n  ratingDelta  Int?\n  kills        Int?\n  deaths       Int?\n  assists      Int?\n  acs          Int?\n  hsPercentage Float?\n  entryKills   Int?\n  clutches     Int?\n  createdAt    DateTime  @default(now())\n\n  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)\n  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([matchId])\n  @@index([userId, matchId])\n}\n\nmodel PlayerEloHistory {\n  id            String   @id @default(cuid())\n  userId        String\n  game          GameId\n  rating        Int\n  ratingDelta   Int\n  recordedAt    DateTime @default(now())\n  sourceMatchId String?\n\n  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n  match Match? @relation(\"MatchEloEvents\", fields: [sourceMatchId], references: [id])\n\n  @@index([userId, game, recordedAt])\n}\n"
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"username\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"image\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"discord\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"emailVerified\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"verificationToken\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"verificationCode\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"verificationCodeExpiry\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"loginCode\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"loginCodeExpiry\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"passwordResetCode\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"passwordResetCodeExpiry\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"accounts\",\"kind\":\"object\",\"type\":\"Account\",\"relationName\":\"AccountToUser\"},{\"name\":\"sessions\",\"kind\":\"object\",\"type\":\"Session\",\"relationName\":\"SessionToUser\"},{\"name\":\"passwordHistory\",\"kind\":\"object\",\"type\":\"PasswordHistory\",\"relationName\":\"PasswordHistoryToUser\"},{\"name\":\"userBadges\",\"kind\":\"object\",\"type\":\"UserBadge\",\"relationName\":\"UserToUserBadge\"}],\"dbName\":\"users\"},\"Account\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"type\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"provider\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"providerAccountId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"refresh_token\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"access_token\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"expires_at\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"token_type\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"scope\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"id_token\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"session_state\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"AccountToUser\"}],\"dbName\":\"accounts\"},\"Session\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"sessionToken\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"expires\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"SessionToUser\"}],\"dbName\":\"sessions\"},\"VerificationToken\":{\"fields\":[{\"name\":\"identifier\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"token\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"expires\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":\"verification_tokens\"},\"PasswordHistory\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PasswordHistoryToUser\"}],\"dbName\":\"password_history\"},\"Badge\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"label\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"variant\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"icon\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"userBadges\",\"kind\":\"object\",\"type\":\"UserBadge\",\"relationName\":\"BadgeToUserBadge\"}],\"dbName\":\"badges\"},\"UserBadge\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"badgeId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"UserToUserBadge\"},{\"name\":\"badge\",\"kind\":\"object\",\"type\":\"Badge\",\"relationName\":\"BadgeToUserBadge\"}],\"dbName\":\"user_badges\"}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"username\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"image\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"discord\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"status\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"emailVerified\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"verificationToken\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"verificationCode\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"verificationCodeExpiry\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"loginCode\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"loginCodeExpiry\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"passwordResetCode\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"passwordResetCodeExpiry\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"accounts\",\"kind\":\"object\",\"type\":\"Account\",\"relationName\":\"AccountToUser\"},{\"name\":\"sessions\",\"kind\":\"object\",\"type\":\"Session\",\"relationName\":\"SessionToUser\"},{\"name\":\"passwordHistory\",\"kind\":\"object\",\"type\":\"PasswordHistory\",\"relationName\":\"PasswordHistoryToUser\"},{\"name\":\"userBadges\",\"kind\":\"object\",\"type\":\"UserBadge\",\"relationName\":\"UserToUserBadge\"},{\"name\":\"playerRoles\",\"kind\":\"object\",\"type\":\"PlayerRole\",\"relationName\":\"PlayerRoleToUser\"},{\"name\":\"assignedRoles\",\"kind\":\"object\",\"type\":\"PlayerRole\",\"relationName\":\"PlayerRoleAssignedBy\"},{\"name\":\"playerBans\",\"kind\":\"object\",\"type\":\"PlayerBan\",\"relationName\":\"PlayerBanToUser\"},{\"name\":\"issuedBans\",\"kind\":\"object\",\"type\":\"PlayerBan\",\"relationName\":\"PlayerBanActor\"},{\"name\":\"auditLogs\",\"kind\":\"object\",\"type\":\"PlayerAuditLog\",\"relationName\":\"PlayerAuditTarget\"},{\"name\":\"auditActions\",\"kind\":\"object\",\"type\":\"PlayerAuditLog\",\"relationName\":\"PlayerAuditActor\"},{\"name\":\"matchPlayers\",\"kind\":\"object\",\"type\":\"MatchPlayer\",\"relationName\":\"MatchPlayerToUser\"},{\"name\":\"eloHistory\",\"kind\":\"object\",\"type\":\"PlayerEloHistory\",\"relationName\":\"PlayerEloHistoryToUser\"}],\"dbName\":\"users\"},\"Account\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"type\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"provider\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"providerAccountId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"refresh_token\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"access_token\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"expires_at\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"token_type\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"scope\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"id_token\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"session_state\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"AccountToUser\"}],\"dbName\":\"accounts\"},\"Session\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"sessionToken\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"expires\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"SessionToUser\"}],\"dbName\":\"sessions\"},\"VerificationToken\":{\"fields\":[{\"name\":\"identifier\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"token\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"expires\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":\"verification_tokens\"},\"PasswordHistory\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PasswordHistoryToUser\"}],\"dbName\":\"password_history\"},\"Badge\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"label\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"variant\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"icon\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"userBadges\",\"kind\":\"object\",\"type\":\"UserBadge\",\"relationName\":\"BadgeToUserBadge\"}],\"dbName\":\"badges\"},\"UserBadge\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"badgeId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"UserToUserBadge\"},{\"name\":\"badge\",\"kind\":\"object\",\"type\":\"Badge\",\"relationName\":\"BadgeToUserBadge\"}],\"dbName\":\"user_badges\"},\"PlayerRole\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role\",\"kind\":\"enum\",\"type\":\"PlayerRoleType\"},{\"name\":\"isPrimary\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"reason\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"assignedBy\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PlayerRoleToUser\"},{\"name\":\"assignedByUser\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PlayerRoleAssignedBy\"}],\"dbName\":\"player_roles\"},\"PlayerBan\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"PlayerBanStatus\"},{\"name\":\"type\",\"kind\":\"enum\",\"type\":\"PlayerBanType\"},{\"name\":\"reason\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"durationDays\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"banFromAllHubs\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"banFromDiscord\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"bannedBy\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"startsAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"endsAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"liftedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PlayerBanToUser\"},{\"name\":\"actor\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PlayerBanActor\"}],\"dbName\":\"player_bans\"},\"PlayerAuditLog\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"actorId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"action\",\"kind\":\"enum\",\"type\":\"PlayerAuditAction\"},{\"name\":\"reason\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"metadata\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PlayerAuditTarget\"},{\"name\":\"actor\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PlayerAuditActor\"}],\"dbName\":\"player_audit_logs\"},\"AdminSetting\":{\"fields\":[{\"name\":\"key\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"value\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"updatedBy\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":\"admin_settings\"},\"Match\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"externalId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"hubId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"game\",\"kind\":\"enum\",\"type\":\"GameId\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"MatchStatus\"},{\"name\":\"queueType\",\"kind\":\"enum\",\"type\":\"MatchQueueType\"},{\"name\":\"map\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"roundsPlayed\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"winner\",\"kind\":\"enum\",\"type\":\"MatchOutcome\"},{\"name\":\"startedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"endedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"durationSeconds\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"players\",\"kind\":\"object\",\"type\":\"MatchPlayer\",\"relationName\":\"MatchToMatchPlayer\"},{\"name\":\"eloEvents\",\"kind\":\"object\",\"type\":\"PlayerEloHistory\",\"relationName\":\"MatchEloEvents\"}],\"dbName\":null},\"MatchPlayer\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"matchId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"team\",\"kind\":\"enum\",\"type\":\"MatchTeam\"},{\"name\":\"ratingBefore\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"ratingAfter\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"ratingDelta\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"kills\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"deaths\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"assists\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"acs\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"hsPercentage\",\"kind\":\"scalar\",\"type\":\"Float\"},{\"name\":\"entryKills\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"clutches\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"match\",\"kind\":\"object\",\"type\":\"Match\",\"relationName\":\"MatchToMatchPlayer\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"MatchPlayerToUser\"}],\"dbName\":null},\"PlayerEloHistory\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"game\",\"kind\":\"enum\",\"type\":\"GameId\"},{\"name\":\"rating\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"ratingDelta\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"recordedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"sourceMatchId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PlayerEloHistoryToUser\"},{\"name\":\"match\",\"kind\":\"object\",\"type\":\"Match\",\"relationName\":\"MatchEloEvents\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
 defineDmmfProperty(exports.Prisma, config.runtimeDataModel)
 config.compilerWasm = {
       getRuntime: async () => require('./query_compiler_bg.js'),

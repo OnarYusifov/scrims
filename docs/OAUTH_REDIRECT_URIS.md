@@ -3,6 +3,7 @@
 ## Google OAuth Setup
 
 ### Authorized JavaScript Origins
+
 Add these in Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID:
 
 ```
@@ -12,6 +13,7 @@ https://trayb.az
 ```
 
 ### Authorized Redirect URIs
+
 Add these in the same OAuth 2.0 Client ID settings:
 
 ```
@@ -23,6 +25,7 @@ https://trayb.az/api/auth/callback/google
 ## Discord OAuth Setup
 
 ### Redirect URIs
+
 Add these in Discord Developer Portal → Your Application → OAuth2 → Redirects:
 
 ```
@@ -66,11 +69,11 @@ https://trayb.az/api/auth/callback/discord
 
 - **No trailing slashes**: Make sure URLs don't end with `/`
 - **Exact match required**: OAuth providers require exact URL matches
-- **HTTP vs HTTPS**: 
+- **HTTP vs HTTPS**:
   - Use `http://` for localhost (development)
   - Use `https://` for production domains
 - **Case sensitive**: URLs are case-sensitive, use lowercase
-- **After updating**: 
+- **After updating**:
   - Changes may take a few minutes to propagate
   - Restart your application after updating redirect URIs
   - Test each environment to ensure OAuth works
@@ -94,4 +97,3 @@ After configuring, test OAuth in each environment:
    - Ensure `AUTH_URL=https://trayb.az` is set in production environment
    - Test OAuth login
    - Should redirect back to `https://trayb.az`
-

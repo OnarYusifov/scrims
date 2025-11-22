@@ -41,12 +41,14 @@ If you can't update branch protection rules right now:
 ## PR Template
 
 ### Title:
+
 ```
 feat: centralized env-based port config and PR workflow setup
 ```
 
 ### Description:
-```markdown
+
+````markdown
 ## 🎯 Summary
 
 This PR implements centralized environment-based port configuration and sets up the PR workflow infrastructure.
@@ -63,12 +65,15 @@ This PR implements centralized environment-based port configuration and sets up 
 Both developers can now use different ports via root `.env`:
 
 **Your setup**:
+
 ```env
 FRONTEND_PORT=3000
 BACKEND_PORT=3001
 ```
+````
 
 **Collaborator's setup**:
+
 ```env
 FRONTEND_PORT=5000
 BACKEND_PORT=5001
@@ -98,7 +103,8 @@ BACKEND_PORT=5001
 1. Both developers update root `.env` with their preferred ports
 2. Restart dev servers to pick up new port configuration
 3. Continue development with centralized env config
-```
+
+````
 
 ## Step 2: Review and Merge PR
 
@@ -170,7 +176,7 @@ bun run dev
 # 11. Verify ports
 # Frontend should show: "Local: http://localhost:5000"
 # Backend should show: "🚀 Backend server running on http://0.0.0.0:5001"
-```
+````
 
 ## Step 4: Verify Sync
 
@@ -291,6 +297,7 @@ echo "4. Run: bun run dev"
 ```
 
 Save as `sync-env-config.sh`, make executable:
+
 ```bash
 chmod +x sync-env-config.sh
 ./sync-env-config.sh
@@ -299,17 +306,20 @@ chmod +x sync-env-config.sh
 ## Summary Checklist
 
 ### Before Creating PR:
+
 - [ ] All changes committed
 - [ ] Lint passes
 - [ ] Build succeeds
 - [ ] Branch protection allows feature branches (or workaround ready)
 
 ### Creating PR:
+
 - [ ] PR created on GitHub
 - [ ] Description filled out
 - [ ] CI checks passing (if applicable)
 
 ### After Merge:
+
 - [ ] Pull latest on your machine
 - [ ] Update your `.env` with `FRONTEND_PORT=3000` and `BACKEND_PORT=3001`
 - [ ] Friend pulls latest on their machine
@@ -336,4 +346,3 @@ To sync on your machine:
 
 Your profile feature is safe - it's already included! 🎉
 ```
-

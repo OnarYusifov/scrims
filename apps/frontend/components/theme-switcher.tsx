@@ -14,7 +14,9 @@ export function ThemeSwitcher() {
     setMounted(true);
   }, []);
 
-  const isDark = mounted && (theme === "dark" || (theme === "system" && systemTheme === "dark"));
+  const isDark =
+    mounted &&
+    (theme === "dark" || (theme === "system" && systemTheme === "dark"));
 
   return (
     <Button
@@ -23,13 +25,8 @@ export function ThemeSwitcher() {
       className="h-9 w-9"
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >
-      {isDark ? (
-        <Sun className="h-5 w-5" />
-      ) : (
-        <Moon className="h-5 w-5" />
-      )}
+      {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
       <span className="sr-only">Toggle theme</span>
     </Button>
   );
 }
-

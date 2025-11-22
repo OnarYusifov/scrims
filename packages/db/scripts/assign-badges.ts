@@ -5,7 +5,7 @@ async function assignBadges() {
 
   // Get all badges
   const badges = await prisma.badge.findMany();
-  
+
   if (badges.length === 0) {
     console.log("No badges found. Please run seed-badges.ts first.");
     return;
@@ -19,7 +19,9 @@ async function assignBadges() {
   });
 
   if (!user) {
-    console.log("User 'yunar' not found. Please create the user first or change the username in this script.");
+    console.log(
+      "User 'yunar' not found. Please create the user first or change the username in this script."
+    );
     return;
   }
 
@@ -43,7 +45,9 @@ async function assignBadges() {
       });
       console.log(`Assigned badge "${badge.label}" to user "${user.username}"`);
     } else {
-      console.log(`Badge "${badge.label}" already assigned to user "${user.username}"`);
+      console.log(
+        `Badge "${badge.label}" already assigned to user "${user.username}"`
+      );
     }
   }
 
@@ -58,5 +62,3 @@ assignBadges()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
-

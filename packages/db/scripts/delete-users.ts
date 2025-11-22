@@ -11,13 +11,13 @@ import { prisma } from "../src/index.js";
 async function deleteAllUsers() {
   try {
     console.log("Deleting all users...");
-    
+
     // Delete all users (cascades to accounts, sessions, passwordHistory)
     const deletedUsers = await prisma.user.deleteMany({});
-    
+
     // Also clean up verification tokens
     const deletedTokens = await prisma.verificationToken.deleteMany({});
-    
+
     console.log(`✅ Deleted ${deletedUsers.count} user(s)`);
     console.log(`✅ Deleted ${deletedTokens.count} verification token(s)`);
     console.log("✅ Database cleaned successfully!");
@@ -30,6 +30,3 @@ async function deleteAllUsers() {
 }
 
 deleteAllUsers();
-
-
-

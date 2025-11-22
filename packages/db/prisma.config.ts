@@ -8,7 +8,7 @@ const databaseUrl =
 
 if (!process.env.DATABASE_URL) {
   console.warn(
-    '[prisma.config] DATABASE_URL not set; using placeholder connection string for build-time operations.',
+    "[prisma.config] DATABASE_URL not set; using placeholder connection string for build-time operations."
   );
 }
 
@@ -18,4 +18,3 @@ export default defineConfig({
     url: databaseUrl,
   },
 });
-

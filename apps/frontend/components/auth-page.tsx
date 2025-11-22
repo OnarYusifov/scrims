@@ -1,7 +1,7 @@
 "use client";
 
 import { AtSignIcon, ChevronLeftIcon } from "lucide-react";
-import Link from "next/link";;
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,13 @@ type AuthPageProps = {
   topSlot?: React.ReactNode;
 };
 
-export function AuthPage({ mode = "login", children, showSocialButtons = true, hideTitle = false, topSlot }: AuthPageProps) {
+export function AuthPage({
+  mode = "login",
+  children,
+  showSocialButtons = true,
+  hideTitle = false,
+  topSlot,
+}: AuthPageProps) {
   // Lock body scroll to prevent tiny scroll caused by password manager overlays
   React.useEffect(() => {
     const { scrollY } = window;
@@ -92,7 +98,9 @@ export function AuthPage({ mode = "login", children, showSocialButtons = true, h
                   size="default"
                   type="button"
                   variant="outline"
-                  onClick={() => signIn("google", { callbackUrl: "/?linked=google" })}
+                  onClick={() =>
+                    signIn("google", { callbackUrl: "/?linked=google" })
+                  }
                 >
                   <GoogleIcon className="h-4 w-4" />
                   <span className="hidden sm:inline">Google</span>
@@ -102,7 +110,9 @@ export function AuthPage({ mode = "login", children, showSocialButtons = true, h
                   size="default"
                   type="button"
                   variant="outline"
-                  onClick={() => signIn("discord", { callbackUrl: "/?linked=discord" })}
+                  onClick={() =>
+                    signIn("discord", { callbackUrl: "/?linked=discord" })
+                  }
                 >
                   <DiscordIcon className="h-4 w-4" />
                   <span className="hidden sm:inline">Discord</span>
@@ -120,7 +130,8 @@ export function AuthPage({ mode = "login", children, showSocialButtons = true, h
           {children || (
             <form className="space-y-2">
               <p className="text-start text-muted-foreground text-xs">
-                Enter your email address to {mode === "login" ? "sign in" : "create an account"}
+                Enter your email address to{" "}
+                {mode === "login" ? "sign in" : "create an account"}
               </p>
               <InputGroup>
                 <InputGroupInput

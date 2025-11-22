@@ -4,25 +4,17 @@
   "rsc": true,
   "tsx": true,
   "tailwind": {
-    "config": "",
+    "config": "tailwind.config.ts",
     "css": "app/globals.css",
     "baseColor": "zinc",
     "cssVariables": true,
     "prefix": ""
   },
-  "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",
     "ui": "@/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
-  },
-  "registries": {
-    "default": "https://ui.shadcn.com/r/{name}.json",
-    "@efferd": "https://efferd.com/r/{name}.json",
-    "@svgl": "https://svgl.app/r/{name}.json",
-    "@react-bits": "https://reactbits.dev/r/{name}.json",
-    "@animate-ui": "https://animate-ui.com/r/{name}.json"
   }
 }

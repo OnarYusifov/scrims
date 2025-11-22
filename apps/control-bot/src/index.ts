@@ -3,4 +3,3 @@ import "@trayb/config/load-env";
 
 // Discord control bot entry point
 console.log("Control bot starting...");
-

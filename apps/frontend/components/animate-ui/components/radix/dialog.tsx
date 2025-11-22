@@ -13,15 +13,21 @@ function Dialog({
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
-function DialogTrigger(props: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+function DialogTrigger(
+  props: React.ComponentProps<typeof DialogPrimitive.Trigger>
+) {
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
 }
 
-function DialogPortal(props: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+function DialogPortal(
+  props: React.ComponentProps<typeof DialogPrimitive.Portal>
+) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
 }
 
-function DialogClose(props: React.ComponentProps<typeof DialogPrimitive.Close>) {
+function DialogClose(
+  props: React.ComponentProps<typeof DialogPrimitive.Close>
+) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
@@ -31,7 +37,12 @@ function DialogOverlay({
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   // Extract props that might conflict with motion.div
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { onDrag: _onDrag, onDragEnd: _onDragEnd, onDragStart: _onDragStart, ...motionProps } = props;
+  const {
+    onDrag: _onDrag,
+    onDragEnd: _onDragEnd,
+    onDragStart: _onDragStart,
+    ...motionProps
+  } = props;
   return (
     <DialogPrimitive.Overlay asChild data-slot="dialog-overlay">
       <motion.div
@@ -91,10 +102,7 @@ function DialogContent({
   );
 }
 
-function DialogHeader({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
@@ -107,10 +115,7 @@ function DialogHeader({
   );
 }
 
-function DialogFooter({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-footer"
@@ -161,4 +166,3 @@ export {
   DialogTitle,
   DialogTrigger,
 };
-

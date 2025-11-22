@@ -56,12 +56,14 @@ git diff origin/dev...HEAD -- apps/*/package.json apps/*/src/index.ts apps/*/nex
 ### Conflict: Port Changed
 
 **If collaborator changed ports**:
+
 - Frontend: Ensure uses environment-based port configuration without the `-p` flag
 - Backend: Revert to `|| 3001` default
 
 ### Conflict: Different Env Loading
 
 **If collaborator modified env loading**:
+
 - Revert to using `@trayb/config/load-env`
 - Ensure it's imported first
 - Remove any custom env loading code
@@ -69,12 +71,14 @@ git diff origin/dev...HEAD -- apps/*/package.json apps/*/src/index.ts apps/*/nex
 ### Conflict: New .env Files
 
 **If collaborator created per-app .env files**:
+
 - Delete them: `rm apps/*/.env.local apps/*/.env.development`
 - Use only root `.env` file
 
 ## Resolution Steps
 
 1. **Identify the conflict**:
+
    ```bash
    git diff origin/dev...HEAD
    ```
@@ -90,10 +94,11 @@ git diff origin/dev...HEAD -- apps/*/package.json apps/*/src/index.ts apps/*/nex
    - Update documentation if exception needed
 
 4. **Test**:
+
    ```bash
    # Start backend - should be on 3001
    cd apps/backend && bun run dev
-   
+
    # Start frontend - should be on 3000
    cd apps/frontend && bun run dev
    ```
@@ -123,4 +128,3 @@ find apps -name ".env.local" -o -name ".env.development" | xargs rm -f
 # Ensure env loader is first import in backend
 # (Manual check needed)
 ```
-

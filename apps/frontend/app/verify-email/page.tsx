@@ -14,7 +14,9 @@ function VerifyEmailContent() {
   const [, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [verificationType, setVerificationType] = useState<"register" | "login">("register");
+  const [verificationType, setVerificationType] = useState<
+    "register" | "login"
+  >("register");
 
   const emailFromQuery = searchParams.get("email") || "";
   const typeFromQuery = searchParams.get("type") || "";
@@ -47,18 +49,18 @@ function VerifyEmailContent() {
       // Use session directly - no need for API call
       if (session?.user) {
         // User is authenticated - redirect to home
-          router.push("/");
-          return;
-        }
+        router.push("/");
+        return;
+      }
 
       // Not authenticated - redirect to login
-          router.push("/login");
-        }
+      router.push("/login");
+    }
   }, [emailFromQuery, verificationType, session, status, router]);
 
   useEffect(() => {
     // Intercept form submission
-    const form = document.querySelector('form');
+    const form = document.querySelector("form");
     if (!form) return;
 
     const handleSubmit = async (e: Event) => {
@@ -67,8 +69,8 @@ function VerifyEmailContent() {
       setResendMessage(null);
 
       // Get OTP value from the input
-      const otpInput = document.getElementById('otp') as HTMLInputElement;
-      const otpValue = otpInput?.value || '';
+      const otpInput = document.getElementById("otp") as HTMLInputElement;
+      const otpValue = otpInput?.value || "";
 
       if (!email) {
         setError("Email is required");
@@ -85,18 +87,22 @@ function VerifyEmailContent() {
           // Login OTP flow: Backend verifies OTP and returns token + user
           // Then we create NextAuth session directly using the token
           const getBackendUrl = () => {
-            if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+            if (process.env.NEXT_PUBLIC_API_URL)
+              return process.env.NEXT_PUBLIC_API_URL;
             const port = Number(process.env.NEXT_PUBLIC_BACKEND_PORT);
             if (!port) throw new Error("BACKEND_PORT must be set");
             return `http://localhost:${port}`;
           };
 
           // Verify OTP with backend - this returns token and user
-          const verifyResponse = await fetch(`${getBackendUrl()}/auth/verify-login`, {
-          method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, code: otpValue }),
-          });
+          const verifyResponse = await fetch(
+            `${getBackendUrl()}/auth/verify-login`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, code: otpValue }),
+            }
+          );
 
           const verifyResult = await verifyResponse.json();
 
@@ -129,14 +135,14 @@ function VerifyEmailContent() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, code: otpValue }),
-        });
+          });
 
-        const result = await response.json();
+          const result = await response.json();
 
-        if (!response.ok) {
-          setError(result.error || "Verification failed");
-          return;
-        }
+          if (!response.ok) {
+            setError(result.error || "Verification failed");
+            return;
+          }
 
           // Email verified - redirect to login
           router.push("/login?verified=true");
@@ -147,8 +153,8 @@ function VerifyEmailContent() {
       }
     };
 
-    form.addEventListener('submit', handleSubmit);
-    return () => form.removeEventListener('submit', handleSubmit);
+    form.addEventListener("submit", handleSubmit);
+    return () => form.removeEventListener("submit", handleSubmit);
   }, [email, verificationType, router]);
 
   useEffect(() => {
@@ -170,9 +176,10 @@ function VerifyEmailContent() {
 
       try {
         // Use different endpoint based on verification type
-        const endpoint = verificationType === "login"
-          ? "/api/auth/resend-login-otp"
-          : "/api/auth/resend-verification";
+        const endpoint =
+          verificationType === "login"
+            ? "/api/auth/resend-login-otp"
+            : "/api/auth/resend-verification";
 
         const response = await fetch(endpoint, {
           method: "POST",
@@ -187,8 +194,8 @@ function VerifyEmailContent() {
         if (response.ok) {
           setResendMessage("Verification code sent! Please check your email.");
           // Clear the OTP input
-          const otpInput = document.getElementById('otp') as HTMLInputElement;
-          if (otpInput) otpInput.value = '';
+          const otpInput = document.getElementById("otp") as HTMLInputElement;
+          if (otpInput) otpInput.value = "";
         } else {
           setResendMessage(result.error || "Failed to resend code");
         }
@@ -199,8 +206,8 @@ function VerifyEmailContent() {
       }
     };
 
-    resendLink.addEventListener('click', handleResend);
-    return () => resendLink.removeEventListener('click', handleResend);
+    resendLink.addEventListener("click", handleResend);
+    return () => resendLink.removeEventListener("click", handleResend);
   }, [email, verificationType]);
 
   return (
@@ -213,10 +220,11 @@ function VerifyEmailContent() {
         )}
         {resendMessage && (
           <div
-            className={`rounded-md p-3 text-sm text-center ${resendMessage.includes("sent")
-              ? "bg-green-500/15 text-green-700 dark:text-green-400"
-              : "bg-destructive/15 text-destructive"
-              }`}
+            className={`rounded-md p-3 text-sm text-center ${
+              resendMessage.includes("sent")
+                ? "bg-green-500/15 text-green-700 dark:text-green-400"
+                : "bg-destructive/15 text-destructive"
+            }`}
           >
             {resendMessage}
           </div>
@@ -234,15 +242,16 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={
-      <VerifyPageLayout>
-        <div className="space-y-4">
-          <div className="text-center text-muted-foreground">Loading...</div>
-        </div>
-      </VerifyPageLayout>
-    }>
+    <Suspense
+      fallback={
+        <VerifyPageLayout>
+          <div className="space-y-4">
+            <div className="text-center text-muted-foreground">Loading...</div>
+          </div>
+        </VerifyPageLayout>
+      }
+    >
       <VerifyEmailContent />
     </Suspense>
   );
 }
-

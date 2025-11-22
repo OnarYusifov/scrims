@@ -93,4 +93,3 @@ When you pull these changes:
 ✅ **Type-check**: Passes (all packages)  
 ✅ **Build**: Should pass (not tested but types are fixed)  
 ✅ **CI Ready**: All TypeScript errors resolved
-

@@ -7,10 +7,12 @@ Ports are now **fully environment-based** from the root `.env` file. No hardcode
 ## What Changed
 
 ### Before (Hardcoded)
+
 - Frontend: `"dev": "next dev -p 3000"` (hardcoded port)
 - Backend: `const port = Number(process.env.PORT) || 3001;` (default only)
 
 ### After (Environment-Based)
+
 - Frontend: `"dev": "next dev"` (reads `PORT` from `process.env`, which comes from root `.env`)
 - Backend: `const port = Number(process.env.BACKEND_PORT || process.env.PORT) || 3001;`
 
@@ -82,12 +84,14 @@ bun run dev
 ## Migration Steps
 
 1. **Add to root `.env`**:
+
    ```env
    FRONTEND_PORT=5000
    BACKEND_PORT=5001
    ```
 
 2. **Update URL variables** (if needed):
+
    ```env
    FRONTEND_URL="http://localhost:5000"
    BACKEND_URL="http://localhost:5001"
@@ -105,4 +109,3 @@ bun run dev
 ## Questions?
 
 See `docs/ENV_PORT_CONFIGURATION.md` for detailed documentation.
-

@@ -45,14 +45,9 @@ export function resolveSteamOrigin(request: NextRequest): {
   };
 }
 
-export function buildExternalUrl(
-  request: NextRequest,
-  origin: string
-): string {
+export function buildExternalUrl(request: NextRequest, origin: string): string {
   return new URL(
     `${request.nextUrl.pathname}${request.nextUrl.search}`,
     origin
   ).toString();
 }
-
-

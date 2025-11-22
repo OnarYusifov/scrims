@@ -16,12 +16,14 @@ Ports are configured via environment variables from the **root `.env` file**:
 ### How Ports Are Configured
 
 #### Frontend (`apps/frontend`)
+
 - **Scripts**: `next dev` and `next start` (no `-p` flag - Next.js reads `PORT` automatically)
 - **Environment Variable**: `FRONTEND_PORT` or `PORT` from root `.env`
 - **Default**: `3000` if not set
 - **Location**: `apps/frontend/next.config.ts` sets `process.env.PORT` from `FRONTEND_PORT`
 
 #### Backend (`apps/backend`)
+
 - **Port**: Uses `process.env.BACKEND_PORT || process.env.PORT || 3001`
 - **Host**: Uses `process.env.HOST || "0.0.0.0"` (defaults to 0.0.0.0)
 - **Location**: `apps/backend/src/index.ts` line 82
@@ -30,15 +32,15 @@ Ports are configured via environment variables from the **root `.env` file**:
 
 ```typescript
 // apps/backend/src/index.ts
-const port = Number(process.env.BACKEND_PORT || process.env.PORT) || 3001;  // ✅ Correct
-const host = process.env.HOST || "0.0.0.0";     // ✅ Correct
+const port = Number(process.env.BACKEND_PORT || process.env.PORT) || 3001; // ✅ Correct
+const host = process.env.HOST || "0.0.0.0"; // ✅ Correct
 ```
 
 ```json
 // apps/frontend/package.json
 {
   "scripts": {
-    "dev": "next dev",    // ✅ Correct - Next.js reads PORT from process.env
+    "dev": "next dev", // ✅ Correct - Next.js reads PORT from process.env
     "start": "next start" // ✅ Correct - Next.js reads PORT from process.env
   }
 }
@@ -72,6 +74,7 @@ BACKEND_PORT=3001   # or 5001 for collaborator
 #### Implementation
 
 **Backend** (`apps/backend/src/index.ts`):
+
 ```typescript
 // MUST be first import - before any other imports
 import "@trayb/config/load-env";
@@ -81,6 +84,7 @@ import Fastify from "fastify";
 ```
 
 **Frontend** (`apps/frontend/next.config.ts`):
+
 ```typescript
 // Loads .env from root automatically
 // This runs before Next.js processes env files
@@ -89,6 +93,7 @@ import { readFileSync, existsSync } from "fs";
 ```
 
 **All Bots** (`apps/control-bot`, `apps/recorder-bot1`, `apps/recorder-bot2`):
+
 ```typescript
 // MUST be first import
 import "@trayb/config/load-env";
@@ -179,7 +184,8 @@ SMTP_FROM="..."
 
 **Problem**: Setting `PORT=3000` for backend or different ports.
 
-**Solution**: 
+**Solution**:
+
 - Backend always uses 3001 (or `process.env.PORT` if set)
 - Frontend uses `FRONTEND_PORT` or `PORT` from env (defaults to 3000 if not set)
 - Never override these defaults
@@ -188,7 +194,8 @@ SMTP_FROM="..."
 
 **Problem**: Loading env vars after imports or in wrong order.
 
-**Solution**: 
+**Solution**:
+
 - Always import `@trayb/config/load-env` FIRST
 - Before any other imports
 - Before any code that uses `process.env`
@@ -197,7 +204,8 @@ SMTP_FROM="..."
 
 **Problem**: Using different env loading logic for dev/prod.
 
-**Solution**: 
+**Solution**:
+
 - Same loader works for both
 - Dokploy injects env vars directly (bypasses .env file)
 - Loader only sets vars that don't exist (allows override)
@@ -212,6 +220,7 @@ When you see configuration changes:
 4. **Verify port usage**: Backend uses `process.env.BACKEND_PORT || process.env.PORT || 3001`, Frontend uses `FRONTEND_PORT` or `PORT` from env (defaults to 3000 if not set)
 
 If conflicts are found:
+
 - Revert to standard configuration
 - Use centralized `.env` file
 - Keep ports as 3000/3001
@@ -243,6 +252,7 @@ bun run dev
 ## Docker/Production Configuration
 
 In Docker (Dokploy):
+
 - Ports are handled by Dokploy/Traefik
 - Environment variables are injected directly (no .env file needed)
 - Backend listens on 0.0.0.0:3001 (internal)
@@ -252,6 +262,7 @@ In Docker (Dokploy):
 ## Summary
 
 ✅ **DO**:
+
 - Use root `.env` file only
 - Import `@trayb/config/load-env` first
 - Use `FRONTEND_PORT` (or `PORT`) for frontend, defaulting to 3000
@@ -259,9 +270,9 @@ In Docker (Dokploy):
 - Use `process.env` with fallbacks
 
 ❌ **DON'T**:
+
 - Create per-app .env files
 - Change default ports
 - Load env vars manually
 - Override centralized configuration
 - Use different configs for dev/prod
-

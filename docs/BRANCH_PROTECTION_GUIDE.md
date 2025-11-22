@@ -73,4 +73,3 @@ Apply the same rules as `dev`, but with stricter requirements:
 ## Bypass Permissions
 
 Only repository admins should have bypass permissions. This ensures even admins follow the PR workflow.
-

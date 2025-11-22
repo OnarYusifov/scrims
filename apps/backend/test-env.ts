@@ -23,13 +23,16 @@ console.log("─".repeat(50));
 
 for (const [key, value] of Object.entries(requiredVars)) {
   const isSet = value !== undefined && value !== "";
-  const displayValue = key === "SMTP_PASSWORD" 
-    ? (isSet ? "***SET***" : "NOT SET")
-    : (value || "NOT SET");
-  
+  const displayValue =
+    key === "SMTP_PASSWORD"
+      ? isSet
+        ? "***SET***"
+        : "NOT SET"
+      : value || "NOT SET";
+
   const status = isSet ? "✅" : "❌";
   console.log(`${status} ${key.padEnd(20)} = ${displayValue}`);
-  
+
   if (!isSet && key !== "FRONTEND_URL") {
     allSet = false;
   }
@@ -40,10 +43,10 @@ console.log("─".repeat(50));
 if (allSet) {
   console.log("\n✅ All required SMTP variables are set!");
   console.log("\n🧪 Testing SMTP connection...\n");
-  
+
   try {
     const nodemailer = await import("nodemailer");
-    
+
     const transporter = nodemailer.default.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT),
@@ -57,7 +60,7 @@ if (allSet) {
     console.log("Verifying SMTP connection...");
     await transporter.verify();
     console.log("✅ SMTP connection verified successfully!");
-    
+
     console.log("\n📧 Sending test email...");
     const info = await transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
@@ -65,22 +68,28 @@ if (allSet) {
       subject: "SMTP Test Email",
       text: "If you received this email, your SMTP configuration is working correctly!",
     });
-    
+
     console.log(`✅ Test email sent! Message ID: ${info.messageId}`);
     console.log("\n🎉 Everything is working correctly!");
-    
   } catch (error) {
     console.error("\n❌ SMTP test failed:");
     if (error instanceof Error) {
       console.error(`   Error: ${error.message}`);
-      
+
       if (error.message.includes("Invalid login")) {
         console.error("\n💡 Tip: Check your SMTP_USER and SMTP_PASSWORD");
-      } else if (error.message.includes("ECONNREFUSED") || error.message.includes("ETIMEDOUT")) {
-        console.error(`\n💡 Tip: Cannot connect to ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`);
+      } else if (
+        error.message.includes("ECONNREFUSED") ||
+        error.message.includes("ETIMEDOUT")
+      ) {
+        console.error(
+          `\n💡 Tip: Cannot connect to ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`
+        );
         console.error("   Check your SMTP_HOST and SMTP_PORT settings");
       } else if (error.message.includes("certificate")) {
-        console.error("\n💡 Tip: SSL/TLS certificate error. Check SMTP_SECURE setting.");
+        console.error(
+          "\n💡 Tip: SSL/TLS certificate error. Check SMTP_SECURE setting."
+        );
       }
     } else {
       console.error(error);
@@ -89,17 +98,9 @@ if (allSet) {
   }
 } else {
   console.log("\n❌ Some required variables are missing!");
-  console.log("\n💡 Make sure your .env file is in the root directory (/home/yunar/scrims/.env)");
+  console.log(
+    "\n💡 Make sure your .env file is in the root directory (/home/yunar/scrims/.env)"
+  );
   console.log("   and contains all SMTP configuration variables.");
   process.exit(1);
 }
-
-
-
-
-
-
-
-
-
-

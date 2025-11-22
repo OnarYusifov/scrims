@@ -57,7 +57,7 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     if (step !== "verify") return;
 
-    const form = document.querySelector('form');
+    const form = document.querySelector("form");
     if (!form) return;
 
     const handleSubmit = async (e: Event) => {
@@ -65,8 +65,8 @@ export default function ResetPasswordPage() {
       setError(null);
       setResendMessage(null);
 
-      const otpInput = document.getElementById('otp') as HTMLInputElement;
-      const otpValue = otpInput?.value || '';
+      const otpInput = document.getElementById("otp") as HTMLInputElement;
+      const otpValue = otpInput?.value || "";
 
       if (!email) {
         setError("Email is required");
@@ -93,7 +93,10 @@ export default function ResetPasswordPage() {
         const result = await response.json();
 
         if (!response.ok) {
-          setError(result.error || "Invalid or expired verification code. Please try again.");
+          setError(
+            result.error ||
+              "Invalid or expired verification code. Please try again."
+          );
           return;
         }
 
@@ -106,8 +109,8 @@ export default function ResetPasswordPage() {
       }
     };
 
-    form.addEventListener('submit', handleSubmit);
-    return () => form.removeEventListener('submit', handleSubmit);
+    form.addEventListener("submit", handleSubmit);
+    return () => form.removeEventListener("submit", handleSubmit);
   }, [step, email, passwordForm]);
 
   // Handle resend
@@ -141,9 +144,11 @@ export default function ResetPasswordPage() {
         const result = await response.json();
 
         if (response.ok) {
-          setResendMessage("Password reset code sent! Please check your email.");
-          const otpInput = document.getElementById('otp') as HTMLInputElement;
-          if (otpInput) otpInput.value = '';
+          setResendMessage(
+            "Password reset code sent! Please check your email."
+          );
+          const otpInput = document.getElementById("otp") as HTMLInputElement;
+          if (otpInput) otpInput.value = "";
         } else {
           setResendMessage(result.error || "Failed to resend code");
         }
@@ -154,8 +159,8 @@ export default function ResetPasswordPage() {
       }
     };
 
-    resendLink.addEventListener('click', handleResend);
-    return () => resendLink.removeEventListener('click', handleResend);
+    resendLink.addEventListener("click", handleResend);
+    return () => resendLink.removeEventListener("click", handleResend);
   }, [step, email]);
 
   const onPasswordSubmit = async (data: ResetPasswordInput) => {
@@ -180,13 +185,17 @@ export default function ResetPasswordPage() {
 
       if (!response.ok) {
         passwordForm.setError("root", {
-          message: result.error || "Password reset failed. Please check your code and password, then try again.",
+          message:
+            result.error ||
+            "Password reset failed. Please check your code and password, then try again.",
         });
         return;
       }
 
       // Success - redirect to login
-      router.push("/login?message=Password reset successful. Please log in with your new password.");
+      router.push(
+        "/login?message=Password reset successful. Please log in with your new password."
+      );
     } catch {
       passwordForm.setError("root", {
         message: "An error occurred. Please try again.",
@@ -211,10 +220,11 @@ export default function ResetPasswordPage() {
           )}
           {resendMessage && (
             <div
-              className={`rounded - md p - 3 text - sm text - center ${resendMessage.includes("sent")
-                ? "bg-green-500/15 text-green-700 dark:text-green-400"
-                : "bg-destructive/15 text-destructive"
-                } `}
+              className={`rounded - md p - 3 text - sm text - center ${
+                resendMessage.includes("sent")
+                  ? "bg-green-500/15 text-green-700 dark:text-green-400"
+                  : "bg-destructive/15 text-destructive"
+              } `}
             >
               {resendMessage}
             </div>
@@ -240,7 +250,10 @@ export default function ResetPasswordPage() {
           </p>
         </div>
         <Form {...passwordForm}>
-          <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+          <form
+            onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
+            className="space-y-4"
+          >
             {passwordForm.formState.errors.root && (
               <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                 {passwordForm.formState.errors.root.message}
@@ -249,7 +262,14 @@ export default function ResetPasswordPage() {
             <FormField
               control={passwordForm.control}
               name="password"
-              render={({ field }: { field: ControllerRenderProps<ResetPasswordInput, keyof ResetPasswordInput> }) => (
+              render={({
+                field,
+              }: {
+                field: ControllerRenderProps<
+                  ResetPasswordInput,
+                  keyof ResetPasswordInput
+                >;
+              }) => (
                 <FormItem>
                   <FormLabel>New Password</FormLabel>
                   <FormControl>
@@ -266,7 +286,14 @@ export default function ResetPasswordPage() {
             <FormField
               control={passwordForm.control}
               name="confirmPassword"
-              render={({ field }: { field: ControllerRenderProps<ResetPasswordInput, keyof ResetPasswordInput> }) => (
+              render={({
+                field,
+              }: {
+                field: ControllerRenderProps<
+                  ResetPasswordInput,
+                  keyof ResetPasswordInput
+                >;
+              }) => (
                 <FormItem>
                   <FormLabel>Confirm New Password</FormLabel>
                   <FormControl>
@@ -280,8 +307,14 @@ export default function ResetPasswordPage() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={passwordForm.formState.isSubmitting}>
-              {passwordForm.formState.isSubmitting ? "Resetting..." : "Reset Password"}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={passwordForm.formState.isSubmitting}
+            >
+              {passwordForm.formState.isSubmitting
+                ? "Resetting..."
+                : "Reset Password"}
             </Button>
           </form>
         </Form>
@@ -289,5 +322,3 @@ export default function ResetPasswordPage() {
     </VerifyPageLayout>
   );
 }
-
-

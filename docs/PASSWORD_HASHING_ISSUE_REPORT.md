@@ -1,16 +1,18 @@
 # Password Hashing Issue Investigation Report
 
 ## Problem Statement
+
 The user suspects that passwords might be double-encrypted, causing login failures where passwords don't match the database.
 
 ## Current Flow Analysis
 
 ### Registration Flow
+
 1. **Client Side** (`apps/frontend/app/login/page.tsx:150`):
    - User enters password: `"mypassword"`
    - Calls `hashPassword(data.password)` with NO salt parameter
    - Generates NEW salt: `bcrypt.genSaltSync(10)` → e.g., `"$2a$10$abcdefghijklmnopqrstuv"`
-   - Hashes password: `bcrypt.hashSync("mypassword", "$2a$10$abcdefghijklmnopqrstuv")` 
+   - Hashes password: `bcrypt.hashSync("mypassword", "$2a$10$abcdefghijklmnopqrstuv")`
    - Result: `"$2a$10$abcdefghijklmnopqrstuv...31chars"`
    - ✅ **Sends hashed password to backend**
 
@@ -20,15 +22,14 @@ The user suspects that passwords might be double-encrypted, causing login failur
    - ✅ **No double encryption here**
 
 ### Login Flow
+
 1. **Client Side** (`apps/frontend/app/login/page.tsx:85-103`):
    - User enters password: `"mypassword"`
    - Requests salt: `GET /api/auth/get-password-salt` with email
-   
 2. **Salt Endpoint** (`apps/frontend/app/api/auth/get-password-salt/route.ts:40`):
    - Finds user in database
    - Extracts salt: `hash.substring(0, 29)` → `"$2a$10$abcdefghijklmnopqrstuv"`
    - Returns salt to client
-   
 3. **Client Side** (continues):
    - Receives salt: `"$2a$10$abcdefghijklmnopqrstuv"`
    - Hashes: `hashPassword("mypassword", "$2a$10$abcdefghijklmnopqrstuv")`
@@ -44,9 +45,10 @@ The user suspects that passwords might be double-encrypted, causing login failur
 
 ## Root Cause
 
-**The fundamental issue**: You **CANNOT** recreate the same bcrypt hash by extracting the salt and re-hashing. 
+**The fundamental issue**: You **CANNOT** recreate the same bcrypt hash by extracting the salt and re-hashing.
 
 ### Why This Doesn't Work:
+
 1. Bcrypt hashes are deterministic ONLY when using `bcrypt.compare(plainPassword, storedHash)`
 2. Even with the same salt, `bcrypt.hashSync()` may produce different hashes due to:
    - Internal bcrypt implementation details
@@ -54,11 +56,13 @@ The user suspects that passwords might be double-encrypted, causing login failur
    - The salt extraction method (first 29 chars) may not be the correct format for `bcrypt.hashSync()`
 
 ### The Correct Approach:
+
 Bcrypt is designed to be verified using `bcrypt.compare(plainPassword, storedHash)`, NOT by re-hashing and comparing strings.
 
 ## Current Code Issues
 
 1. **Salt Extraction** (`apps/frontend/lib/password-hash.ts:32-37`):
+
    ```typescript
    export function extractSaltFromHash(hash: string): string | null {
      if (hash.match(/^\$2[ayb]\$/)) {
@@ -69,6 +73,7 @@ Bcrypt is designed to be verified using `bcrypt.compare(plainPassword, storedHas
    ```
 
 2. **Password Comparison** (`apps/frontend/auth.ts:79-82`):
+
    ```typescript
    // ❌ This will NEVER work correctly
    isValidPassword = password === user.password;
@@ -83,12 +88,14 @@ Bcrypt is designed to be verified using `bcrypt.compare(plainPassword, storedHas
 ## Solutions
 
 ### Option 1: Send Plain Password (Current Industry Standard) ✅ RECOMMENDED
+
 - Client sends plain password over HTTPS
 - Server uses `bcrypt.compare(plainPassword, storedHash)`
 - **Pros**: Works correctly, standard approach, secure over HTTPS
 - **Cons**: Password transmitted (but encrypted via HTTPS)
 
 ### Option 2: Use SHA-256 + Bcrypt (Double Hashing)
+
 - Client: `SHA256(password)` → sends hash
 - Server: `bcrypt.hash(SHA256_hash)` → stores
 - Login: Client sends SHA256 hash, server uses `bcrypt.compare(sha256Hash, storedHash)`
@@ -96,11 +103,13 @@ Bcrypt is designed to be verified using `bcrypt.compare(plainPassword, storedHas
 - **Cons**: More complex, still need `bcrypt.compare` on server
 
 ### Option 3: Client-Side Bcrypt with Server Verification (Current Attempt - BROKEN)
+
 - ❌ **This approach is fundamentally flawed and cannot work**
 
 ## Recommendation
 
 **Use Option 1** - Send plain password over HTTPS and use `bcrypt.compare()` on the server. This is:
+
 - The industry standard
 - Secure (HTTPS encrypts in transit)
 - Simple and reliable
@@ -116,8 +125,7 @@ Bcrypt is designed to be verified using `bcrypt.compare(plainPassword, storedHas
 ## Verification
 
 To verify the issue, check the logs:
+
 - Registration stores: `$2a$10$...hash1`
 - Login creates: `$2a$10$...hash2` (different!)
 - Comparison: `hash1 === hash2` → `false` ❌
-
-

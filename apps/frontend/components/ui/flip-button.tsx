@@ -4,7 +4,8 @@ import * as React from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
-interface FlipButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface FlipButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   frontText: string;
   backText: string;
   isFlipped?: boolean;
@@ -80,4 +81,3 @@ export function FlipButton({
     </button>
   );
 }
-

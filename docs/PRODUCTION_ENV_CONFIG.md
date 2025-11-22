@@ -75,6 +75,7 @@ GOOGLE_CLIENT_SECRET="..."
 ### Server-Side Calls (Next.js API Routes → Backend)
 
 The frontend uses this priority order:
+
 1. **`API_URL`** (if set) → `https://api.trayb.az` ✅ **Recommended**
 2. **`BACKEND_URL`** (if set) → `https://api.trayb.az` or `http://localhost:3001`
 3. **Fallback** → `http://localhost:${BACKEND_PORT || 3001}`
@@ -84,6 +85,7 @@ The frontend uses this priority order:
 ### Browser Redirects (Frontend → Backend Redirects)
 
 For browser redirects (like Steam login), the frontend uses:
+
 1. **`API_URL`** (if set) → `https://api.trayb.az` ✅ **Required for public redirects**
 2. **`BACKEND_URL`** (if set) → Only if API_URL not set
 3. **Fallback** → `http://localhost:${BACKEND_PORT || 3001}`
@@ -106,11 +108,13 @@ NEXT_PUBLIC_API_URL="https://api.trayb.az"
 ```
 
 **Pros:**
+
 - Consistent with client-side calls
 - Works if frontend/backend are in separate containers later
 - Uses reverse proxy/load balancer features
 
 **Cons:**
+
 - Slightly slower (goes through network stack)
 - Requires SSL certificate validation
 
@@ -123,11 +127,13 @@ NEXT_PUBLIC_API_URL="https://api.trayb.az"
 ```
 
 **Pros:**
+
 - Fastest (direct localhost connection)
 - No SSL overhead
 - More reliable (no network issues)
 
 **Cons:**
+
 - Only works in same container
 - Doesn't go through reverse proxy
 
@@ -136,12 +142,14 @@ NEXT_PUBLIC_API_URL="https://api.trayb.az"
 If you were getting authentication errors, it was likely because:
 
 ❌ **Wrong Configuration:**
+
 ```env
 BACKEND_URL="https://beta.trayb.az"  # Wrong! This is the frontend domain
 API_URL="https://beta.trayb.az"      # Wrong! Should be api.trayb.az
 ```
 
 ✅ **Correct Configuration (Current Setup):**
+
 ```env
 # Frontend domain
 FRONTEND_URL="https://beta.trayb.az"
@@ -163,6 +171,7 @@ NEXT_PUBLIC_API_URL="https://api.trayb.az"
 ## Route Mapping
 
 ### Frontend Routes (`beta.trayb.az`)
+
 - `/` - Home page
 - `/login` - Login page
 - `/api/auth/[...nextauth]` - NextAuth.js routes
@@ -170,6 +179,7 @@ NEXT_PUBLIC_API_URL="https://api.trayb.az"
 - `/api/user/badges` - Frontend API route (uses Prisma)
 
 ### Backend API Routes (`api.trayb.az`)
+
 - `/auth/register` - User registration
 - `/auth/login` - Login
 - `/auth/verify-credentials` - Credentials verification (used by NextAuth)
@@ -182,6 +192,7 @@ NEXT_PUBLIC_API_URL="https://api.trayb.az"
 ## Testing
 
 After deployment:
+
 1. ✅ Backend API: `https://api.trayb.az/docs` should show Swagger UI
 2. ✅ Frontend: `https://beta.trayb.az` should load
 3. ✅ Login: Credentials login should work (calls `api.trayb.az/auth/verify-credentials`)
@@ -193,6 +204,7 @@ After deployment:
 ### Browser Redirects Must Use Public API
 
 Routes that perform browser redirects (like Steam authentication) **must** use the public API URL (`https://api.trayb.az`), not localhost. This is because:
+
 - The browser needs to reach the URL directly
 - Localhost URLs won't work from the user's browser
 - Steam OpenID requires a publicly accessible return URL
@@ -211,4 +223,3 @@ Routes that perform browser redirects (like Steam authentication) **must** use t
 - **`NEXT_PUBLIC_API_URL`**: Always use for:
   - Client-side API calls from the browser
   - Must be publicly accessible (cannot be localhost)
-

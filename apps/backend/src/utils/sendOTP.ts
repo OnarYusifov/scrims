@@ -6,13 +6,16 @@ import { VerificationOTP } from "../emails/VerificationOTP.js";
 import * as reactDOMServer from "react-dom/server";
 
 // Make reactDOMServer available globally for @react-email/render
-if (typeof globalThis !== "undefined" && !(globalThis as Record<string, unknown>).reactDOMServer) {
+if (
+  typeof globalThis !== "undefined" &&
+  !(globalThis as Record<string, unknown>).reactDOMServer
+) {
   (globalThis as Record<string, unknown>).reactDOMServer = reactDOMServer;
 }
 
 /**
  * Resend wrapper for sending OTP verification emails
- * 
+ *
  * How it works:
  * 1. Generates a 6-digit OTP code (handled by caller)
  * 2. Stores OTP in VerificationToken table (handled by Auth.js)
@@ -42,7 +45,7 @@ export interface SendOTPParams {
 
 /**
  * Sends a branded OTP verification email using Resend and React Email
- * 
+ *
  * @param params - Email parameters including OTP code
  * @returns Promise resolving to Resend response
  * @throws Error if Resend API key is missing or email sending fails
@@ -63,7 +66,10 @@ export async function sendOTP({
 
   // Render React Email template to HTML
   // Ensure react-dom/server is available before rendering
-  if (typeof globalThis !== "undefined" && !(globalThis as Record<string, unknown>).reactDOMServer) {
+  if (
+    typeof globalThis !== "undefined" &&
+    !(globalThis as Record<string, unknown>).reactDOMServer
+  ) {
     const reactDOMServer = await import("react-dom/server");
     (globalThis as Record<string, unknown>).reactDOMServer = reactDOMServer;
   }
@@ -72,13 +78,16 @@ export async function sendOTP({
     VerificationOTP({
       username,
       otpCode,
-      verificationUrl: verificationUrl || process.env.FRONTEND_URL + "/verify-email",
+      verificationUrl:
+        verificationUrl || process.env.FRONTEND_URL + "/verify-email",
     })
   );
 
   // Send via Resend
   const resend = getResend();
-  console.log(`[Email] Sending verification email to ${email} with code ${otpCode}`);
+  console.log(
+    `[Email] Sending verification email to ${email} with code ${otpCode}`
+  );
   const { data, error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,
     to: email,
@@ -93,12 +102,3 @@ export async function sendOTP({
 
   console.log(`[Email] Verification email sent successfully. ID: ${data?.id}`);
 }
-
-
-
-
-
-
-
-
-

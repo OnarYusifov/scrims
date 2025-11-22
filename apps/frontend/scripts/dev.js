@@ -8,7 +8,7 @@ import { readFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -69,11 +69,35 @@ for (const [key, value] of Object.entries(env)) {
 // Change to frontend directory before starting Next.js
 process.chdir(resolve(__dirname, ".."));
 
+// Get WSL2 IP address for Windows browser access
+let wslIp = "localhost";
+try {
+  wslIp = execSync("hostname -I", { encoding: "utf-8" }).trim().split(" ")[0] || "localhost";
+} catch {
+  // Fallback if hostname command fails
+  wslIp = "localhost";
+}
+
 // Start Next.js dev server
-const nextDev = spawn("next", ["dev"], {
+// Use -H 0.0.0.0 to bind to all interfaces (needed for WSL2)
+const port = process.env.PORT || 3000;
+console.log(`🚀 Starting Next.js dev server on port ${port}...`);
+console.log(`📱 Try accessing from Windows browser:`);
+console.log(`   - http://localhost:${port} (if WSL2 port forwarding works)`);
+console.log(`   - http://${wslIp}:${port} (direct WSL2 IP - always works)`);
+console.log(`📱 Access from WSL2: http://localhost:${port}`);
+console.log(`📝 Request logs will appear below when you visit the server\n`);
+
+// Enable verbose logging in Next.js dev mode
+// Next.js dev server already logs requests by default
+const nextDev = spawn("next", ["dev", "-H", "0.0.0.0"], {
   stdio: "inherit",
   shell: true,
-  env: process.env,
+  env: {
+    ...process.env,
+    // Next.js will automatically log requests in dev mode
+    // No additional configuration needed
+  },
   cwd: resolve(__dirname, ".."),
 });
 

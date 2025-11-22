@@ -40,5 +40,3 @@ checkBadges()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
-

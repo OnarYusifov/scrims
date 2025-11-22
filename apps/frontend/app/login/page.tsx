@@ -6,7 +6,12 @@ import { useForm, type ControllerRenderProps } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import { signIn as nextAuthSignIn } from "next-auth/react";
-import { loginSchema, registerSchema, type LoginInput, type RegisterInput } from "@trayb/types";
+import {
+  loginSchema,
+  registerSchema,
+  type LoginInput,
+  type RegisterInput,
+} from "@trayb/types";
 import { AuthPage } from "@/components/auth-page";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,8 +32,12 @@ import {
 } from "@/components/animate-ui/components/animate/tabs";
 import { hashPassword } from "@/lib/password-hash";
 import { Checkbox } from "@/components/animate-ui/components/radix/checkbox";
-import { AUTH_ERROR_CODES, getAuthErrorMessage, type AuthErrorCode } from "@/lib/auth-codes";
-// Note: 
+import {
+  AUTH_ERROR_CODES,
+  getAuthErrorMessage,
+  type AuthErrorCode,
+} from "@/lib/auth-codes";
+// Note:
 // - Login: Sends plain password over HTTPS, backend uses bcrypt.compare() to verify
 // - Registration: Hashes password on client side before sending to backend
 
@@ -170,7 +179,10 @@ export default function LoginPage() {
             <div className="space-y-4">
               <h2 className="font-semibold text-lg">Sign in to your account</h2>
               <Form {...loginForm}>
-                <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
+                <form
+                  onSubmit={loginForm.handleSubmit(onLogin)}
+                  className="space-y-4"
+                >
                   {loginForm.formState.errors.root && (
                     <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                       {loginForm.formState.errors.root.message}
@@ -179,11 +191,22 @@ export default function LoginPage() {
                   <FormField
                     control={loginForm.control}
                     name="email"
-                    render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
+                    render={({
+                      field,
+                    }: {
+                      field: ControllerRenderProps<
+                        LoginInput | RegisterInput,
+                        keyof (LoginInput | RegisterInput)
+                      >;
+                    }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="name@example.com" {...field} />
+                          <Input
+                            type="email"
+                            placeholder="name@example.com"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -192,18 +215,35 @@ export default function LoginPage() {
                   <FormField
                     control={loginForm.control}
                     name="password"
-                    render={({ field }: { field: ControllerRenderProps<LoginInput | RegisterInput, keyof (LoginInput | RegisterInput)> }) => (
+                    render={({
+                      field,
+                    }: {
+                      field: ControllerRenderProps<
+                        LoginInput | RegisterInput,
+                        keyof (LoginInput | RegisterInput)
+                      >;
+                    }) => (
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="Enter your password" {...field} />
+                          <Input
+                            type="password"
+                            placeholder="Enter your password"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full" disabled={loginForm.formState.isSubmitting}>
-                    {loginForm.formState.isSubmitting ? "Logging in..." : "Login"}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={loginForm.formState.isSubmitting}
+                  >
+                    {loginForm.formState.isSubmitting
+                      ? "Logging in..."
+                      : "Login"}
                   </Button>
                   <div className="text-center">
                     <button
@@ -222,7 +262,10 @@ export default function LoginPage() {
             <div className="space-y-4">
               <h2 className="font-semibold text-lg">Create your account</h2>
               <Form {...registerForm}>
-                <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
+                <form
+                  onSubmit={registerForm.handleSubmit(onRegister)}
+                  className="space-y-4"
+                >
                   {registerForm.formState.errors.root && (
                     <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                       {registerForm.formState.errors.root.message}
@@ -231,7 +274,14 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="username"
-                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
+                    render={({
+                      field,
+                    }: {
+                      field: ControllerRenderProps<
+                        RegisterInput,
+                        keyof RegisterInput
+                      >;
+                    }) => (
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
@@ -244,11 +294,22 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="email"
-                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
+                    render={({
+                      field,
+                    }: {
+                      field: ControllerRenderProps<
+                        RegisterInput,
+                        keyof RegisterInput
+                      >;
+                    }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="name@example.com" {...field} />
+                          <Input
+                            type="email"
+                            placeholder="name@example.com"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -257,11 +318,22 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="password"
-                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
+                    render={({
+                      field,
+                    }: {
+                      field: ControllerRenderProps<
+                        RegisterInput,
+                        keyof RegisterInput
+                      >;
+                    }) => (
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="Enter your password" {...field} />
+                          <Input
+                            type="password"
+                            placeholder="Enter your password"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -270,11 +342,22 @@ export default function LoginPage() {
                   <FormField
                     control={registerForm.control}
                     name="confirmPassword"
-                    render={({ field }: { field: ControllerRenderProps<RegisterInput, keyof RegisterInput> }) => (
+                    render={({
+                      field,
+                    }: {
+                      field: ControllerRenderProps<
+                        RegisterInput,
+                        keyof RegisterInput
+                      >;
+                    }) => (
                       <FormItem>
                         <FormLabel>Confirm Password</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="Confirm your password" {...field} />
+                          <Input
+                            type="password"
+                            placeholder="Confirm your password"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -283,23 +366,39 @@ export default function LoginPage() {
                   <div className="flex items-start gap-2 text-sm">
                     <Checkbox
                       checked={acceptTerms}
-                      onCheckedChange={(v: boolean | "indeterminate") => setAcceptTerms(Boolean(v))}
+                      onCheckedChange={(v: boolean | "indeterminate") =>
+                        setAcceptTerms(Boolean(v))
+                      }
                       aria-label="Agree to terms"
                     />
                     <span className="text-muted-foreground">
                       I agree to the{" "}
-                      <a href="#" className="underline underline-offset-4 hover:text-primary">
+                      <a
+                        href="#"
+                        className="underline underline-offset-4 hover:text-primary"
+                      >
                         Terms of Service
                       </a>{" "}
                       and{" "}
-                      <a href="#" className="underline underline-offset-4 hover:text-primary">
+                      <a
+                        href="#"
+                        className="underline underline-offset-4 hover:text-primary"
+                      >
                         Privacy Policy
                       </a>
                       .
                     </span>
                   </div>
-                  <Button type="submit" className="w-full" disabled={registerForm.formState.isSubmitting || !acceptTerms}>
-                    {registerForm.formState.isSubmitting ? "Creating account..." : "Register"}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={
+                      registerForm.formState.isSubmitting || !acceptTerms
+                    }
+                  >
+                    {registerForm.formState.isSubmitting
+                      ? "Creating account..."
+                      : "Register"}
                   </Button>
                 </form>
               </Form>
@@ -310,4 +409,3 @@ export default function LoginPage() {
     </Tabs>
   );
 }
-

@@ -18,22 +18,26 @@ The collection uses these variables (set them in Postman):
 ## Testing Resend Email Flow
 
 ### Step 1: Check Environment
+
 1. Run **"Debug Environment"** request
 2. Verify `RESEND_API_KEY` and `RESEND_FROM_EMAIL` are configured
 
 ### Step 2: Register User (Sends OTP)
+
 1. Set `test_email` variable to your email
 2. Run **"Register User (Sends OTP via Resend)"** request
 3. **Check your email inbox** - you should receive a branded OTP email from Resend
 4. The email contains a 6-digit code (e.g., `123456`)
 
 ### Step 3: Verify Email
+
 1. Copy the 6-digit OTP code from your email
 2. Set `otp_code` variable in Postman to the code
 3. Run **"Verify Email (Enter OTP)"** request
 4. Should return success if code is valid
 
 ### Step 4: Resend (Optional)
+
 1. If you need a new code, run **"Resend Verification Email"**
 2. Check email again for new OTP code
 3. Update `otp_code` variable and verify again
@@ -41,6 +45,7 @@ The collection uses these variables (set them in Postman):
 ## Expected Email
 
 You should receive an email with:
+
 - **Subject**: "Verify your Trayb email address"
 - **From**: Your `RESEND_FROM_EMAIL` address
 - **Content**: Branded Trayb email template with:
@@ -64,11 +69,3 @@ You should receive an email with:
 - **Backend not running?**
   - Start backend: `cd apps/backend && bun run dev`
   - Verify health check returns `{"status":"ok"}`
-
-
-
-
-
-
-
-

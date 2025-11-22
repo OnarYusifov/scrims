@@ -44,12 +44,15 @@ export default function ForgotPasswordPage() {
       if (response.ok || result.message) {
         setSuccess(true);
         setTimeout(() => {
-          router.push(`/reset-password?email=${encodeURIComponent(data.email)}`);
+          router.push(
+            `/reset-password?email=${encodeURIComponent(data.email)}`
+          );
         }, 1000);
       } else {
         // Only show error if it's a real server error (500)
         form.setError("root", {
-          message: result.error || "Failed to send reset code. Please try again.",
+          message:
+            result.error || "Failed to send reset code. Please try again.",
         });
       }
     } catch {
@@ -72,7 +75,8 @@ export default function ForgotPasswordPage() {
               <div className="space-y-1">
                 <h2 className="text-xl font-bold">Forgot Password?</h2>
                 <p className="text-sm text-muted-foreground">
-                  Enter your email address and we&apos;ll send you a verification code to reset your password.
+                  Enter your email address and we&apos;ll send you a
+                  verification code to reset your password.
                 </p>
               </div>
               {form.formState.errors.root && (
@@ -83,7 +87,14 @@ export default function ForgotPasswordPage() {
               <FormField
                 control={form.control}
                 name="email"
-                    render={({ field }: { field: ControllerRenderProps<ForgotPasswordInput, keyof ForgotPasswordInput> }) => (
+                render={({
+                  field,
+                }: {
+                  field: ControllerRenderProps<
+                    ForgotPasswordInput,
+                    keyof ForgotPasswordInput
+                  >;
+                }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
@@ -97,7 +108,11 @@ export default function ForgotPasswordPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={form.formState.isSubmitting}
+              >
                 {form.formState.isSubmitting ? "Sending..." : "Send Reset Code"}
               </Button>
               <div className="text-center">
@@ -116,5 +131,3 @@ export default function ForgotPasswordPage() {
     </AuthPage>
   );
 }
-
-

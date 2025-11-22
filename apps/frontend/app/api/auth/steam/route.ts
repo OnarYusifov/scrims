@@ -11,10 +11,10 @@ function getBackendUrlForRedirect(): string {
   // For browser redirects, always use public API URL if available
   // API_URL should be set to https://api.trayb.az for public API calls
   if (process.env.API_URL) return process.env.API_URL;
-  
+
   // Fallback to BACKEND_URL if API_URL not set
   if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
-  
+
   // Final fallback to localhost
   const port = Number(process.env.BACKEND_PORT) || 3001;
   return `http://localhost:${port}`;
@@ -23,7 +23,7 @@ function getBackendUrlForRedirect(): string {
 /**
  * GET /api/auth/steam - Initiate Steam authentication
  * Redirects user to Steam OpenID login
- * 
+ *
  * Query params:
  * - steamId: (dev only) Manual Steam ID for localhost development
  */
@@ -39,7 +39,11 @@ export async function GET(request: NextRequest) {
     const { origin, isLocalhost } = resolveSteamOrigin(request);
 
     // Development mode: Allow manual Steam ID input for localhost
-    if (isLocalhost && manualSteamId && process.env.NODE_ENV === "development") {
+    if (
+      isLocalhost &&
+      manualSteamId &&
+      process.env.NODE_ENV === "development"
+    ) {
       // Validate Steam ID format (should be 17 digits)
       if (!/^\d{17}$/.test(manualSteamId)) {
         return NextResponse.json(
@@ -78,4 +82,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

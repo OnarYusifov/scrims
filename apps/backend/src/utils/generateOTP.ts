@@ -1,6 +1,6 @@
 /**
  * Generate and store OTP in VerificationToken table
- * 
+ *
  * How OTP is generated/stored/validated:
  * 1. Generate 6-digit OTP: Math.floor(100000 + Math.random() * 900000)
  * 2. Store in VerificationToken table with identifier (email), token (OTP), and expires (15 min)
@@ -17,7 +17,7 @@ export interface GenerateOTPResult {
 
 /**
  * Generates a 6-digit OTP code and stores it in VerificationToken table
- * 
+ *
  * @param identifier - Email address to associate with the OTP
  * @param expiresInMinutes - OTP expiry time in minutes (default: 15)
  * @returns OTP code and expiry date
@@ -28,7 +28,7 @@ export async function generateOTP(
 ): Promise<GenerateOTPResult> {
   // Generate 6-digit OTP
   const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  
+
   // Calculate expiry
   const expires = new Date();
   expires.setMinutes(expires.getMinutes() + expiresInMinutes);
@@ -58,7 +58,7 @@ export async function generateOTP(
 /**
  * Verifies an OTP code against VerificationToken table (without deleting it)
  * Use this for checking if OTP is valid before consuming it
- * 
+ *
  * @param identifier - Email address
  * @param token - OTP code to verify
  * @returns true if valid, false otherwise
@@ -101,7 +101,7 @@ export async function checkOTP(
 /**
  * Verifies and consumes an OTP code (deletes it after verification)
  * Use this when the OTP should be one-time use
- * 
+ *
  * @param identifier - Email address
  * @param token - OTP code to verify
  * @returns true if valid, false otherwise
@@ -149,4 +149,3 @@ export async function verifyOTP(
 
   return true;
 }
-

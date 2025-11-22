@@ -25,13 +25,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = verifyPasswordResetSchema.parse(body);
 
-    const response = await fetch(`${getBackendUrl()}/auth/verify-password-reset`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(validatedData),
-    });
+    const response = await fetch(
+      `${getBackendUrl()}/auth/verify-password-reset`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(validatedData),
+      }
+    );
 
     const data = await response.json();
 
@@ -45,19 +48,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("Verify password reset error:", error);
-    return NextResponse.json(
-      { error: "Invalid request" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }
-
-
-
-
-
-
-
-
-
-

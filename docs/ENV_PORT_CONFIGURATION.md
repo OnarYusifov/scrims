@@ -113,15 +113,17 @@ bun run dev
 If you had hardcoded ports before:
 
 1. **Remove `-p` flags** from `apps/frontend/package.json`:
+
    ```json
    // OLD (hardcoded)
    "dev": "next dev -p 3000"
-   
+
    // NEW (env-based)
    "dev": "next dev"
    ```
 
 2. **Add port variables** to root `.env`:
+
    ```env
    FRONTEND_PORT=3000
    BACKEND_PORT=3001
@@ -148,4 +150,3 @@ If you had hardcoded ports before:
 - Ensure only root `.env` file exists
 - Delete any `.env.local` or per-app env files
 - Check for multiple PORT variables (use FRONTEND_PORT/BACKEND_PORT)
-

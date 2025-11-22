@@ -14,18 +14,19 @@ const AUTH_PAGES = [
 export async function NavbarWrapper() {
   // Get pathname from headers
   const headersList = await headers();
-  const pathname = headersList.get("x-pathname") || headersList.get("referer") || "";
-  
+  const pathname =
+    headersList.get("x-pathname") || headersList.get("referer") || "";
+
   // Check if current path is an auth page
   const isAuthPage = AUTH_PAGES.some((page) => pathname.includes(page));
-  
+
   // Don't render navbar on auth pages
   if (isAuthPage) {
     return null;
   }
 
   const session = await auth();
-  
+
   // Determine view type based on user role or guest status
   let viewType: "Player" | "Viewer" | "Guest" = "Guest";
   if (session?.user) {
@@ -43,7 +44,10 @@ export async function NavbarWrapper() {
         session?.user
           ? {
               id: session.user.id || "",
-              username: session.user.name || session.user.email?.split("@")[0] || "User",
+              username:
+                session.user.name ||
+                session.user.email?.split("@")[0] ||
+                "User",
               email: session.user.email || "",
               image: undefined,
             }
@@ -52,4 +56,3 @@ export async function NavbarWrapper() {
     />
   );
 }
-

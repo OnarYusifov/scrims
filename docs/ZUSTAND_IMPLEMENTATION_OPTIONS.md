@@ -9,34 +9,36 @@ This document provides a detailed breakdown of each architectural decision for i
 ### Option A: Single Large Store with Slices
 
 **Structure:**
+
 ```typescript
 // stores/main.ts
-import { create } from 'zustand'
+import { create } from "zustand";
 
 interface AppState {
   // Auth slice
-  user: User | null
-  isAuthenticated: boolean
-  setUser: (user: User | null) => void
-  
+  user: User | null;
+  isAuthenticated: boolean;
+  setUser: (user: User | null) => void;
+
   // UI slice
-  isModalOpen: boolean
-  sidebarOpen: boolean
-  setModalOpen: (open: boolean) => void
-  
+  isModalOpen: boolean;
+  sidebarOpen: boolean;
+  setModalOpen: (open: boolean) => void;
+
   // Socket slice
-  socket: Socket | null
-  isConnected: boolean
-  setSocket: (socket: Socket | null) => void
-  
+  socket: Socket | null;
+  isConnected: boolean;
+  setSocket: (socket: Socket | null) => void;
+
   // Game slice
-  currentGame: Game | null
-  queueStatus: QueueStatus | null
-  setCurrentGame: (game: Game | null) => void
+  currentGame: Game | null;
+  queueStatus: QueueStatus | null;
+  setCurrentGame: (game: Game | null) => void;
 }
 ```
 
 **Pros:**
+
 - ✅ Single import location (`useAppStore()`)
 - ✅ All state in one place, easier to see entire app state
 - ✅ No need to import multiple stores
@@ -45,6 +47,7 @@ interface AppState {
 - ✅ Can easily access cross-slice state
 
 **Cons:**
+
 - ❌ Large file that grows over time
 - ❌ All subscribers re-render when ANY slice updates (unless you use selectors)
 - ❌ Risk of coupling unrelated state
@@ -53,6 +56,7 @@ interface AppState {
 - ❌ Less modular - harder to test individual features
 
 **Use Cases:**
+
 - Small to medium apps (< 10k lines)
 - Simple state relationships
 - Single developer or small team
@@ -60,18 +64,19 @@ interface AppState {
 - Prototyping or MVP
 
 **Example Implementation:**
+
 ```typescript
 const useAppStore = create<AppState>((set) => ({
   user: null,
   isAuthenticated: false,
   setUser: (user) => set({ user, isAuthenticated: !!user }),
-  
+
   // ... other slices
-}))
+}));
 
 // Usage - MUST use selectors to avoid unnecessary re-renders
-const user = useAppStore((state) => state.user)
-const setUser = useAppStore((state) => state.setUser)
+const user = useAppStore((state) => state.user);
+const setUser = useAppStore((state) => state.setUser);
 ```
 
 ---
@@ -79,6 +84,7 @@ const setUser = useAppStore((state) => state.setUser)
 ### Option B: Multiple Small Stores (Recommended for This Project)
 
 **Structure:**
+
 ```typescript
 // stores/auth.ts
 const useAuthStore = create<AuthState>((set) => ({ ... }))
@@ -94,6 +100,7 @@ const useGameStore = create<GameState>((set) => ({ ... }))
 ```
 
 **Pros:**
+
 - ✅ Clear separation of concerns
 - ✅ Each store can be tested independently
 - ✅ Better performance (components only subscribe to relevant stores)
@@ -104,12 +111,14 @@ const useGameStore = create<GameState>((set) => ({ ... }))
 - ✅ Easier to understand what each store manages
 
 **Cons:**
+
 - ❌ Need to import multiple stores
 - ❌ Can't easily access cross-store state (need helper functions)
 - ❌ More files to manage
 - ❌ Multiple DevTools instances (one per store)
 
 **Use Cases:**
+
 - Medium to large apps (> 10k lines)
 - Complex state with clear boundaries
 - Team environments
@@ -118,24 +127,25 @@ const useGameStore = create<GameState>((set) => ({ ... }))
 - **Perfect for your esports platform** (auth, UI, games, real-time are distinct)
 
 **Example Implementation:**
+
 ```typescript
 // stores/auth.ts
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoading: false,
   // ...
-}))
+}));
 
 // stores/ui.ts
 export const useUIStore = create<UIState>((set) => ({
   modals: {},
   sidebarOpen: false,
   // ...
-}))
+}));
 
 // Usage
-const user = useAuthStore((state) => state.user)
-const isSidebarOpen = useUIStore((state) => state.sidebarOpen)
+const user = useAuthStore((state) => state.user);
+const isSidebarOpen = useUIStore((state) => state.sidebarOpen);
 ```
 
 ---
@@ -143,6 +153,7 @@ const isSidebarOpen = useUIStore((state) => state.sidebarOpen)
 ### Option C: Hybrid Approach (Stores + Slices)
 
 **Structure:**
+
 ```typescript
 // stores/auth.ts - standalone
 const useAuthStore = create<AuthState>((set) => ({ ... }))
@@ -162,6 +173,7 @@ const useFeaturesStore = create<FeaturesState>((set) => ({
 ```
 
 **Pros:**
+
 - ✅ Best of both worlds
 - ✅ Related features grouped together
 - ✅ Independent features separate
@@ -169,12 +181,14 @@ const useFeaturesStore = create<FeaturesState>((set) => ({
 - ✅ Can optimize performance per group
 
 **Cons:**
+
 - ❌ More complex mental model
 - ❌ Need to decide what's "related"
 - ❌ Can become inconsistent over time
 - ❌ More documentation needed
 
 **Use Cases:**
+
 - Large apps with clear feature boundaries
 - When some features are tightly coupled
 - When you want to optimize bundle size
@@ -187,49 +201,54 @@ const useFeaturesStore = create<FeaturesState>((set) => ({
 ### Option A: Persist Middleware (localStorage/sessionStorage)
 
 **What it does:**
+
 - Saves store state to browser storage
 - Hydrates state on page load
 - Syncs across tabs
 
 **Pros:**
+
 - ✅ User preferences survive page reload
 - ✅ Better UX (theme, sidebar state, etc.)
 - ✅ Can cache auth tokens (with caution)
 - ✅ Reduces API calls on initial load
 
 **Cons:**
+
 - ❌ Can cause hydration mismatches in Next.js SSR
 - ❌ Security risk if storing sensitive data
 - ❌ Storage size limits
 - ❌ Needs careful handling with NextAuth
 
 **Use Cases:**
+
 - ✅ UI preferences (theme, sidebar state, dismissed banners)
 - ✅ User settings (notifications, language)
 - ⚠️ Auth state (be careful - only safe if using NextAuth session)
 - ❌ Never store passwords, tokens directly
 
 **Example:**
+
 ```typescript
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { persist, createJSONStorage } from "zustand/middleware";
 
 const useUIStore = create(
   persist<UIState>(
     (set) => ({
-      theme: 'light',
+      theme: "light",
       sidebarOpen: false,
     }),
     {
-      name: 'ui-storage', // localStorage key
+      name: "ui-storage", // localStorage key
       storage: createJSONStorage(() => localStorage),
       // Only persist specific fields
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         theme: state.theme,
-        sidebarOpen: state.sidebarOpen 
+        sidebarOpen: state.sidebarOpen,
       }),
     }
   )
-)
+);
 ```
 
 ---
@@ -237,11 +256,13 @@ const useUIStore = create(
 ### Option B: DevTools Middleware
 
 **What it does:**
+
 - Integrates with Redux DevTools browser extension
 - Time-travel debugging
 - State inspection
 
 **Pros:**
+
 - ✅ Excellent debugging experience
 - ✅ See all state changes
 - ✅ Time-travel debugging
@@ -249,27 +270,30 @@ const useUIStore = create(
 - ✅ Free and easy to use
 
 **Cons:**
+
 - ❌ Only works in development
 - ❌ Adds small bundle size (tree-shakeable)
 - ❌ Requires browser extension
 
 **Use Cases:**
+
 - ✅ **Always recommended for development**
 - ✅ Complex state debugging
 - ✅ Performance optimization
 
 **Example:**
+
 ```typescript
-import { devtools } from 'zustand/middleware'
+import { devtools } from "zustand/middleware";
 
 const useAuthStore = create(
   devtools<AuthState>(
     (set) => ({
       // ... state
     }),
-    { name: 'AuthStore' } // Name in DevTools
+    { name: "AuthStore" } // Name in DevTools
   )
-)
+);
 ```
 
 ---
@@ -277,27 +301,32 @@ const useAuthStore = create(
 ### Option C: Immer Middleware
 
 **What it does:**
+
 - Allows mutating draft state
 - Automatically creates immutable updates
 - Cleaner update syntax
 
 **Pros:**
+
 - ✅ More intuitive syntax (mutate instead of spread)
 - ✅ Less boilerplate for nested updates
 - ✅ Fewer bugs from incorrect spreading
 - ✅ Better TypeScript inference
 
 **Cons:**
+
 - ❌ Additional dependency (~14kb)
 - ❌ Slight performance overhead
 - ❌ Learning curve if team not familiar
 
 **Use Cases:**
+
 - ✅ Complex nested state updates
 - ✅ When spreading becomes verbose
 - ✅ Large objects with deep updates
 
 **Example Without Immer:**
+
 ```typescript
 set((state) => ({
   ...state,
@@ -307,21 +336,22 @@ set((state) => ({
       ...state.user.profile,
       settings: {
         ...state.user.profile.settings,
-        theme: 'dark'
-      }
-    }
-  }
-}))
+        theme: "dark",
+      },
+    },
+  },
+}));
 ```
 
 **Example With Immer:**
+
 ```typescript
-import { immer } from 'zustand/middleware/immer'
+import { immer } from "zustand/middleware/immer";
 
 set((state) => {
-  state.user.profile.settings.theme = 'dark'
+  state.user.profile.settings.theme = "dark";
   // Automatically creates immutable update
-})
+});
 ```
 
 ---
@@ -329,12 +359,14 @@ set((state) => {
 ### Option D: Combine Middleware
 
 **What it does:**
+
 - Use multiple middleware together
 - Chain them for different effects
 
 **Example:**
+
 ```typescript
-import { devtools, persist, createJSONStorage } from 'zustand/middleware'
+import { devtools, persist, createJSONStorage } from "zustand/middleware";
 
 const useAuthStore = create(
   devtools(
@@ -343,16 +375,17 @@ const useAuthStore = create(
         // ... state
       }),
       {
-        name: 'auth-storage',
+        name: "auth-storage",
         storage: createJSONStorage(() => sessionStorage),
       }
     ),
-    { name: 'AuthStore' }
+    { name: "AuthStore" }
   )
-)
+);
 ```
 
 **Best Practice:**
+
 - Use DevTools in development only (wrap with `process.env.NODE_ENV === 'development'`)
 - Use Persist for non-sensitive UI state
 - Use Immer only if needed for complex updates
@@ -364,21 +397,25 @@ const useAuthStore = create(
 ### Option A: Zustand Only (Replace SWR)
 
 **Approach:**
+
 - Use Zustand for ALL state management
 - Manually implement caching, revalidation, etc.
 
 **Pros:**
+
 - ✅ Single state management solution
 - ✅ Full control over fetching logic
 - ✅ No library overlap
 
 **Cons:**
+
 - ❌ Lose SWR's excellent features (stale-while-revalidate, deduplication)
 - ❌ Need to reimplement caching manually
 - ❌ More boilerplate code
 - ❌ SWR already installed and battle-tested
 
 **Use Cases:**
+
 - When you want minimal dependencies
 - Simple data fetching patterns
 - **Not recommended** - SWR is already in your stack
@@ -388,10 +425,12 @@ const useAuthStore = create(
 ### Option B: SWR for Server Data, Zustand for Client State (Recommended)
 
 **Approach:**
+
 - SWR: Server-fetched data (matches, queues, stats, leaderboards)
 - Zustand: Client state (auth, UI, socket, user preferences)
 
 **Pros:**
+
 - ✅ Use each tool for its strengths
 - ✅ SWR handles caching, revalidation, deduplication automatically
 - ✅ Zustand handles UI and client-side state
@@ -399,30 +438,33 @@ const useAuthStore = create(
 - ✅ Minimal code duplication
 
 **Cons:**
+
 - ❌ Two different patterns to learn
 - ❌ Need to coordinate between SWR and Zustand
 - ❌ Slight mental overhead
 
 **Use Cases:**
+
 - ✅ **Perfect for your project**
 - ✅ When you have both server and client state
 - ✅ Most production Next.js apps
 
 **Example:**
+
 ```typescript
 // SWR for server data
-const { data: matches } = useSWR('/api/matches', fetcher)
+const { data: matches } = useSWR("/api/matches", fetcher);
 
 // Zustand for client state
-const user = useAuthStore((state) => state.user)
-const isModalOpen = useUIStore((state) => state.isModalOpen)
+const user = useAuthStore((state) => state.user);
+const isModalOpen = useUIStore((state) => state.isModalOpen);
 
 // Sync them if needed
 useEffect(() => {
   if (matches) {
-    useMatchStore.getState().setMatches(matches)
+    useMatchStore.getState().setMatches(matches);
   }
-}, [matches])
+}, [matches]);
 ```
 
 ---
@@ -430,37 +472,42 @@ useEffect(() => {
 ### Option C: SWR + Zustand Hybrid (Sync Pattern)
 
 **Approach:**
+
 - SWR fetches data
 - Zustand stores it for global access
 - Custom hook syncs them
 
 **Pros:**
+
 - ✅ Get SWR features (caching, etc.)
 - ✅ Zustand provides global access
 - ✅ Can optimize updates
 
 **Cons:**
+
 - ❌ More complexity
 - ❌ Potential for sync bugs
 - ❌ Usually unnecessary
 
 **Use Cases:**
+
 - When you need SWR caching but also global store access
 - When multiple components need the same SWR data
 - Usually can just use SWR's global cache
 
 **Example:**
+
 ```typescript
 // Custom hook that syncs SWR to Zustand
 function useMatches() {
-  const { data, error } = useSWR('/api/matches', fetcher)
-  const setMatches = useMatchStore((state) => state.setMatches)
-  
+  const { data, error } = useSWR("/api/matches", fetcher);
+  const setMatches = useMatchStore((state) => state.setMatches);
+
   useEffect(() => {
-    if (data) setMatches(data)
-  }, [data, setMatches])
-  
-  return { data, error }
+    if (data) setMatches(data);
+  }, [data, setMatches]);
+
+  return { data, error };
 }
 ```
 
@@ -471,26 +518,31 @@ function useMatches() {
 ### Option A: Sync with NextAuth on Mount Only
 
 **Approach:**
+
 - Fetch user on app mount
 - Store in Zustand
 - Update manually on login/logout
 
 **Pros:**
+
 - ✅ Simple implementation
 - ✅ Clear data flow
 - ✅ Fewer edge cases
 
 **Cons:**
+
 - ❌ Manual sync needed for all auth actions
 - ❌ Can get out of sync
 - ❌ Need to remember to update Zustand
 
 **Use Cases:**
+
 - Simple auth flows
 - When auth state changes infrequently
 - MVP/prototype
 
 **Example:**
+
 ```typescript
 // On app mount
 useEffect(() => {
@@ -517,37 +569,42 @@ const handleLogin = async () => {
 ### Option B: Sync on Mount + Route Changes (Recommended)
 
 **Approach:**
+
 - Sync on mount
 - Sync when route changes (usePathname hook)
 - Sync on explicit auth events
 
 **Pros:**
+
 - ✅ Stays in sync automatically
 - ✅ Handles most edge cases
 - ✅ Good balance of simplicity and reliability
 
 **Cons:**
+
 - ❌ More frequent syncing (but lightweight)
 - ❌ Slight overhead
 
 **Use Cases:**
+
 - ✅ **Recommended for your project**
 - ✅ Production apps
 - ✅ When auth state can change outside your control
 
 **Example:**
+
 ```typescript
 // hooks/useAuthSync.ts
 export function useAuthSync() {
   const pathname = usePathname()
   const { setUser, clearUser } = useAuthStore()
-  
+
   useEffect(() => {
     const syncAuth = async () => {
       try {
         const response = await fetch('/api/auth/me')
         const data = await response.json()
-        
+
         if (data.authenticated) {
           setUser(data.user)
         } else {
@@ -557,7 +614,7 @@ export function useAuthSync() {
         clearUser()
       }
     }
-    
+
     syncAuth()
   }, [pathname, setUser, clearUser])
 }
@@ -574,26 +631,31 @@ function Layout({ children }) {
 ### Option C: Real-time Sync with NextAuth Events
 
 **Approach:**
+
 - Subscribe to NextAuth events
 - Update Zustand automatically
 - Use callback system
 
 **Pros:**
+
 - ✅ Always in sync
 - ✅ Handles all edge cases
 - ✅ Most robust solution
 
 **Cons:**
+
 - ❌ Most complex
 - ❌ Requires NextAuth configuration changes
 - ❌ Can be overkill
 
 **Use Cases:**
+
 - Complex auth flows
 - Multiple auth providers
 - When you need absolute sync guarantees
 
 **Example:**
+
 ```typescript
 // In auth.ts
 callbacks: {
@@ -621,35 +683,40 @@ if (typeof window !== 'undefined') {
 ### Option A: Types in Store Files
 
 **Approach:**
+
 - Define types directly in store files
 - No shared types package
 
 **Pros:**
+
 - ✅ Types close to usage
 - ✅ Simple imports
 - ✅ Quick to implement
 
 **Cons:**
+
 - ❌ Duplicate type definitions
 - ❌ Hard to share with backend
 - ❌ Can drift from backend types
 
 **Use Cases:**
+
 - Prototypes
 - Small projects
 - When types are simple
 
 **Example:**
+
 ```typescript
 // stores/auth.ts
 interface User {
-  id: string
-  email: string
-  username: string | null
+  id: string;
+  email: string;
+  username: string | null;
 }
 
 interface AuthState {
-  user: User | null
+  user: User | null;
   // ...
 }
 ```
@@ -659,11 +726,13 @@ interface AuthState {
 ### Option B: Shared Types from @trayb/types (Recommended)
 
 **Approach:**
+
 - Import types from `@trayb/types`
 - Ensure frontend and backend use same types
 - Store files only define state shape
 
 **Pros:**
+
 - ✅ Single source of truth
 - ✅ Type safety across frontend/backend
 - ✅ No duplication
@@ -671,26 +740,29 @@ interface AuthState {
 - ✅ Better IDE autocomplete
 
 **Cons:**
+
 - ❌ Need to keep types package in sync
 - ❌ Slightly more setup
 
 **Use Cases:**
+
 - ✅ **Perfect for monorepo setup**
 - ✅ Production apps
 - ✅ When backend types exist
 
 **Example:**
+
 ```typescript
 // stores/auth.ts
-import type { User } from '@trayb/types'
+import type { User } from "@trayb/types";
 
 interface AuthState {
-  user: User | null
-  isLoading: boolean
-  error: string | null
+  user: User | null;
+  isLoading: boolean;
+  error: string | null;
   // Actions
-  setUser: (user: User | null) => void
-  clearUser: () => void
+  setUser: (user: User | null) => void;
+  clearUser: () => void;
 }
 ```
 
@@ -699,35 +771,40 @@ interface AuthState {
 ### Option C: Hybrid (Shared Core + Local Extensions)
 
 **Approach:**
+
 - Core types from `@trayb/types`
 - Extend for frontend-specific needs
 
 **Pros:**
+
 - ✅ Best of both worlds
 - ✅ Core types shared
 - ✅ Frontend-specific extensions
 
 **Cons:**
+
 - ❌ Need to manage extensions
 - ❌ Can become complex
 
 **Use Cases:**
+
 - When you need to extend shared types
 - Complex frontend state
 
 **Example:**
+
 ```typescript
 // stores/auth.ts
-import type { User } from '@trayb/types'
+import type { User } from "@trayb/types";
 
 // Extend for frontend needs
 interface ExtendedUser extends User {
-  lastSeen?: Date
-  isOnline?: boolean
+  lastSeen?: Date;
+  isOnline?: boolean;
 }
 
 interface AuthState {
-  user: ExtendedUser | null
+  user: ExtendedUser | null;
   // ...
 }
 ```
@@ -739,11 +816,13 @@ interface AuthState {
 ### Option A: Start Small (Auth Store Only)
 
 **Approach:**
+
 - Implement auth store first
 - Replace existing auth state management
 - Add other stores incrementally
 
 **Pros:**
+
 - ✅ Lower risk
 - ✅ Easy to test
 - ✅ Quick to implement
@@ -751,16 +830,19 @@ interface AuthState {
 - ✅ Less refactoring if issues
 
 **Cons:**
+
 - ❌ Gradual migration needed
 - ❌ Temporary code duplication
 
 **Use Cases:**
+
 - ✅ **Recommended start**
 - ✅ When unsure about approach
 - ✅ Large codebase
 - ✅ Risk-averse teams
 
 **Steps:**
+
 1. Create auth store
 2. Replace `page.tsx` auth state
 3. Replace `navbar-conditional.tsx` auth state
@@ -773,21 +855,25 @@ interface AuthState {
 ### Option B: Big Bang (All Stores at Once)
 
 **Approach:**
+
 - Implement all stores simultaneously
 - Replace all state management in one go
 
 **Pros:**
+
 - ✅ Complete migration quickly
 - ✅ Consistent patterns from start
 - ✅ No temporary duplication
 
 **Cons:**
+
 - ❌ Higher risk
 - ❌ Harder to debug
 - ❌ Large PR/commit
 - ❌ More testing needed
 
 **Use Cases:**
+
 - Small codebase
 - New features (no migration)
 - When confident in approach
@@ -797,27 +883,32 @@ interface AuthState {
 ### Option C: Phased Rollout (Recommended)
 
 **Approach:**
+
 - Phase 1: Auth store (critical path)
 - Phase 2: UI store (low-hanging fruit)
 - Phase 3: Socket store (when needed)
 - Phase 4: Game/Match stores (future features)
 
 **Pros:**
+
 - ✅ Balanced risk and speed
 - ✅ Learn from each phase
 - ✅ Manageable chunks
 - ✅ Can adjust approach
 
 **Cons:**
+
 - ❌ Takes longer overall
 - ❌ Need to plan phases
 
 **Use Cases:**
+
 - ✅ **Best for production apps**
 - ✅ Complex migrations
 - ✅ Team environments
 
 **Timeline:**
+
 - Week 1: Auth store
 - Week 2: UI store
 - Later: Socket, Game stores as features develop
@@ -870,4 +961,3 @@ Based on your codebase analysis, here's what I recommend:
 4. Migrate existing auth state management
 5. Test thoroughly
 6. Move to Phase 2 (UI store)
-

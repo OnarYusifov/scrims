@@ -154,6 +154,7 @@ bun run dev
 ```
 
 This should start:
+
 - Frontend on `http://localhost:5000`
 - Backend on `http://localhost:5001`
 
@@ -186,6 +187,7 @@ This should start:
 ### Working on Features
 
 1. **Create a feature branch from `dev`**:
+
    ```bash
    git checkout dev
    git pull origin dev
@@ -198,6 +200,7 @@ This should start:
    - Commit frequently
 
 3. **Push your feature branch**:
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -281,7 +284,8 @@ git push origin feature/your-feature-name
 
 ### Issue: "Cannot find module" errors
 
-**Solution**: 
+**Solution**:
+
 ```bash
 # Reinstall dependencies
 rm -rf node_modules
@@ -291,13 +295,15 @@ bun install
 ### Issue: Database connection errors
 
 **Solution**:
+
 1. Check PostgreSQL is running: `pg_isready`
 2. Verify `DATABASE_URL` in `.env`
 3. Run migrations: `cd packages/db && bunx prisma migrate deploy`
 
 ### Issue: Port already in use
 
-**Solution**: 
+**Solution**:
+
 ```bash
 # Find what's using the port
 lsof -i :5000
@@ -309,6 +315,7 @@ lsof -i :5001
 ### Issue: OAuth not working locally
 
 **Solution**:
+
 1. Make sure OAuth redirect URIs include `http://localhost:5000`
 2. Check `AUTH_URL` and `NEXTAUTH_URL` in `.env`
 3. Verify OAuth credentials are correct
@@ -350,6 +357,7 @@ git merge dev
 ## Getting Help
 
 If you encounter issues:
+
 1. Check this guide
 2. Check `docs/FRIEND_SYNC_GUIDE.md` for sync instructions
 3. Check `docs/API_SUBDOMAIN_MIGRATION.md` for API changes
@@ -367,4 +375,3 @@ If you encounter issues:
 - [ ] Verified backend works (`http://localhost:5001/docs`)
 - [ ] Tested registration/email sending
 - [ ] Ready to start developing! ✅
-

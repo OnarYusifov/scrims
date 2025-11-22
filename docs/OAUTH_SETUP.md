@@ -124,6 +124,7 @@ Make sure your `apps/frontend/app/layout.tsx` wraps children with `<Providers>` 
 ## Step 5: Test the Implementation
 
 1. Start your development server:
+
    ```bash
    cd apps/frontend
    npm run dev
@@ -143,7 +144,8 @@ Make sure your `apps/frontend/app/layout.tsx` wraps children with `<Providers>` 
 
 ### Issue: "redirect_uri_mismatch" or "401: invalid_client" Error
 
-**Solution**: 
+**Solution**:
+
 - **Check `AUTH_URL` or `NEXTAUTH_URL` environment variable**:
   - Must be set to `http://localhost:3000` (or your actual URL)
   - Must match exactly where your app is running
@@ -162,6 +164,7 @@ Make sure your `apps/frontend/app/layout.tsx` wraps children with `<Providers>` 
 ### Issue: "Invalid client" or "Invalid credentials"
 
 **Solution**:
+
 - Verify your Client ID and Client Secret are correct
 - Make sure environment variables are loaded (restart dev server after adding them)
 - Check that you're using the correct credentials for the correct environment (dev vs prod)
@@ -169,6 +172,7 @@ Make sure your `apps/frontend/app/layout.tsx` wraps children with `<Providers>` 
 ### Issue: Session not persisting
 
 **Solution**:
+
 - Make sure `AUTH_SECRET` is set
 - Verify `SessionProvider` is wrapping your app in the layout
 - Check that cookies are enabled in your browser
@@ -176,6 +180,7 @@ Make sure your `apps/frontend/app/layout.tsx` wraps children with `<Providers>` 
 ### Issue: "Email not verified" after OAuth login
 
 **Solution**:
+
 - This should not happen with OAuth providers (they auto-verify emails)
 - Check your `auth.ts` callbacks - they should set `emailVerified` automatically
 - If using Google/Discord, emails should be verified automatically
@@ -195,4 +200,3 @@ Make sure your `apps/frontend/app/layout.tsx` wraps children with `<Providers>` 
 - [NextAuth.js Documentation](https://next-auth.js.org/)
 - [Google OAuth Setup](https://developers.google.com/identity/protocols/oauth2)
 - [Discord OAuth2 Documentation](https://discord.com/developers/docs/topics/oauth2)
-

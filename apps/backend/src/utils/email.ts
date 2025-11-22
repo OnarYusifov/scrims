@@ -237,4 +237,3 @@ export const sendPasswordResetOTP = async ({
     throw new Error("Failed to send password reset OTP email");
   }
 };
-

@@ -15,13 +15,16 @@ function getFrontendUrl(): string {
 }
 
 // Make reactDOMServer available globally for @react-email/render
-if (typeof globalThis !== "undefined" && !(globalThis as Record<string, unknown>).reactDOMServer) {
+if (
+  typeof globalThis !== "undefined" &&
+  !(globalThis as Record<string, unknown>).reactDOMServer
+) {
   (globalThis as Record<string, unknown>).reactDOMServer = reactDOMServer;
 }
 
 /**
  * Resend wrapper for sending password reset OTP emails
- * 
+ *
  * How it works:
  * 1. Generates a 6-digit OTP code (handled by caller via generateOTP)
  * 2. Stores OTP in VerificationToken table (handled by generateOTP)
@@ -51,7 +54,7 @@ export interface SendPasswordResetOTPParams {
 
 /**
  * Sends a branded password reset OTP email using Resend and React Email
- * 
+ *
  * @param params - Email parameters including OTP code
  * @returns Promise resolving to Resend response
  * @throws Error if Resend API key is missing or email sending fails
@@ -72,7 +75,10 @@ export async function sendPasswordResetOTP({
 
   // Render React Email template to HTML
   // Ensure react-dom/server is available before rendering
-  if (typeof globalThis !== "undefined" && !(globalThis as Record<string, unknown>).reactDOMServer) {
+  if (
+    typeof globalThis !== "undefined" &&
+    !(globalThis as Record<string, unknown>).reactDOMServer
+  ) {
     const reactDOMServer = await import("react-dom/server");
     (globalThis as Record<string, unknown>).reactDOMServer = reactDOMServer;
   }
@@ -87,7 +93,9 @@ export async function sendPasswordResetOTP({
 
   // Send via Resend
   const resend = getResend();
-  console.log(`[Email] Sending password reset email to ${email} with code ${otpCode}`);
+  console.log(
+    `[Email] Sending password reset email to ${email} with code ${otpCode}`
+  );
   const { data, error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,
     to: email,
@@ -97,15 +105,12 @@ export async function sendPasswordResetOTP({
 
   if (error) {
     console.error(`[Email] Failed to send password reset email:`, error);
-    throw new Error(`Failed to send password reset OTP email: ${error.message}`);
+    throw new Error(
+      `Failed to send password reset OTP email: ${error.message}`
+    );
   }
 
-  console.log(`[Email] Password reset email sent successfully. ID: ${data?.id}`);
+  console.log(
+    `[Email] Password reset email sent successfully. ID: ${data?.id}`
+  );
 }
-
-
-
-
-
-
-

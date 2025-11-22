@@ -44,7 +44,11 @@ async function testBadgesQuery() {
     const badges = userBadges.map((ub) => ({
       id: ub.badge.id,
       label: ub.badge.label,
-      variant: ub.badge.variant as "default" | "secondary" | "destructive" | "outline",
+      variant: ub.badge.variant as
+        | "default"
+        | "secondary"
+        | "destructive"
+        | "outline",
       icon: ub.badge.icon || undefined,
     }));
 
@@ -61,5 +65,3 @@ async function testBadgesQuery() {
 }
 
 testBadgesQuery();
-
-

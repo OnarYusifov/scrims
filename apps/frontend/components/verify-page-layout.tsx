@@ -41,4 +41,3 @@ export function VerifyPageLayout({ children }: VerifyPageLayoutProps) {
     </main>
   );
 }
-

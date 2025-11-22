@@ -8,7 +8,7 @@ const rootDir = resolve(__dirname || process.cwd(), "../..");
 
 const loadEnvFile = (envPath: string, allowOverride: boolean = false) => {
   if (!existsSync(envPath)) return;
-  
+
   try {
     const envFile = readFileSync(envPath, "utf-8");
     for (const line of envFile.split("\n")) {
@@ -18,7 +18,10 @@ const loadEnvFile = (envPath: string, allowOverride: boolean = false) => {
       if (equalIndex === -1) continue;
       const key = trimmed.substring(0, equalIndex).trim();
       let value = trimmed.substring(equalIndex + 1).trim();
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
         value = value.slice(1, -1);
       }
       if (key && (allowOverride || !process.env[key])) {

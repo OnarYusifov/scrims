@@ -14,14 +14,16 @@ Go to: `https://github.com/OnarYusifov/scrims/settings/branches`
 ### For `dev` branch, select:
 
 ✅ **Require a pull request before merging**
-   - Required approvals: `1`
-   - ✅ Dismiss stale pull request approvals when new commits are pushed
+
+- Required approvals: `1`
+- ✅ Dismiss stale pull request approvals when new commits are pushed
 
 ✅ **Require status checks to pass before merging**
-   - ✅ Require branches to be up to date before merging
-   - Select these checks:
-     - `lint-and-build` (from CI workflow)
-     - `pr-validation` (from PR check workflow)
+
+- ✅ Require branches to be up to date before merging
+- Select these checks:
+  - `lint-and-build` (from CI workflow)
+  - `pr-validation` (from PR check workflow)
 
 ✅ **Block force pushes**
 
@@ -32,6 +34,7 @@ Go to: `https://github.com/OnarYusifov/scrims/settings/branches`
 ✅ **Restrict deletions** - Only allow users with bypass permission
 
 ### For `main` branch, select the same but:
+
 - Required approvals: `2` (more strict)
 
 ## 🔄 How to Merge Your Collaborator's Profile Feature
@@ -54,16 +57,17 @@ Go to: `https://github.com/OnarYusifov/scrims/settings/branches`
 If they already pushed directly to dev:
 
 1. **Create a PR from their commit:**
+
    ```bash
    # Check what they added
    git log origin/dev --oneline -5
-   
+
    # Create a branch from before their changes
    git checkout -b feature/review-profile-changes <commit-before-theirs>
-   
+
    # Cherry-pick their changes
    git cherry-pick <their-commit-hash>
-   
+
    # Push and create PR
    git push origin feature/review-profile-changes
    ```
@@ -86,6 +90,7 @@ If they already pushed directly to dev:
 ## 🤖 For AI Assistants (Both Sides)
 
 Both AI assistants should now:
+
 - ✅ Never push directly to `dev` or `main`
 - ✅ Always create feature branches
 - ✅ Always create Pull Requests
@@ -98,4 +103,3 @@ Both AI assistants should now:
 - `docs/BRANCH_PROTECTION_GUIDE.md` - GitHub settings guide
 - `docs/MERGING_COLLABORATOR_CHANGES.md` - How to merge PRs
 - `COLLABORATION.md` - Updated with PR workflow (already existed)
-
