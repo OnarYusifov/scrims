@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { X, Play, Users, Trophy, TrendingUp, Clock } from "lucide-react";
+import { X, Play, Users, Trophy, TrendingUp, Clock, Gamepad2 } from "lucide-react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,7 +22,13 @@ export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
+  const [queueStatus, setQueueStatus] = useState<{
+    isOpen: boolean;
+    game: "valorant" | "cs2" | null;
+    playersInQueue: number;
+    nextWindow?: { countdown: number; time: string };
+  } | null>(null);
 
   // Initialize from localStorage directly to avoid setState in effect
   const [dismissedBanner, setDismissedBanner] = useState(() => {
@@ -31,9 +38,38 @@ export default function Home() {
     return false;
   });
 
+  const fetchQueueStatus = useCallback(async () => {
+    try {
+      // TODO: Replace with actual API endpoint
+      // const data = await apiGet("/queue/status/global");
+      // setQueueStatus(data);
+      
+      // Temporary mock data
+      setQueueStatus({
+        isOpen: false,
+        game: null,
+        playersInQueue: 0,
+        nextWindow: {
+          countdown: 172800, // 2 days
+          time: "20:00",
+        },
+      });
+    } catch (error) {
+      console.error("Failed to fetch queue status:", error);
+    }
+  }, []);
+
   useEffect(() => {
     setLoading(status === "loading");
   }, [status]);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetchQueueStatus();
+      const interval = setInterval(fetchQueueStatus, 10000); // Poll every 10 seconds
+      return () => clearInterval(interval);
+    }
+  }, [status, fetchQueueStatus]);
 
   // Show toast notification when account is linked via social sign-in
   useEffect(() => {
@@ -118,6 +154,63 @@ export default function Home() {
             in tournaments.
           </p>
         </section>
+
+        {/* Queue Status Banner */}
+        {status === "authenticated" && queueStatus && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6"
+          >
+            <Alert
+              className={`border-2 ${
+                queueStatus.isOpen
+                  ? "border-green-500 bg-green-50 dark:bg-green-950"
+                  : "border-blue-500 bg-blue-50 dark:bg-blue-950"
+              }`}
+            >
+              <Gamepad2
+                className={`h-4 w-4 ${
+                  queueStatus.isOpen
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-blue-600 dark:text-blue-400"
+                }`}
+              />
+              <AlertTitle
+                className={
+                  queueStatus.isOpen
+                    ? "text-green-900 dark:text-green-100"
+                    : "text-blue-900 dark:text-blue-100"
+                }
+              >
+                {queueStatus.isOpen
+                  ? "Trayb Series Queue is Open!"
+                  : "Trayb Series Queue"}
+              </AlertTitle>
+              <AlertDescription
+                className={
+                  queueStatus.isOpen
+                    ? "text-green-800 dark:text-green-200"
+                    : "text-blue-800 dark:text-blue-200"
+                }
+              >
+                <div className="flex items-center justify-between mt-2">
+                  <span>
+                    {queueStatus.isOpen
+                      ? `${queueStatus.playersInQueue} players in queue`
+                      : `Next window: ${queueStatus.nextWindow?.time || "TBA"}`}
+                  </span>
+                  <Button size="sm" asChild>
+                    <Link href="/queue">
+                      {queueStatus.isOpen ? "Join Queue" : "View Schedule"}
+                    </Link>
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </motion.div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
